@@ -251,65 +251,6 @@ namespace rewrites {
 #include "zkir/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.cpp.inc"
 }  // namespace rewrites
 
-struct ConvertBarrettReduce : public OpConversionPattern<BarrettReduceOp> {
-  ConvertBarrettReduce(mlir::MLIRContext *context)
-      : OpConversionPattern<BarrettReduceOp>(context) {}
-
-  using OpConversionPattern::OpConversionPattern;
-
-  LogicalResult matchAndRewrite(
-      BarrettReduceOp op, OpAdaptor adaptor,
-      ConversionPatternRewriter &rewriter) const override {
-    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-
-    // Compute B = 4^{bitWidth} and ratio = floordiv(B / modulus)
-    auto input = adaptor.getInput();
-    auto mod = op.getModulus();
-    auto bitWidth = (mod - 1).getActiveBits();
-    mod = mod.trunc(3 * bitWidth);
-    auto B = APInt(3 * bitWidth, 1).shl(2 * bitWidth);
-    auto barrettRatio = B.udiv(mod);
-
-    Type intermediateType = IntegerType::get(b.getContext(), 3 * bitWidth);
-
-    // Create our pre-computed constants
-    TypedAttr ratioAttr, shiftAttr, modAttr;
-    if (auto tensorType = dyn_cast<RankedTensorType>(input.getType())) {
-      tensorType = tensorType.clone(tensorType.getShape(), intermediateType);
-      ratioAttr = DenseElementsAttr::get(tensorType, barrettRatio);
-      shiftAttr =
-          DenseElementsAttr::get(tensorType, APInt(3 * bitWidth, 2 * bitWidth));
-      modAttr = DenseElementsAttr::get(tensorType, mod);
-      intermediateType = tensorType;
-    } else if (auto integerType = dyn_cast<IntegerType>(input.getType())) {
-      ratioAttr = IntegerAttr::get(intermediateType, barrettRatio);
-      shiftAttr =
-          IntegerAttr::get(intermediateType, APInt(3 * bitWidth, 2 * bitWidth));
-      modAttr = IntegerAttr::get(intermediateType, mod);
-    }
-
-    auto ratioValue = b.create<arith::ConstantOp>(intermediateType, ratioAttr);
-    auto shiftValue = b.create<arith::ConstantOp>(intermediateType, shiftAttr);
-    auto modValue = b.create<arith::ConstantOp>(intermediateType, modAttr);
-
-    // Intermediate value will be in the range [0,p^3) so we need to extend to
-    // 3*bitWidth
-    auto extendOp = b.create<arith::ExtUIOp>(intermediateType, input);
-
-    // Compute x - floordiv(x * ratio, B) * mod
-    auto mulRatioOp = b.create<arith::MulIOp>(extendOp, ratioValue);
-    auto shrOp = b.create<arith::ShRUIOp>(mulRatioOp, shiftValue);
-    auto mulModOp = b.create<arith::MulIOp>(shrOp, modValue);
-    auto subOp = b.create<arith::SubIOp>(extendOp, mulModOp);
-
-    auto truncOp = b.create<arith::TruncIOp>(input.getType(), subOp);
-
-    rewriter.replaceOp(op, truncOp);
-
-    return success();
-  }
-};
-
 struct ModArithToArith : impl::ModArithToArithBase<ModArithToArith> {
   using ModArithToArithBase::ModArithToArithBase;
 

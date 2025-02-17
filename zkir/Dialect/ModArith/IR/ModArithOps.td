@@ -182,27 +182,6 @@ def ModArith_MacOp : ModArith_Op<"mac", [SameOperandsAndResultType, Pure, Elemen
   let assemblyFormat = "operands attr-dict `:` type($output)";
 }
 
-// TODO(#1084): migrate barrett/subifge to mod arith type
-def ModArith_BarrettReduceOp : ModArith_Op<"barrett_reduce", [SameOperandsAndResultType]> {
-  let summary = "Compute the first step of the Barrett reduction.";
-  let description = [{
-    Let $q$ denote a statically known modulus and $b = 4^{w}$, where $w$ is the
-    smallest bit-width that contains the range $[0, q)$. The Barrett reduce
-    operation computes `barret_reduce x = x - floor(x * floor(b / q) / b) * q`.
-
-    Given $0 <= x < q^2$, then this will compute $(x \mod q)$ or $(x \mod q) + q$.
-  }];
-
-  let arguments = (ins
-    SignlessIntegerLike:$input,
-    APIntAttr:$modulus
-  );
-  let results = (outs SignlessIntegerLike:$output);
-  let assemblyFormat = "operands attr-dict `:` qualified(type($input))";
-
-  let hasVerifier = 1;
-}
-
 def ModArith_SubIfGEOp : ModArith_Op<"subifge", [SameOperandsAndResultType]> {
   let summary = "Compute (x >= y) ? x - y : x.";
 
