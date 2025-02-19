@@ -12,8 +12,6 @@ cc_library(
     ],
     deps = [
         ":pass_inc_gen",
-        "@zkir//zkir/Dialect/ModArith/IR:Dialect",
-        "@zkir//zkir/Utils:ConversionUtils",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:AffineUtils",
         "@llvm-project//mlir:ArithDialect",
@@ -23,6 +21,8 @@ cc_library(
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TransformUtils",
+        "@zkir//zkir/Dialect/ModArith/IR:Dialect",
+        "@zkir//zkir/Utils:ConversionUtils",
     ],
 )
 
@@ -30,17 +30,20 @@ gentbl_cc_library(
     name = "pass_inc_gen",
     tbl_outs = [
         (
-            ["-gen-pass-decls", "-name=ArithToModArith"],
+            [
+                "-gen-pass-decls",
+                "-name=ArithToModArith",
+            ],
             "ArithToModArith.h.inc",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "ArithToModArith.td",
     deps = [
-        "@zkir//zkir/Dialect/ModArith/IR:ops_inc_gen",
-        "@zkir//zkir/Dialect/ModArith/IR:td_files",
         "@llvm-project//mlir:ArithOpsTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",
         "@llvm-project//mlir:PassBaseTdFiles",
+        "@zkir//zkir/Dialect/ModArith/IR:ops_inc_gen",
+        "@zkir//zkir/Dialect/ModArith/IR:td_files",
     ],
 )

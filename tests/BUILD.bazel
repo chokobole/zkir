@@ -11,10 +11,10 @@ filegroup(
     testonly = True,
     data = [
         ":lit.cfg.py",
-        "@zkir//tools:zkir-opt",
         "@llvm-project//llvm:FileCheck",
         "@llvm-project//llvm:lit",
         "@llvm-project//llvm:not",
+        "@zkir//tools:zkir-opt",
     ],
 )
 
