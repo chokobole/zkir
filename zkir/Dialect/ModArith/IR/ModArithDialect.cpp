@@ -130,7 +130,7 @@ LogicalResult MacOp::verify() {
 }
 
 ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
-  APInt parsedValue(256, 0);
+  APInt parsedValue(0, 0, /*isSigned=*/true);
   Type parsedType;
 
   if (failed(parser.parseInteger(parsedValue))) {
@@ -139,16 +139,29 @@ ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
     return failure();
   }
 
+  if (parsedValue.isNegative()) {
+    parser.emitError(parser.getCurrentLocation(),
+                     "negative value is not allowed");
+    return failure();
+  }
+
   if (parser.parseColon() || parser.parseType(parsedType)) return failure();
 
   auto modArithType = dyn_cast<ModArithType>(parsedType);
   if (!modArithType) return failure();
 
+  auto modulus = modArithType.getModulus().getValue();
+  if (modulus.isNegative() || modulus.isZero()) {
+    parser.emitError(parser.getCurrentLocation(), "modulus must be positive");
+    return failure();
+  }
+
   auto outputBitWidth =
       modArithType.getModulus().getType().getIntOrFloatBitWidth();
   if (parsedValue.getActiveBits() > outputBitWidth)
-    return parser.emitError(parser.getCurrentLocation(),
-                            "constant value is too large for the modulus");
+    return parser.emitError(
+        parser.getCurrentLocation(),
+        "constant value is too large for the underlying type");
 
   // NOTE(ashjeong): `trunc()` changed to `zextOrTrunc()` since
   // `mod_arith.constant 0 : i256` of large modulus fails as
