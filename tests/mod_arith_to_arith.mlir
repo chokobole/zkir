@@ -3,6 +3,18 @@
 !Zp = !mod_arith.int<65537 : i32>
 !Zpv = tensor<4x!Zp>
 
+// CHECK-LABEL: @test_lower_constant
+// CHECK-SAME: () -> i5 {
+func.func @test_lower_constant() -> !mod_arith.int<3 : i5> {
+  // CHECK-NOT: mod_arith.constant
+  // CHECK: %[[CVAL:.*]] = arith.constant 5 : i5
+  // CHECK: %[[CMOD:.*]] = arith.constant 3 : i5
+  // CHECK: %[[REMU:.*]] = arith.remui %[[CVAL]], %[[CMOD]] : i5
+  // CHECK: return %[[REMU]] : i5
+  %res = mod_arith.constant 5:  !mod_arith.int<3 : i5>
+  return %res: !mod_arith.int<3 : i5>
+}
+
 // CHECK-LABEL: @test_lower_encapsulate
 // CHECK-SAME: (%[[LHS:.*]]: [[T:.*]]) -> [[T]] {
 func.func @test_lower_encapsulate(%lhs : i32) -> !Zp {

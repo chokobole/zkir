@@ -5,15 +5,15 @@ package(
 )
 
 cc_library(
-    name = "ModArith",
+    name = "Field",
     srcs = [
-        "ModArithDialect.cpp",
+        "FieldDialect.cpp",
     ],
     hdrs = [
-        "ModArithAttributes.h",
-        "ModArithDialect.h",
-        "ModArithOps.h",
-        "ModArithTypes.h",
+        "FieldAttributes.h",
+        "FieldDialect.h",
+        "FieldOps.h",
+        "FieldTypes.h",
     ],
     deps = [
         ":attributes_inc_gen",
@@ -31,10 +31,10 @@ cc_library(
 td_library(
     name = "td_files",
     srcs = [
-        "ModArithAttributes.td",
-        "ModArithDialect.td",
-        "ModArithOps.td",
-        "ModArithTypes.td",
+        "FieldAttributes.td",
+        "FieldDialect.td",
+        "FieldOps.td",
+        "FieldTypes.td",
     ],
     deps = [
         "@llvm-project//mlir:BuiltinDialectTdFiles",
@@ -49,15 +49,15 @@ gentbl_cc_library(
     tbl_outs = [
         (
             ["-gen-attrdef-decls"],
-            "ModArithAttributes.h.inc",
+            "FieldAttributes.h.inc",
         ),
         (
             ["-gen-attrdef-defs"],
-            "ModArithAttributes.cpp.inc",
+            "FieldAttributes.cpp.inc",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "ModArithAttributes.td",
+    td_file = "FieldAttributes.td",
     deps = [
         ":dialect_inc_gen",
         ":td_files",
@@ -70,15 +70,15 @@ gentbl_cc_library(
     tbl_outs = [
         (
             ["-gen-dialect-decls"],
-            "ModArithDialect.h.inc",
+            "FieldDialect.h.inc",
         ),
         (
             ["-gen-dialect-defs"],
-            "ModArithDialect.cpp.inc",
+            "FieldDialect.cpp.inc",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "ModArithDialect.td",
+    td_file = "FieldDialect.td",
     deps = [
         ":td_files",
     ],
@@ -89,15 +89,15 @@ gentbl_cc_library(
     tbl_outs = [
         (
             ["-gen-typedef-decls"],
-            "ModArithTypes.h.inc",
+            "FieldTypes.h.inc",
         ),
         (
             ["-gen-typedef-defs"],
-            "ModArithTypes.cpp.inc",
+            "FieldTypes.cpp.inc",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "ModArithTypes.td",
+    td_file = "FieldTypes.td",
     deps = [
         ":dialect_inc_gen",
         ":td_files",
@@ -109,15 +109,15 @@ gentbl_cc_library(
     tbl_outs = [
         (
             ["-gen-op-decls"],
-            "ModArithOps.h.inc",
+            "FieldOps.h.inc",
         ),
         (
             ["-gen-op-defs"],
-            "ModArithOps.cpp.inc",
+            "FieldOps.cpp.inc",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "ModArithOps.td",
+    td_file = "FieldOps.td",
     deps = [
         ":dialect_inc_gen",
         ":td_files",

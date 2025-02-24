@@ -29,7 +29,7 @@ func.func @test_bn254_sub() -> !Zp {
   %0 = mod_arith.constant 21888242871839275222246405745257275088696311157297823662689037894645226208585 :!Zp // 2
   %1 = mod_arith.constant 2 : !Zp
   %2 = mod_arith.constant 4 : !Zp
-  %3 = mod_arith.constant -2 :!Zp
+  %3 = mod_arith.constant 21888242871839275222246405745257275088696311157297823662689037894645226208581 :!Zp // -2
 
   %i0 = mod_arith.sub %0, %0 : !Zp // 0
   %i1 = mod_arith.sub %0, %1 : !Zp // 0

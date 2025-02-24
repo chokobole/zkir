@@ -121,9 +121,13 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
   LogicalResult matchAndRewrite(
       ConstantOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    auto constOp = rewriter.create<arith::ConstantOp>(op.getLoc(),
-                                                      op.getValue().getValue());
-    rewriter.replaceOp(op, constOp);
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    auto cval =
+        b.create<arith::ConstantOp>(op.getLoc(), op.getValue().getValue());
+    auto cmod = b.create<arith::ConstantOp>(modulusAttr(op));
+    auto remu = b.create<arith::RemUIOp>(cval, cmod);
+    rewriter.replaceOp(op, remu);
     return success();
   }
 };

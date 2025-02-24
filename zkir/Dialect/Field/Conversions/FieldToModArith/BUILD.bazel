@@ -5,18 +5,18 @@ package(
 )
 
 cc_library(
-    name = "ModArithToArith",
-    srcs = ["ModArithToArith.cpp"],
+    name = "FieldToModArith",
+    srcs = ["FieldToModArith.cpp"],
     hdrs = [
-        "ModArithToArith.h",
+        "FieldToModArith.h",
     ],
     deps = [
         ":pass_inc_gen",
+        "//zkir/Dialect/Field/IR:Field",
         "//zkir/Dialect/ModArith/IR:ModArith",
         "//zkir/Utils:ConversionUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
-        "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:LinalgDialect",
         "@llvm-project//mlir:Pass",
@@ -32,25 +32,25 @@ gentbl_cc_library(
         (
             [
                 "-gen-pass-decls",
-                "-name=ModArithToArith",
+                "-name=FieldToModArith",
             ],
-            "ModArithToArith.h.inc",
+            "FieldToModArith.h.inc",
         ),
         (
             ["-gen-rewriters"],
-            "ModArithToArith.cpp.inc",
+            "FieldToModArith.cpp.inc",
         ),
         (
             ["-gen-pass-doc"],
-            "ModArithToArith.md",
+            "FieldToModArith.md",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "ModArithToArith.td",
+    td_file = "FieldToModArith.td",
     deps = [
-        "//zkir/Dialect/ModArith/IR:ops_inc_gen",
+        "//zkir/Dialect/Field/IR:ops_inc_gen",
+        "//zkir/Dialect/Field/IR:td_files",
         "//zkir/Dialect/ModArith/IR:td_files",
-        "@llvm-project//mlir:ArithOpsTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",
         "@llvm-project//mlir:PassBaseTdFiles",
     ],
