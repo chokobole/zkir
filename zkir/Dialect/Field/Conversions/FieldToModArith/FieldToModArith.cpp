@@ -60,36 +60,6 @@ class PrimeFieldToModArithTypeConverter : public TypeConverter {
   }
 };
 
-template <typename Op>
-TypedAttr modulusAttr(Op op) {
-  auto type = op.getResult().getType();
-  auto pfType = getResultPrimeFieldType(op);
-  APInt modulus = pfType.getModulus().getValue();
-
-  auto width = modulus.getBitWidth();
-
-  auto intType = IntegerType::get(op.getContext(), width);
-  auto truncmod = modulus.zextOrTrunc(width);
-
-  if (auto st = mlir::dyn_cast<ShapedType>(type)) {
-    auto containerType = st.cloneWith(st.getShape(), intType);
-    return DenseElementsAttr::get(containerType, truncmod);
-  }
-  return IntegerAttr::get(intType, truncmod);
-}
-
-template <typename Op>
-inline Type modulusType(Op op) {
-  return modulusAttr(op).getType();
-}
-
-template <typename Op>
-mod_arith::ModArithType inferModArithType(Op op) {
-  auto modulus = getResultPrimeFieldType(op).getModulus();
-  auto modType = mod_arith::ModArithType::get(op.getContext(), modulus);
-  return modType;
-}
-
 struct ConvertConstant : public OpConversionPattern<ConstantOp> {
   ConvertConstant(mlir::MLIRContext *context)
       : OpConversionPattern<ConstantOp>(context) {}
@@ -101,7 +71,8 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto modType = inferModArithType(op);
+    auto pftype = getResultPrimeFieldType(op);
+    auto modType = convertPrimeFieldType(pftype);
     auto cval = b.create<mod_arith::ConstantOp>(
         modType, op.getValue().getValue().getValue());
     rewriter.replaceOp(op, cval);
@@ -120,10 +91,7 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto modType = inferModArithType(op);
-    auto add =
-        b.create<mod_arith::AddOp>(modType, adaptor.getLhs(), adaptor.getRhs());
-
+    auto add = b.create<mod_arith::AddOp>(adaptor.getLhs(), adaptor.getRhs());
     rewriter.replaceOp(op, add);
     return success();
   }
@@ -140,10 +108,7 @@ struct ConvertSub : public OpConversionPattern<SubOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto modArithType = inferModArithType(op);
-    auto sub = b.create<mod_arith::SubOp>(modArithType, adaptor.getLhs(),
-                                          adaptor.getRhs());
-
+    auto sub = b.create<mod_arith::SubOp>(adaptor.getLhs(), adaptor.getRhs());
     rewriter.replaceOp(op, sub);
     return success();
   }
@@ -160,10 +125,7 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto modArithType = inferModArithType(op);
-    auto mul = b.create<mod_arith::MulOp>(modArithType, adaptor.getLhs(),
-                                          adaptor.getRhs());
-
+    auto mul = b.create<mod_arith::MulOp>(adaptor.getLhs(), adaptor.getRhs());
     rewriter.replaceOp(op, mul);
     return success();
   }
