@@ -60,9 +60,7 @@ gentbl_cc_library(
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "ModArithAttributes.td",
     deps = [
-        ":dialect_inc_gen",
         ":td_files",
-        ":types_inc_gen",
     ],
 )
 
@@ -100,7 +98,6 @@ gentbl_cc_library(
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "ModArithTypes.td",
     deps = [
-        ":dialect_inc_gen",
         ":td_files",
     ],
 )
@@ -120,8 +117,6 @@ gentbl_cc_library(
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "ModArithOps.td",
     deps = [
-        ":dialect_inc_gen",
         ":td_files",
-        ":types_inc_gen",
     ],
 )
