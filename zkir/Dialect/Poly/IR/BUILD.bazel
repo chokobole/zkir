@@ -6,25 +6,28 @@ package(
 )
 
 cc_library(
-    name = "ModArith",
+    name = "Poly",
     srcs = [
-        "ModArithDialect.cpp",
+        "PolyDialect.cpp",
+        "PolyOps.cpp",
     ],
     hdrs = [
-        "ModArithAttributes.h",
-        "ModArithDialect.h",
-        "ModArithOps.h",
-        "ModArithTypes.h",
+        "PolyAttributes.h",
+        "PolyDialect.h",
+        "PolyOps.h",
+        "PolyTypes.h",
     ],
     deps = [
         ":attributes_inc_gen",
         ":dialect_inc_gen",
         ":ops_inc_gen",
         ":types_inc_gen",
+        "//zkir/Dialect/Field/IR:Field",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
+        "@llvm-project//mlir:PolynomialDialect",
         "@llvm-project//mlir:Support",
     ],
 )
@@ -32,10 +35,10 @@ cc_library(
 td_library(
     name = "td_files",
     srcs = [
-        "ModArithAttributes.td",
-        "ModArithDialect.td",
-        "ModArithOps.td",
-        "ModArithTypes.td",
+        "PolyAttributes.td",
+        "PolyDialect.td",
+        "PolyOps.td",
+        "PolyTypes.td",
     ],
     deps = [
         "@llvm-project//mlir:BuiltinDialectTdFiles",
@@ -47,37 +50,40 @@ td_library(
 
 gentbl_cc_library(
     name = "attributes_inc_gen",
+    includes = ["../../../.."],
     tbl_outs = [
         (
             ["-gen-attrdef-decls"],
-            "ModArithAttributes.h.inc",
+            "PolyAttributes.h.inc",
         ),
         (
             ["-gen-attrdef-defs"],
-            "ModArithAttributes.cpp.inc",
+            "PolyAttributes.cpp.inc",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "ModArithAttributes.td",
+    td_file = "PolyAttributes.td",
     deps = [
         ":td_files",
+        "//zkir/Dialect/Field/IR:td_files",
     ],
 )
 
 gentbl_cc_library(
     name = "dialect_inc_gen",
+    includes = ["../../../.."],
     tbl_outs = [
         (
             ["-gen-dialect-decls"],
-            "ModArithDialect.h.inc",
+            "PolyDialect.h.inc",
         ),
         (
             ["-gen-dialect-defs"],
-            "ModArithDialect.cpp.inc",
+            "PolyDialect.cpp.inc",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "ModArithDialect.td",
+    td_file = "PolyDialect.td",
     deps = [
         ":td_files",
     ],
@@ -85,38 +91,48 @@ gentbl_cc_library(
 
 gentbl_cc_library(
     name = "types_inc_gen",
+    includes = ["../../../.."],
     tbl_outs = [
         (
-            ["-gen-typedef-decls"],
-            "ModArithTypes.h.inc",
+            [
+                "-gen-typedef-decls",
+                "--typedefs-dialect=poly",
+            ],
+            "PolyTypes.h.inc",
         ),
         (
-            ["-gen-typedef-defs"],
-            "ModArithTypes.cpp.inc",
+            [
+                "-gen-typedef-defs",
+                "--typedefs-dialect=poly",
+            ],
+            "PolyTypes.cpp.inc",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "ModArithTypes.td",
+    td_file = "PolyTypes.td",
     deps = [
         ":td_files",
+        "//zkir/Dialect/Field/IR:td_files",
     ],
 )
 
 gentbl_cc_library(
     name = "ops_inc_gen",
+    includes = ["../../../.."],
     tbl_outs = [
         (
             ["-gen-op-decls"],
-            "ModArithOps.h.inc",
+            "PolyOps.h.inc",
         ),
         (
             ["-gen-op-defs"],
-            "ModArithOps.cpp.inc",
+            "PolyOps.cpp.inc",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "ModArithOps.td",
+    td_file = "PolyOps.td",
     deps = [
         ":td_files",
+        "//zkir/Dialect/Field/IR:td_files",
     ],
 )

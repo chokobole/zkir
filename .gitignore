@@ -11,3 +11,4 @@ llvm-build
 **/__pycache__
 *.whl
 **/*.egg-info/
+.bazelrc.user
