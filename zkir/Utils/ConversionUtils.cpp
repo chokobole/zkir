@@ -5,6 +5,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 
 #include "llvm/include/llvm/ADT/TypeSwitch.h"         // from @llvm-project
 #include "llvm/include/llvm/Support/ErrorHandling.h"  // from @llvm-project
@@ -34,6 +35,40 @@ namespace zkir {
 using ::mlir::func::CallOp;
 using ::mlir::func::FuncOp;
 using ::mlir::func::ReturnOp;
+
+LogicalResult convertAnyOperand(const TypeConverter *typeConverter,
+                                Operation *op, ArrayRef<Value> operands,
+                                ConversionPatternRewriter &rewriter) {
+  if (typeConverter->isLegal(op)) {
+    return failure();
+  }
+
+  SmallVector<Type> newOperandTypes;
+  if (failed(
+          typeConverter->convertTypes(op->getOperandTypes(), newOperandTypes)))
+    return failure();
+
+  SmallVector<Type> newResultTypes;
+  if (failed(typeConverter->convertTypes(op->getResultTypes(), newResultTypes)))
+    return failure();
+
+  SmallVector<std::unique_ptr<Region>, 1> regions;
+  IRMapping mapping;
+  for (auto &r : op->getRegions()) {
+    std::unique_ptr<Region> newRegion(new Region(op));
+    rewriter.cloneRegionBefore(r, *newRegion, newRegion->end(), mapping);
+    if (failed(rewriter.convertRegionTypes(newRegion.get(), *typeConverter)))
+      return failure();
+    regions.push_back(std::move(newRegion));
+  }
+
+  Operation *newOp = rewriter.create(OperationState(
+      op->getLoc(), op->getName().getStringRef(), operands, newResultTypes,
+      op->getAttrs(), op->getSuccessors(), regions));
+
+  rewriter.replaceOp(op, newOp);
+  return success();
+}
 
 void addStructuralConversionPatterns(TypeConverter &typeConverter,
                                      RewritePatternSet &patterns,

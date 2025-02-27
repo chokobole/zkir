@@ -32,6 +32,50 @@
 namespace mlir {
 namespace zkir {
 
+LogicalResult convertAnyOperand(const TypeConverter *typeConverter,
+                                Operation *op, ArrayRef<Value> operands,
+                                ConversionPatternRewriter &rewriter);
+
+template <typename T>
+struct ConvertAny : public ConversionPattern {
+  ConvertAny(const TypeConverter &anyTypeConverter, MLIRContext *context)
+      : ConversionPattern(anyTypeConverter, RewritePattern::MatchAnyOpTypeTag(),
+                          /*benefit=*/1, context) {
+    setDebugName("ConvertAny");
+    setHasBoundedRewriteRecursion(true);
+  }
+
+  // generate a new op where all operands have been replaced with their
+  // materialized/typeconverted versions
+  LogicalResult matchAndRewrite(
+      Operation *op, ArrayRef<Value> operands,
+      ConversionPatternRewriter &rewriter) const override {
+    if (!isa<T>(op)) {
+      return failure();
+    }
+
+    return convertAnyOperand(getTypeConverter(), op, operands, rewriter);
+  }
+};
+
+template <>
+struct ConvertAny<void> : public ConversionPattern {
+  ConvertAny<void>(const TypeConverter &anyTypeConverter, MLIRContext *context)
+      : ConversionPattern(anyTypeConverter, RewritePattern::MatchAnyOpTypeTag(),
+                          /*benefit=*/1, context) {
+    setDebugName("ConvertAny");
+    setHasBoundedRewriteRecursion(true);
+  }
+
+  // generate a new op where all operands have been replaced with their
+  // materialized/typeconverted versions
+  LogicalResult matchAndRewrite(
+      Operation *op, ArrayRef<Value> operands,
+      ConversionPatternRewriter &rewriter) const override {
+    return convertAnyOperand(getTypeConverter(), op, operands, rewriter);
+  }
+};
+
 template <typename SourceArithOp, typename TargetModArithOp>
 struct ConvertBinOp : public OpConversionPattern<SourceArithOp> {
   explicit ConvertBinOp(mlir::MLIRContext *context)
