@@ -67,3 +67,15 @@ func.func @test_lower_mul_vec(%lhs : !PFv, %rhs : !PFv) -> !PFv {
   // CHECK: return %[[RES]] : [[T]]
   return %res : !PFv
 }
+
+// CHECK-LABEL: @test_lower_constant_tensor
+// CHECK-SAME: () -> [[T:.*]] {
+func.func @test_lower_constant_tensor() -> !PFv {
+  // CHECK-NOT: field.pf.constant
+  // CHECK: %[[C0:.*]] = mod_arith.constant 5 : !Z3_i32_
+  %c0 = field.pf.constant 5:  !PF1
+  // CHECK: %[[RES:.*]] = tensor.from_elements %[[C0]], %[[C0]], %[[C0]], %[[C0]] : tensor<4x!Z3_i32_>
+  %res = tensor.from_elements %c0, %c0, %c0, %c0 : !PFv
+  // CHECK: return %[[RES]] : [[T]]
+  return %res : !PFv
+}
