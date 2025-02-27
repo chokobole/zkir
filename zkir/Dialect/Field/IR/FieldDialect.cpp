@@ -3,17 +3,17 @@
 #include <cassert>
 #include <optional>
 
-#include "llvm/include/llvm/ADT/TypeSwitch.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/DialectImplementation.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/Location.h"               // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/OpImplementation.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/OperationSupport.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"
+#include "mlir/include/mlir/IR/BuiltinTypes.h"
+#include "mlir/include/mlir/IR/DialectImplementation.h"
+#include "mlir/include/mlir/IR/Location.h"
+#include "mlir/include/mlir/IR/MLIRContext.h"
+#include "mlir/include/mlir/IR/OpImplementation.h"
+#include "mlir/include/mlir/IR/OperationSupport.h"
+#include "mlir/include/mlir/IR/TypeUtilities.h"
+#include "mlir/include/mlir/Support/LLVM.h"
+#include "mlir/include/mlir/Support/LogicalResult.h"
 #include "zkir/Dialect/Field/IR/FieldAttributes.h"
 #include "zkir/Dialect/Field/IR/FieldOps.h"
 #include "zkir/Dialect/Field/IR/FieldTypes.h"

@@ -6,27 +6,27 @@
 #include <optional>
 #include <string>
 
-#include "llvm/include/llvm/ADT/TypeSwitch.h"         // from @llvm-project
-#include "llvm/include/llvm/Support/ErrorHandling.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"   // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Func/Transforms/FuncConversions.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/SCF/Transforms/Patterns.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/IRMapping.h"              // from @llvm-project
-#include "mlir/include/mlir/IR/OpDefinition.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/OperationSupport.h"       // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/Region.h"                 // from @llvm-project
-#include "mlir/include/mlir/IR/Value.h"                  // from @llvm-project
-#include "mlir/include/mlir/IR/Verifier.h"               // from @llvm-project
-#include "mlir/include/mlir/IR/Visitors.h"               // from @llvm-project
-#include "mlir/include/mlir/Interfaces/FunctionInterfaces.h"  // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"           // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"  // from @llvm-project
-#include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
+#include "llvm/include/llvm/ADT/TypeSwitch.h"
+#include "llvm/include/llvm/Support/ErrorHandling.h"
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/include/mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/include/mlir/Dialect/Func/Transforms/FuncConversions.h"
+#include "mlir/include/mlir/Dialect/SCF/Transforms/Patterns.h"
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"
+#include "mlir/include/mlir/IR/BuiltinTypes.h"
+#include "mlir/include/mlir/IR/IRMapping.h"
+#include "mlir/include/mlir/IR/OpDefinition.h"
+#include "mlir/include/mlir/IR/OperationSupport.h"
+#include "mlir/include/mlir/IR/PatternMatch.h"
+#include "mlir/include/mlir/IR/Region.h"
+#include "mlir/include/mlir/IR/Value.h"
+#include "mlir/include/mlir/IR/Verifier.h"
+#include "mlir/include/mlir/IR/Visitors.h"
+#include "mlir/include/mlir/Interfaces/FunctionInterfaces.h"
+#include "mlir/include/mlir/Support/LLVM.h"
+#include "mlir/include/mlir/Support/LogicalResult.h"
+#include "mlir/include/mlir/Transforms/DialectConversion.h"
 
 namespace mlir {
 namespace zkir {

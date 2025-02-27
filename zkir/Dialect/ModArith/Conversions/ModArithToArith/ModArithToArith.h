@@ -1,8 +1,8 @@
 #ifndef ZKIR_DIALECT_MODARITH_CONVERSIONS_MODARITHTOARITH_MODARITHTOARITH_H_
 #define ZKIR_DIALECT_MODARITH_CONVERSIONS_MODARITHTOARITH_MODARITHTOARITH_H_
 
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
-#include "mlir/include/mlir/Pass/Pass.h"               // from @llvm-project
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/include/mlir/Pass/Pass.h"
 
 namespace mlir {
 namespace zkir {

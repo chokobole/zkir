@@ -2,23 +2,23 @@
 
 #include <utility>
 
-#include "llvm/include/llvm/Support/Casting.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"    // from @llvm-project
-#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"  // from @llvm-project
-#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinAttributes.h"      // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinOps.h"             // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"  // from @llvm-project
-#include "mlir/include/mlir/IR/BuiltinTypes.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"   // from @llvm-project
-#include "mlir/include/mlir/IR/MLIRContext.h"            // from @llvm-project
-#include "mlir/include/mlir/IR/PatternMatch.h"           // from @llvm-project
-#include "mlir/include/mlir/IR/TypeUtilities.h"          // from @llvm-project
-#include "mlir/include/mlir/Support/LLVM.h"              // from @llvm-project
-#include "mlir/include/mlir/Support/LogicalResult.h"     // from @llvm-project
-#include "mlir/include/mlir/Transforms/DialectConversion.h"  // from @llvm-project
+#include "llvm/include/llvm/Support/Casting.h"
+#include "mlir/include/mlir/Dialect/Affine/IR/AffineOps.h"
+#include "mlir/include/mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/include/mlir/Dialect/Linalg/IR/Linalg.h"
+#include "mlir/include/mlir/Dialect/Tensor/IR/Tensor.h"
+#include "mlir/include/mlir/IR/BuiltinAttributeInterfaces.h"
+#include "mlir/include/mlir/IR/BuiltinAttributes.h"
+#include "mlir/include/mlir/IR/BuiltinOps.h"
+#include "mlir/include/mlir/IR/BuiltinTypeInterfaces.h"
+#include "mlir/include/mlir/IR/BuiltinTypes.h"
+#include "mlir/include/mlir/IR/ImplicitLocOpBuilder.h"
+#include "mlir/include/mlir/IR/MLIRContext.h"
+#include "mlir/include/mlir/IR/PatternMatch.h"
+#include "mlir/include/mlir/IR/TypeUtilities.h"
+#include "mlir/include/mlir/Support/LLVM.h"
+#include "mlir/include/mlir/Support/LogicalResult.h"
+#include "mlir/include/mlir/Transforms/DialectConversion.h"
 #include "zkir/Dialect/ModArith/IR/ModArithDialect.h"
 #include "zkir/Dialect/ModArith/IR/ModArithOps.h"
 #include "zkir/Dialect/ModArith/IR/ModArithTypes.h"
