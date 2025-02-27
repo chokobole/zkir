@@ -1,0 +1,70 @@
+name: CI
+
+permissions: read-all
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+# Ensure that only a single job or workflow using the same
+# concurrency group will run at a time. This would cancel
+# any in-progress jobs in the same github workflow and github
+# ref (e.g. refs/heads/main or refs/pull/<pr_number>/merge).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout ZKIR
+        uses: actions/checkout@v4
+
+      - name: Install FileCheck
+        run: |
+          sudo apt install llvm-19-tools
+          sudo ln -s /usr/bin/FileCheck-19 /usr/local/bin/FileCheck
+
+      - name: Install lit
+        run:
+          pip install lit
+
+      - name: Setup Bazelisk
+        uses: bazelbuild/setup-bazelisk@v2
+
+      - name: Mount Bazel Cache
+        uses: actions/cache@v4
+        with:
+          path: "~/.cache/bazel"
+          key: ${{ runner.os }}-zkir_bazelbuild-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE', 'WORKSPACE.bazel', 'MODULE.bazel') }}
+          restore-keys: |
+            ${{ runner.os }}-zkir_bazelbuild-
+
+      - name: Run `bazel build`
+        run: |
+          bazel build --test_output=errors //...
+
+      - name: Run `bazel test`
+        run: |
+          bazel test --test_output=errors //...
+
+  pre-commit-style:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout ZKIR
+        uses: actions/checkout@v4
+
+      - name: Checkout Setup Python
+        uses: actions/setup-python@v4.7.0
+        with:
+            python-version: '3.10'
+
+      - name: Install cpplint
+        run:
+          pip install cpplint
+
+      - name: Run pre-commit github action
+        uses: pre-commit/action@646c83fcd040023954eafda54b4db0192ce70507 # pin@v3
