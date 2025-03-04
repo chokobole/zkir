@@ -198,21 +198,18 @@ void ArithToModArith::runOnOperation() {
             typeConverter.isLegal(op->getResultTypes()));
   });
 
-  target.addDynamicallyLegalOp<
-      memref::AllocOp, memref::DeallocOp, memref::StoreOp, memref::SubViewOp,
-      memref::CopyOp, tensor::FromElementsOp, tensor::ExtractOp,
-      affine::AffineStoreOp, affine::AffineLoadOp>([&](Operation *op) {
+  target.addDynamicallyLegalOp<tensor::FromElementsOp>([&](Operation *op) {
     return typeConverter.isLegal(op->getOperandTypes()) &&
            typeConverter.isLegal(op->getResultTypes());
   });
 
   RewritePatternSet patterns(context);
-  patterns
-      .add<ConvertConstant, ConvertExtSI, ConvertExtUI,
-           ConvertBinOp<mlir::arith::AddIOp, mod_arith::AddOp>,
-           ConvertBinOp<mlir::arith::SubIOp, mod_arith::SubOp>,
-           ConvertBinOp<mlir::arith::MulIOp, mod_arith::MulOp>, ConvertLoadOp>(
-          typeConverter, context);
+  patterns.add<ConvertConstant, ConvertExtSI, ConvertExtUI,
+               ConvertBinOp<mlir::arith::AddIOp, mod_arith::AddOp>,
+               ConvertBinOp<mlir::arith::SubIOp, mod_arith::SubOp>,
+               ConvertBinOp<mlir::arith::MulIOp, mod_arith::MulOp>,
+               ConvertAny<tensor::FromElementsOp>, ConvertLoadOp>(typeConverter,
+                                                                  context);
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
 

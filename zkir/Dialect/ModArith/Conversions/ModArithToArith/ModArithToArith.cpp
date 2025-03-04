@@ -273,15 +273,12 @@ void ModArithToArith::runOnOperation() {
   RewritePatternSet patterns(context);
   rewrites::populateWithGenerated(patterns);
   patterns.add<ConvertEncapsulate, ConvertExtract, ConvertReduce, ConvertAdd,
-               ConvertSub, ConvertMul, ConvertMac, ConvertConstant>(
-      typeConverter, context);
+               ConvertSub, ConvertMul, ConvertMac, ConvertConstant,
+               ConvertAny<tensor::FromElementsOp>>(typeConverter, context);
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
 
-  target.addDynamicallyLegalOp<
-      tensor::EmptyOp, tensor::ExtractOp, tensor::InsertOp, tensor::CastOp,
-      affine::AffineForOp, affine::AffineYieldOp, linalg::GenericOp,
-      linalg::YieldOp, tensor::ExtractSliceOp, tensor::InsertSliceOp>(
+  target.addDynamicallyLegalOp<tensor::FromElementsOp>(
       [&](auto op) { return typeConverter.isLegal(op); });
 
   if (failed(applyPartialConversion(module, target, std::move(patterns)))) {

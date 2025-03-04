@@ -157,6 +157,20 @@ func.func @test_lower_mul_vec(%lhs : !Zpv, %rhs : !Zpv) -> !Zpv {
   return %res : !Zpv
 }
 
+// CHECK-LABEL: @test_lower_constant_tensor
+// CHECK-SAME: () -> [[T:.*]] {
+func.func @test_lower_constant_tensor() -> !Zpv {
+  // CHECK-NOT: mod_arith.constant
+  // CHECK: %[[C0:.*]] = arith.constant 5 : i32
+  // CHECK: %[[C1:.*]] = arith.constant 65537 : i32
+  // CHECK: %[[C2:.*]] = arith.remui %[[C0]], %[[C1]] : i32
+  %c0 = mod_arith.constant 5:  !Zp
+  // CHECK: %[[RES:.*]] = tensor.from_elements %[[C2]], %[[C2]], %[[C2]], %[[C2]] : tensor<4xi32>
+  %res = tensor.from_elements %c0, %c0, %c0, %c0 : !Zpv
+  // CHECK: return %[[RES]] : [[T]]
+  return %res : !Zpv
+}
+
 // CHECK-LABEL: @test_lower_mac
 // CHECK-SAME: (%[[LHS:.*]]: [[T:.*]], %[[RHS:.*]]: [[T]], %[[ACC:.*]]: [[T]]) -> [[T]] {
 func.func @test_lower_mac(%lhs : !Zp, %rhs : !Zp, %acc : !Zp) -> !Zp {
