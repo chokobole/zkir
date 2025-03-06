@@ -122,8 +122,7 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto cval =
-        b.create<arith::ConstantOp>(op.getLoc(), op.getValue().getValue());
+    auto cval = b.create<arith::ConstantOp>(op.getLoc(), adaptor.getValue());
     auto cmod = b.create<arith::ConstantOp>(modulusAttr(op));
     auto remu = b.create<arith::RemUIOp>(cval, cmod);
     rewriter.replaceOp(op, remu);

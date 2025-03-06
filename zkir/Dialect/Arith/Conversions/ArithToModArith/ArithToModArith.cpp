@@ -16,7 +16,6 @@
 #include "mlir/IR/ValueRange.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Transforms/DialectConversion.h"
-#include "zkir/Dialect/ModArith/IR/ModArithAttributes.h"
 #include "zkir/Dialect/ModArith/IR/ModArithDialect.h"
 #include "zkir/Dialect/ModArith/IR/ModArithOps.h"
 #include "zkir/Dialect/ModArith/IR/ModArithTypes.h"
@@ -86,9 +85,8 @@ struct ConvertConstant : public OpConversionPattern<mlir::arith::ConstantOp> {
       return failure();
     }
 
-    auto result = b.create<mod_arith::ConstantOp>(mod_arith::ModArithAttr::get(
-        convertArithType(op.getType()),
-        cast<IntegerAttr>(op.getValue()).getValue()));
+    auto result = b.create<mod_arith::ConstantOp>(
+        convertArithType(op.getType()), op.getValue());
 
     rewriter.replaceOp(op, result);
     return success();
