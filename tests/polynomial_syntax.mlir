@@ -18,5 +18,9 @@ func.func @test_poly_syntax() {
   %3 = poly.sub %0, %1 : !poly_ty1
   // CHECK: %[[RES2:.*]] = poly.mul %[[C0]], %[[C1]] : [[T]]
   %4 = poly.mul %0, %1 : !poly_ty1
+  // CHECK: %[[RES3:.*]] = poly.to_tensor %[[C0]] : [[T]] -> [[T_TENSOR:.*]]
+  %5 = poly.to_tensor %0 : !poly_ty1 -> tensor<4x!PF1>
+  // CHECK: %[[RES4:.*]] = poly.from_tensor %[[RES3]] : [[T_TENSOR]] -> [[T]]
+  %6 = poly.from_tensor %5 : tensor<4x!PF1> -> !poly_ty1
   return
 }

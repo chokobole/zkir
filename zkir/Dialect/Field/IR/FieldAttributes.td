@@ -22,6 +22,13 @@ def Field_PrimeFieldAttr : Field_Attr<"PrimeField", "pf", [TypedAttrInterface]> 
         type.getContext(),
         type,
         IntegerAttr::get(type.getModulus().getType(), value));
+    }]>,
+    AttrBuilderWithInferredContext<(ins "PrimeFieldType":$type,
+                                        "const uint64_t":$value), [{
+      return $_get(
+        type.getContext(),
+        type,
+        IntegerAttr::get(type.getModulus().getType(), value));
     }]>
   ];
   let extraClassDeclaration = [{

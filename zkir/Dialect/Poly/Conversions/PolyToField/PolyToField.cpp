@@ -146,6 +146,59 @@ struct ConvertPolyBinOp : public OpConversionPattern<SourceOp> {
   }
 };
 
+struct ConvertToTensor : public OpConversionPattern<ToTensorOp> {
+  explicit ConvertToTensor(mlir::MLIRContext *context)
+      : OpConversionPattern<ToTensorOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      ToTensorOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOp(op, adaptor.getOperands()[0].getDefiningOp());
+    return success();
+  }
+};
+
+struct ConvertFromTensor : public OpConversionPattern<FromTensorOp> {
+  explicit ConvertFromTensor(mlir::MLIRContext *context)
+      : OpConversionPattern<FromTensorOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      FromTensorOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    auto res = getCommonConversionInfo(op, typeConverter);
+    if (failed(res)) return failure();
+    auto typeInfo = res.value();
+
+    auto resultShape = typeInfo.tensorType.getShape()[0];
+    auto inputTensorTy = op.getInput().getType();
+    auto inputShape = inputTensorTy.getShape()[0];
+
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    auto coeffValue = adaptor.getInput();
+
+    // Zero pad the tensor if the coefficients' size is less than the polynomial
+    // degree.
+    if (inputShape < resultShape) {
+      SmallVector<OpFoldResult, 1> low, high;
+      low.push_back(rewriter.getIndexAttr(0));
+      high.push_back(rewriter.getIndexAttr(resultShape - inputShape));
+
+      auto padValue = b.create<field::ConstantOp>(
+          field::PrimeFieldAttr::get(typeInfo.coefficientType, 0));
+      coeffValue = b.create<tensor::PadOp>(typeInfo.tensorType, coeffValue, low,
+                                           high, padValue,
+                                           /*nofold=*/false);
+    }
+
+    rewriter.replaceOp(op, coeffValue);
+    return success();
+  }
+};
+
 struct PolyToField : impl::PolyToFieldBase<PolyToField> {
   using PolyToFieldBase::PolyToFieldBase;
 
@@ -164,8 +217,8 @@ void PolyToField::runOnOperation() {
   RewritePatternSet patterns(context);
 
   patterns.add<ConvertPolyBinOp<AddOp, field::AddOp>,
-               ConvertPolyBinOp<SubOp, field::SubOp>, ConvertConstant>(
-      typeConverter, context);
+               ConvertPolyBinOp<SubOp, field::SubOp>, ConvertConstant,
+               ConvertFromTensor, ConvertToTensor>(typeConverter, context);
   addStructuralConversionPatterns(typeConverter, patterns, target);
 
   if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
