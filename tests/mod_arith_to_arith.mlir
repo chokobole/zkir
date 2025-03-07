@@ -4,13 +4,13 @@
 !Zpv = tensor<4x!Zp>
 
 // CHECK-LABEL: @test_lower_constant
-// CHECK-SAME: () -> i5 {
+// CHECK-SAME: () -> [[T:.*]] {
 func.func @test_lower_constant() -> !mod_arith.int<3 : i5> {
   // CHECK-NOT: mod_arith.constant
-  // CHECK: %[[CVAL:.*]] = arith.constant 5 : i5
-  // CHECK: %[[CMOD:.*]] = arith.constant 3 : i5
-  // CHECK: %[[REMU:.*]] = arith.remui %[[CVAL]], %[[CMOD]] : i5
-  // CHECK: return %[[REMU]] : i5
+  // CHECK: %[[CVAL:.*]] = arith.constant 5 : [[T]]
+  // CHECK: %[[CMOD:.*]] = arith.constant 3 : [[T]]
+  // CHECK: %[[REMU:.*]] = arith.remui %[[CVAL]], %[[CMOD]] : [[T]]
+  // CHECK: return %[[REMU]] : [[T]]
   %res = mod_arith.constant 5:  !mod_arith.int<3 : i5>
   return %res: !mod_arith.int<3 : i5>
 }
@@ -161,11 +161,11 @@ func.func @test_lower_mul_vec(%lhs : !Zpv, %rhs : !Zpv) -> !Zpv {
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_lower_constant_tensor() -> !Zpv {
   // CHECK-NOT: mod_arith.constant
-  // CHECK: %[[C0:.*]] = arith.constant 5 : i32
-  // CHECK: %[[C1:.*]] = arith.constant 65537 : i32
-  // CHECK: %[[C2:.*]] = arith.remui %[[C0]], %[[C1]] : i32
+  // CHECK: %[[C0:.*]] = arith.constant 5 : [[INT:.*]]
+  // CHECK: %[[C1:.*]] = arith.constant 65537 : [[INT]]
+  // CHECK: %[[C2:.*]] = arith.remui %[[C0]], %[[C1]] : [[INT]]
   %c0 = mod_arith.constant 5:  !Zp
-  // CHECK: %[[RES:.*]] = tensor.from_elements %[[C2]], %[[C2]], %[[C2]], %[[C2]] : tensor<4xi32>
+  // CHECK: %[[RES:.*]] = tensor.from_elements %[[C2]], %[[C2]], %[[C2]], %[[C2]] : [[T]]
   %res = tensor.from_elements %c0, %c0, %c0, %c0 : !Zpv
   // CHECK: return %[[RES]] : [[T]]
   return %res : !Zpv
