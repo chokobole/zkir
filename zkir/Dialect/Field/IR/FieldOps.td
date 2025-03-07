@@ -10,7 +10,7 @@ include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
-def PrimeField_ConstantOp : Op<Field_Dialect, "pf.constant", [Pure, InferTypeOpAdaptor]> {
+def PrimeField_ConstantOp : Op<Field_Dialect, "pf.constant", [Pure]> {
   let summary = "Define a constant prime field element via an attribute";
   let description = [{
     Example:
@@ -20,13 +20,15 @@ def PrimeField_ConstantOp : Op<Field_Dialect, "pf.constant", [Pure, InferTypeOpA
     ```
   }];
 
-  let arguments = (ins Field_PrimeFieldAttr:$value);
-  let results = (outs Field_PrimeFieldType:$output);
+  let arguments = (ins TypedAttrInterface:$value);
+  let results = (outs PrimeFieldLike:$output);
   let hasCustomAssemblyFormat = 1;
-
   let builders = [
-    OpBuilder<(ins "PrimeFieldType":$ty, "const llvm::APInt":$value), [{
-      return build($_builder, $_state, ty, PrimeFieldAttr::get(ty, value));
+    OpBuilder<(ins "PrimeFieldType":$ty, "llvm::APInt":$value), [{
+      return build($_builder, $_state, ty, IntegerAttr::get(ty.getModulus().getType(), value));
+    }]>,
+    OpBuilder<(ins "PrimeFieldType":$ty, "uint64_t":$value), [{
+      return build($_builder, $_state, ty, IntegerAttr::get(ty.getModulus().getType(), value));
     }]>
   ];
 }

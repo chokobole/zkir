@@ -71,8 +71,7 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
 
     auto pftype = getResultPrimeFieldType(op);
     auto modType = convertPrimeFieldType(pftype);
-    auto cval =
-        b.create<mod_arith::ConstantOp>(modType, op.getValue().getValue());
+    auto cval = b.create<mod_arith::ConstantOp>(modType, op.getValue());
     rewriter.replaceOp(op, cval);
     return success();
   }

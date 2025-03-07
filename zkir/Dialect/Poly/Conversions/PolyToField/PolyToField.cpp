@@ -187,8 +187,7 @@ struct ConvertFromTensor : public OpConversionPattern<FromTensorOp> {
       low.push_back(rewriter.getIndexAttr(0));
       high.push_back(rewriter.getIndexAttr(resultShape - inputShape));
 
-      auto padValue = b.create<field::ConstantOp>(
-          field::PrimeFieldAttr::get(typeInfo.coefficientType, 0));
+      auto padValue = b.create<field::ConstantOp>(typeInfo.coefficientType, 0);
       coeffValue = b.create<tensor::PadOp>(typeInfo.tensorType, coeffValue, low,
                                            high, padValue,
                                            /*nofold=*/false);
