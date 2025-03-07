@@ -38,6 +38,26 @@ class PrimeField_Op<string mnemonic, list<Trait> traits = [Pure]> :
   let assemblyFormat = "$operand attr-dict `:` type($result)";
 }
 
+def PrimeField_EncapsulateOp : PrimeField_Op<"pf.encapsulate", [Pure, ElementwiseMappable]> {
+  let summary = "encapsulate an integer into a field type";
+
+  let description = [{
+    `field.pf.encapsulate` converts the integer to be of field type.
+
+    Examples:
+    ```
+    field.pf.encapsulate %c0 : i32 -> !field.pf<7>
+    field.pf.encapsulate %c1 : i64 -> !field.pf<7>
+    ```
+  }];
+
+  let arguments = (ins
+    SignlessIntegerLike:$input
+  );
+  let results = (outs PrimeFieldLike:$output);
+  let assemblyFormat = "operands attr-dict `:` type($input) `->` type($output)";
+}
+
 // A helper class for binary prime field operations.
 class PrimeField_BinaryOp<string mnemonic, list<Trait> traits = []> :
   PrimeField_Op<mnemonic, traits # [SameOperandsAndResultType, Pure, ElementwiseMappable]>,

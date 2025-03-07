@@ -11,6 +11,26 @@ func.func @test_lower_constant() -> !PF1 {
   return %res : !PF1
 }
 
+// CHECK-LABEL: @test_lower_encapsulate
+// CHECK-SAME: (%[[LHS:.*]]: [[T:.*]]) -> [[F:.*]] {
+func.func @test_lower_encapsulate(%lhs : i32) -> !PF1 {
+  // CHECK-NOT: field.pf.encapsulate
+  // CHECK: %[[RES:.*]] = mod_arith.encapsulate %[[LHS]] : [[T]] -> [[F]]
+  %res = field.pf.encapsulate %lhs : i32 -> !PF1
+  // CHECK: return %[[RES]] : [[F]]
+  return %res : !PF1
+}
+
+// CHECK-LABEL: @test_lower_encapsulate_vec
+// CHECK-SAME: (%[[LHS:.*]]: [[T:.*]]) -> [[TF:.*]] {
+func.func @test_lower_encapsulate_vec(%lhs : tensor<4xi32>) -> tensor<4x!PF1> {
+  // CHECK-NOT: field.pf.encapsulate
+  // CHECK: %[[RES:.*]] = mod_arith.encapsulate %[[LHS]] : [[T]] -> [[TF]]
+  %res = field.pf.encapsulate %lhs : tensor<4xi32> -> tensor<4x!PF1>
+  // CHECK: return %[[RES]] : [[TF]]
+  return %res : tensor<4x!PF1>
+}
+
 // CHECK-LABEL: @test_lower_add
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_lower_add() -> !PF1 {
