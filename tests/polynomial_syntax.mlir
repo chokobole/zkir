@@ -2,8 +2,8 @@
 
 !PF1 = !field.pf<7:i32>
 !PF2 = !field.pf<13:i32>
-!poly_ty1 = !poly.polynomial<!PF1>
-!poly_ty2 = !poly.polynomial<!PF2>
+!poly_ty1 = !poly.polynomial<!PF1, 32>
+!poly_ty2 = !poly.polynomial<!PF2, 32>
 #uni_poly = #poly.univariate_polynomial<x**6 + 1> : !poly_ty2
 
 // CHECK-LABEL: @test_poly_syntax
