@@ -97,6 +97,23 @@ struct ConvertEncapsulate : public OpConversionPattern<EncapsulateOp> {
   }
 };
 
+struct ConvertInverse : public OpConversionPattern<InverseOp> {
+  explicit ConvertInverse(mlir::MLIRContext *context)
+      : OpConversionPattern<InverseOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      InverseOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    auto inv = b.create<mod_arith::InverseOp>(adaptor.getOperands()[0]);
+    rewriter.replaceOp(op, inv);
+    return success();
+  }
+};
+
 struct ConvertAdd : public OpConversionPattern<AddOp> {
   explicit ConvertAdd(mlir::MLIRContext *context)
       : OpConversionPattern<AddOp>(context) {}
@@ -171,9 +188,9 @@ void PrimeFieldToModArith::runOnOperation() {
 
   RewritePatternSet patterns(context);
   rewrites::populateWithGenerated(patterns);
-  patterns.add<ConvertConstant, ConvertEncapsulate, ConvertAdd, ConvertSub,
-               ConvertMul, ConvertAny<tensor::FromElementsOp>>(typeConverter,
-                                                               context);
+  patterns.add<ConvertConstant, ConvertEncapsulate, ConvertInverse, ConvertAdd,
+               ConvertSub, ConvertMul, ConvertAny<tensor::FromElementsOp>>(
+      typeConverter, context);
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
 

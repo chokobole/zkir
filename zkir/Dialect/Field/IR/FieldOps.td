@@ -58,6 +58,20 @@ def PrimeField_EncapsulateOp : PrimeField_Op<"pf.encapsulate", [Pure, Elementwis
   let assemblyFormat = "operands attr-dict `:` type($input) `->` type($output)";
 }
 
+// Prime field multiplicative inverse
+def PrimeField_InverseOp : PrimeField_Op<"pf.inverse", [Involution, SameOperandsAndResultType]> {
+  let summary = "prime field multiplicative inverse";
+  let description = [{
+    Computes the multiplicative inverse of a field element.
+
+    Example:
+      %inv_a = field.pf.inverse %a : !field.pf<primeModulus>
+  }];
+  let arguments = (ins PrimeFieldLike:$input);
+  let results = (outs PrimeFieldLike:$output);
+  let assemblyFormat = "operands attr-dict `:` type($output)";
+}
+
 // A helper class for binary prime field operations.
 class PrimeField_BinaryOp<string mnemonic, list<Trait> traits = []> :
   PrimeField_Op<mnemonic, traits # [SameOperandsAndResultType, Pure, ElementwiseMappable]>,
