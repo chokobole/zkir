@@ -215,6 +215,7 @@ func.func @test_lower_subifge(%lhs : tensor<4xi8>, %rhs : tensor<4xi8>) -> tenso
   // CHECK: %[[CMP:.*]] = arith.cmpi uge, %[[LHS]], %[[RHS]] : [[TENSOR_TYPE]]
   // CHECK: %[[RES:.*]] = arith.select %[[CMP]], %[[SUB]], %[[LHS]] : tensor<4xi1>, [[TENSOR_TYPE]]
   %res = mod_arith.subifge %lhs, %rhs: tensor<4xi8>
+  // CHECK: return %[[RES]] : [[TENSOR_TYPE]]
   return %res : tensor<4xi8>
 }
 
@@ -228,5 +229,6 @@ func.func @test_lower_subifge_int(%lhs : i8, %rhs : i8) -> i8 {
   // CHECK: %[[CMP:.*]] = arith.cmpi uge, %[[LHS]], %[[RHS]] : [[INT_TYPE]]
   // CHECK: %[[RES:.*]] = arith.select %[[CMP]], %[[SUB]], %[[LHS]] : [[INT_TYPE]]
   %res = mod_arith.subifge %lhs, %rhs: i8
+  // CHECK: return %[[RES]] : [[INT_TYPE]]
   return %res : i8
 }
