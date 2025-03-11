@@ -44,3 +44,10 @@ config.environment["PATH"] = (
     + ":"
     + os.environ["PATH"]
 )
+
+substitutions = {
+    "%mlir_lib_dir": str(mlir_tools_path),
+    "%shlibext": ".so",
+}
+
+config.substitutions.extend(substitutions.items())
