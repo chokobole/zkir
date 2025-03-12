@@ -32,3 +32,22 @@ runfiles_dir = Path(os.environ["RUNFILES_DIR"])
 
 mlir_tools_relpath = "llvm-project/mlir"
 mlir_tools_path = runfiles_dir.joinpath(Path(mlir_tools_relpath))
+
+tool_relpaths = [
+    mlir_tools_relpath,
+    "_main/tools",
+    "llvm-project/llvm",
+]
+
+config.environment["PATH"] = (
+    ":".join(str(runfiles_dir.joinpath(Path(path))) for path in tool_relpaths)
+    + ":"
+    + os.environ["PATH"]
+)
+
+substitutions = {
+    "%mlir_lib_dir": str(mlir_tools_path),
+    "%shlibext": ".so",
+}
+
+config.substitutions.extend(substitutions.items())

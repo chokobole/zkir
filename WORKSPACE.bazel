@@ -23,6 +23,9 @@ LLVM_SHA256 = "add2841174abc79c45aa309bdf0cf631aa8f97e7a4df57dcfca57c60df27527f"
 http_archive(
     name = "llvm-raw",
     build_file_content = "# empty",
+    patches = [
+        "//third_party/llvm:mlir_runner.patch",
+    ],
     sha256 = LLVM_SHA256,
     strip_prefix = "llvm-project-" + LLVM_COMMIT,
     urls = ["https://github.com/llvm/llvm-project/archive/{commit}.tar.gz".format(commit = LLVM_COMMIT)],

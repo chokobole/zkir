@@ -1,0 +1,12 @@
+diff --git utils/bazel/llvm-project-overlay/mlir/BUILD.bazel utils/bazel/llvm-project-overlay/mlir/BUILD.bazel
+index 8559cc12cbaf..7b5078b5a02f 100644
+--- utils/bazel/llvm-project-overlay/mlir/BUILD.bazel
++++ utils/bazel/llvm-project-overlay/mlir/BUILD.bazel
+@@ -10147,6 +10147,7 @@ cc_binary(
+
+ cc_library(
+     name = "_mlir_runner_utils",
++    alwayslink = True,
+     srcs = ["lib/ExecutionEngine/RunnerUtils.cpp"],
+     hdrs = ["include/mlir/ExecutionEngine/RunnerUtils.h"],
+     includes = ["include"],
