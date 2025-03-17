@@ -32,6 +32,26 @@ func.func @test_lower_encapsulate_vec(%lhs : tensor<4xi32>) -> tensor<4x!PF1> {
   return %res : tensor<4x!PF1>
 }
 
+// CHECK-LABEL: @test_lower_extract
+// CHECK-SAME: (%[[LHS:.*]]: [[T:.*]]) -> [[F:.*]] {
+func.func @test_lower_extract(%lhs : !PF1) -> i32 {
+  // CHECK-NOT: field.pf.extract
+  // CHECK: %[[RES:.*]] = mod_arith.extract %[[LHS]] : [[T]] -> [[F]]
+  %res = field.pf.extract %lhs : !PF1 -> i32
+  // CHECK: return %[[RES]] : [[F]]
+  return %res : i32
+}
+
+// CHECK-LABEL: @test_lower_extract_vec
+// CHECK-SAME: (%[[LHS:.*]]: [[T:.*]]) -> [[TF:.*]] {
+func.func @test_lower_extract_vec(%lhs : tensor<4x!PF1>) -> tensor<4xi32> {
+  // CHECK-NOT: field.pf.extract
+  // CHECK: %[[RES:.*]] = mod_arith.extract %[[LHS]] : [[T]] -> [[TF]]
+  %res = field.pf.extract %lhs : tensor<4x!PF1> -> tensor<4xi32>
+  // CHECK: return %[[RES]] : [[TF]]
+  return %res : tensor<4xi32>
+}
+
 // CHECK-LABEL: @test_lower_inverse
 // CHECK-SAME: (%[[LHS:.*]]: [[T:.*]]) -> [[T]] {
 func.func @test_lower_inverse(%lhs : !PF1) -> !PF1 {
