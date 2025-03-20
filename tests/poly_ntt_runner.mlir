@@ -1,4 +1,4 @@
-// RUN: zkir-opt %s -poly-to-field -prime-field-to-mod-arith -mod-arith-to-arith -convert-elementwise-to-linalg -affine-expand-index-ops -affine-simplify-structures -lower-affine -memref-expand -expand-strided-metadata -one-shot-bufferize -convert-linalg-to-loops -lower-affine -convert-bufferization-to-memref -canonicalize -sccp -cse -arith-expand -convert-scf-to-cf -expand-strided-metadata -affine-expand-index-ops -affine-simplify-structures -lower-affine -convert-to-llvm -canonicalize -sccp -cse -symbol-dce \
+// RUN: zkir-opt %s -poly-to-llvm \
 // RUN:   | mlir-runner -e test_poly_ntt -entry-point-result=void \
 // RUN:      --shared-libs="%mlir_lib_dir/libmlir_runner_utils%shlibext" > %t
 // RUN: FileCheck %s --check-prefix=CHECK_TEST_POLY_NTT < %t
