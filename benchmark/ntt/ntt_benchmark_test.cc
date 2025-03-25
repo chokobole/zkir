@@ -13,11 +13,11 @@ struct i256 {
   uint64_t limbs[4];  // 4 x 64 = 256 bits
 };
 
-extern "C" void _mlir_ciface_input_generation(Memref<i256>* output);
-extern "C" void _mlir_ciface_ntt(Memref<i256>* output, Memref<i256>* input);
-extern "C" void _mlir_ciface_intt(Memref<i256>* output, Memref<i256>* input);
+extern "C" void _mlir_ciface_input_generation(Memref<i256> *output);
+extern "C" void _mlir_ciface_ntt(Memref<i256> *output, Memref<i256> *input);
+extern "C" void _mlir_ciface_intt(Memref<i256> *output, Memref<i256> *input);
 
-void BM_ntt_benchmark(::benchmark::State& state) {
+void BM_ntt_benchmark(::benchmark::State &state) {
   Memref<i256> input(1, DEGREE);
   _mlir_ciface_input_generation(&input);
 
@@ -38,7 +38,7 @@ void BM_ntt_benchmark(::benchmark::State& state) {
 
 BENCHMARK(BM_ntt_benchmark)->Unit(::benchmark::kSecond);
 
-void BM_intt_benchmark(::benchmark::State& state) {
+void BM_intt_benchmark(::benchmark::State &state) {
   Memref<i256> input(1, DEGREE);
   _mlir_ciface_input_generation(&input);
 
