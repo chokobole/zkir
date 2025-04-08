@@ -65,4 +65,30 @@ APInt mulMod(const APInt &_x, const APInt &_y, const APInt &_modulus) {
   return res.trunc(_x.getBitWidth());
 }
 
+// Compute `_base` ^ `exp` (mod `_modulus`) using exponentiation by squaring.
+APInt expMod(const APInt &_base, unsigned exp, const APInt &_modulus) {
+  // Ensure _base and _modulus have the same bitwidth.
+  assert(_base.getBitWidth() == _modulus.getBitWidth() &&
+         "expected same bitwidth for base and modulus");
+
+  // Extend bitwidth for intermediate computations.
+  auto intermediateBitwidth = _modulus.getBitWidth() * 2;
+  APInt base = _base.zext(intermediateBitwidth);
+  APInt modulus = _modulus.zext(intermediateBitwidth);
+
+  APInt result(intermediateBitwidth, 1);
+  while (true) {
+    // If the lowest bit of exp is 1, multiply result with the current base.
+    if (exp % 2 == 1) result = (result * base).urem(modulus);
+
+    // Right-shift exponent by 1 (divide by 2).
+    exp = exp >> 1;
+    if (exp == 0) break;
+    // Square the `base` (mod `modulus`).
+    base = (base * base).urem(modulus);
+  }
+  // Truncate the result to the modulus bitwidth.
+  return result.trunc(_modulus.getBitWidth());
+}
+
 }  // namespace mlir::zkir

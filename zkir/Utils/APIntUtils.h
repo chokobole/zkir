@@ -15,6 +15,9 @@ llvm::APInt multiplicativeInverse(const llvm::APInt &x,
 llvm::APInt mulMod(const llvm::APInt &x, const llvm::APInt &y,
                    const llvm::APInt &modulus);
 
+// Compute `base` ^ `exp` (mod `modulus`).
+llvm::APInt expMod(const llvm::APInt &base, unsigned exp,
+                   const llvm::APInt &modulus);
 }  // namespace mlir::zkir
 
 #endif  // ZKIR_UTILS_APINTUTILS_H_
