@@ -12,7 +12,8 @@ namespace mlir::zkir::poly {
 // Compute the first degree powers of root modulo mod.
 static void precomputeRoots(APInt root, const APInt &mod, unsigned degree,
                             SmallVector<APInt> &roots,
-                            SmallVector<APInt> &invRoots) {
+                            SmallVector<APInt> &invRoots,
+                            std::optional<IntegerAttr> montgomeryR) {
   unsigned kBitWidth = llvm::bit_width(degree);
 
   // Precompute powers-of-two: `powerOfTwo[k]` = `root^(2^k)` mod `mod`.
@@ -22,11 +23,17 @@ static void precomputeRoots(APInt root, const APInt &mod, unsigned degree,
     powerOfTwo[k] = mulMod(powerOfTwo[k - 1], powerOfTwo[k - 1], mod);
   }
 
+  // Coset factor
+  APInt coset(mod.getBitWidth(), 1);
+  if (montgomeryR) {
+    coset = montgomeryR->getValue();
+  }
+
   // Prepare the result vector.
   roots.resize(degree);
   invRoots.resize(degree);
-  roots[0] = APInt(root.getBitWidth(), 1);     // Identity element.
-  invRoots[0] = APInt(root.getBitWidth(), 1);  // Identity element.
+  roots[0] = coset;
+  invRoots[0] = coset;
 
   llvm::StdThreadPool pool(llvm::hardware_concurrency());
 
@@ -42,8 +49,9 @@ static void precomputeRoots(APInt root, const APInt &mod, unsigned degree,
         exp >>= 1;
         bit++;
       }
-      roots[i] = result;
-      invRoots[degree - i] = result;
+
+      roots[i] = mulMod(coset, result, mod);
+      invRoots[degree - i] = mulMod(coset, result, mod);
     });
   }
 
@@ -73,6 +81,10 @@ DenseElementsAttr PrimitiveRootAttr::getInvRoots() const {
   return getImpl()->invRoots;
 }
 
+zkir::mod_arith::MontgomeryAttr PrimitiveRootAttr::getMontgomery() const {
+  return getImpl()->montgomery;
+}
+
 namespace detail {
 
 PrimitiveRootAttrStorage *PrimitiveRootAttrStorage::construct(
@@ -80,6 +92,7 @@ PrimitiveRootAttrStorage *PrimitiveRootAttrStorage::construct(
   // Extract the root and degree from the key.
   zkir::field::PrimeFieldAttr root = std::get<0>(key);
   IntegerAttr degree = std::get<1>(key);
+  zkir::mod_arith::MontgomeryAttr montgomery = std::get<2>(key);
 
   APInt mod = root.getType().getModulus().getValue();
   APInt rootVal = root.getValue().getValue();
@@ -94,8 +107,11 @@ PrimitiveRootAttrStorage *PrimitiveRootAttrStorage::construct(
 
   // Compute the exponent table.
   SmallVector<APInt> roots, invRoots;
-  precomputeRoots(rootVal, mod, degree.getInt(), roots, invRoots);
-
+  std::optional<IntegerAttr> montgomeryR;
+  if (montgomery != zkir::mod_arith::MontgomeryAttr()) {
+    montgomeryR = montgomery.getR();
+  }
+  precomputeRoots(rootVal, mod, degree.getInt(), roots, invRoots, montgomeryR);
   // Create a ranked tensor type for the exponents attribute.
   auto tensorType = RankedTensorType::get(
       {degree.getInt()}, root.getType().getModulus().getType());
@@ -106,7 +122,8 @@ PrimitiveRootAttrStorage *PrimitiveRootAttrStorage::construct(
   return new (allocator.allocate<PrimitiveRootAttrStorage>())
       PrimitiveRootAttrStorage(std::move(degree), std::move(invDegree),
                                std::move(root), std::move(invRoot),
-                               std::move(rootsAttr), std::move(invRootsAttr));
+                               std::move(rootsAttr), std::move(invRootsAttr),
+                               std::move(montgomery));
 }
 
 }  // namespace detail
