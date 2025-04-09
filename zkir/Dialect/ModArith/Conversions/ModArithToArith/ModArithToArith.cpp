@@ -123,9 +123,7 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     auto cval = b.create<arith::ConstantOp>(op.getLoc(), adaptor.getValue());
-    auto cmod = b.create<arith::ConstantOp>(modulusAttr(op));
-    auto remu = b.create<arith::RemUIOp>(cval, cmod);
-    rewriter.replaceOp(op, remu);
+    rewriter.replaceOp(op, cval);
     return success();
   }
 };
@@ -398,9 +396,11 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
 
     auto cmod = b.create<arith::ConstantOp>(modulusAttr(op));
     auto add = b.create<arith::AddIOp>(adaptor.getLhs(), adaptor.getRhs());
-    auto remu = b.create<arith::RemUIOp>(add, cmod);
+    auto ifge = b.create<arith::CmpIOp>(arith::CmpIPredicate::uge, add, cmod);
+    auto sub = b.create<arith::SubIOp>(add, cmod);
+    auto select = b.create<arith::SelectOp>(ifge, sub, add);
 
-    rewriter.replaceOp(op, remu);
+    rewriter.replaceOp(op, select);
     return success();
   }
 };
@@ -419,9 +419,11 @@ struct ConvertSub : public OpConversionPattern<SubOp> {
     auto cmod = b.create<arith::ConstantOp>(modulusAttr(op));
     auto sub = b.create<arith::SubIOp>(adaptor.getLhs(), adaptor.getRhs());
     auto add = b.create<arith::AddIOp>(sub, cmod);
-    auto remu = b.create<arith::RemUIOp>(add, cmod);
+    auto ifge = b.create<arith::CmpIOp>(arith::CmpIPredicate::uge,
+                                        adaptor.getLhs(), adaptor.getRhs());
+    auto select = b.create<arith::SelectOp>(ifge, sub, add);
 
-    rewriter.replaceOp(op, remu);
+    rewriter.replaceOp(op, select);
     return success();
   }
 };

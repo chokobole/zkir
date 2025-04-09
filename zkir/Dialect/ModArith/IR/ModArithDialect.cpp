@@ -178,11 +178,10 @@ ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
   }
 
   // zero-extend or truncate to the correct bitwidth
-  parsedInt = parsedInt.zextOrTrunc(outputBitWidth);
+  parsedInt = parsedInt.zextOrTrunc(outputBitWidth).urem(modulus);
   result.addAttribute(
       "value",
-      IntegerAttr::get(IntegerType::get(parser.getContext(), outputBitWidth),
-                       parsedInt));
+      IntegerAttr::get(modArithType.getModulus().getType(), parsedInt));
   result.addTypes(parsedType);
   return success();
 }

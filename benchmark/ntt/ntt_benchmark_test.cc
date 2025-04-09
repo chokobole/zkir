@@ -113,16 +113,19 @@ BENCHMARK(BM_intt_mont_benchmark)->Iterations(1)->Unit(::benchmark::kSecond);
 }  // namespace
 }  // namespace zkir
 
+// clang-format off
+// NOLINTBEGIN(whitespace/line_length)
 // Run on (14 X 24 MHz CPU s)
 // CPU Caches:
-// L1 Data 64 KiB
-// L1 Instruction 128 KiB
-// L2 Unified 4096 KiB (x14)
-// Load Average: 9.50, 8.31, 8.95
+//   L1 Data 64 KiB
+//   L1 Instruction 128 KiB
+//   L2 Unified 4096 KiB (x14)
+// Load Average: 27.66, 13.59, 9.67
 // ------------------------------------------------------------------------------
-// Benchmark                                    Time             CPU Iterations
+// Benchmark                                    Time             CPU   Iterations
 // ------------------------------------------------------------------------------
-// BM_ntt_benchmark                         0.339 s         0.333 s 2
-// BM_intt_benchmark/iterations:1           0.501 s         0.493 s 1
-// BM_ntt_mont_benchmark                    0.379 s         0.372 s 2
-// BM_intt_mont_benchmark/iterations:1      0.510 s         0.504 s 1
+// BM_ntt_benchmark                         0.190 s         0.183 s             4
+// BM_intt_benchmark/iterations:1           0.381 s         0.368 s             1
+// BM_ntt_mont_benchmark                    0.221 s         0.214 s             3
+// BM_intt_mont_benchmark/iterations:1      0.415 s         0.396 s             1
+// NOLINTEND()
