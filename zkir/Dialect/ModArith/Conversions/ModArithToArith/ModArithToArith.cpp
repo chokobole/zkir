@@ -152,6 +152,73 @@ struct ConvertReduce : public OpConversionPattern<ReduceOp> {
   }
 };
 
+struct ConvertMontReduce : public OpConversionPattern<MontReduceOp> {
+  explicit ConvertMontReduce(mlir::MLIRContext *context)
+      : OpConversionPattern<MontReduceOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      MontReduceOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    // `T` is the operand (e.g. the result of a multiplication, twice the
+    // bitwidth of modulus).
+    Value T = adaptor.getOperands()[0];
+
+    // Extract Montgomery constants: `nPrime` and `modulus`.
+    IntegerAttr nPrimeAttr = op.getMontgomeryAttr().getNPrime();
+    Value nPrime = b.create<arith::ConstantOp>(nPrimeAttr);
+    TypedAttr modAttr = modulusAttr(op);
+    Value mod = b.create<arith::ConstantOp>(modAttr);
+
+    // Retrieve the modulus bitwidth.
+    unsigned modBitWidth = cast<IntegerType>(modAttr.getType()).getWidth();
+
+    // Compute number of limbs.
+    const unsigned limbWidth = APInt::APINT_BITS_PER_WORD;
+    unsigned numLimbs = (modBitWidth + limbWidth - 1) / limbWidth;
+
+    // Arith operations require the operands to be of same bit width
+    Value modExt = b.create<arith::ExtUIOp>(T.getType(), mod);
+
+    // Prepare constants for limb operations.
+    Value limbWidthConst =
+        b.create<arith::ConstantOp>(b.getIntegerAttr(T.getType(), limbWidth));
+
+    // Because the number of limbs (numLimbs) is known at compile time, we can
+    // unroll the loop as a straight-line chain of operations. Let `u` be the
+    // current working value, initially `T`.
+    Value u = T;
+    for (unsigned i = 0; i < numLimbs; ++i) {
+      // Extract the current lowest limb: `u` (mod `base`)
+      Value lowerLimb = b.create<arith::TruncIOp>(nPrimeAttr.getType(), u);
+      // Compute `m` = `lowerLimb` * `nPrime` (mod `base`)
+      Value m = b.create<arith::MulIOp>(lowerLimb, nPrime);
+      // Compute `m` * `N` , where `N` is modulus
+      Value mExt = b.create<arith::ExtUIOp>(T.getType(), m);
+      Value mN = b.create<arith::MulIOp>(modExt, mExt);
+      // Add the product to `u`.
+      Value sum = b.create<arith::AddIOp>(u, mN);
+      // Shift right by `limbWidth` to discard the zeroed limb.
+      u = b.create<arith::ShRUIOp>(sum, limbWidthConst);
+    }
+
+    // Final conditional subtraction: if (`u_final` >= modulus) then subtract
+    // modulus.
+    Value cmp = b.create<arith::CmpIOp>(arith::CmpIPredicate::uge, u, modExt);
+    Value sub = b.create<arith::SubIOp>(u, modExt);
+    Value result = b.create<arith::SelectOp>(cmp, sub, u);
+
+    // Truncate the result to the bitwidth of the modulus.
+    Value truncated = b.create<arith::TruncIOp>(mod.getType(), result);
+
+    rewriter.replaceOp(op, truncated);
+    return success();
+  }
+};
+
 struct ConvertInverse : public OpConversionPattern<InverseOp> {
   explicit ConvertInverse(mlir::MLIRContext *context)
       : OpConversionPattern<InverseOp>(context) {}
@@ -385,13 +452,13 @@ void ModArithToArith::runOnOperation() {
   RewritePatternSet patterns(context);
   rewrites::populateWithGenerated(patterns);
   patterns
-      .add<ConvertEncapsulate, ConvertExtract, ConvertReduce, ConvertAdd,
-           ConvertSub, ConvertMul, ConvertMac, ConvertConstant, ConvertInverse,
-           ConvertAny<affine::AffineForOp>, ConvertAny<affine::AffineYieldOp>,
-           ConvertAny<linalg::GenericOp>, ConvertAny<linalg::YieldOp>,
-           ConvertAny<tensor::CastOp>, ConvertAny<tensor::ExtractOp>,
-           ConvertAny<tensor::FromElementsOp>, ConvertAny<tensor::InsertOp>>(
-          typeConverter, context);
+      .add<ConvertEncapsulate, ConvertExtract, ConvertReduce, ConvertMontReduce,
+           ConvertAdd, ConvertSub, ConvertMul, ConvertMac, ConvertConstant,
+           ConvertInverse, ConvertAny<affine::AffineForOp>,
+           ConvertAny<affine::AffineYieldOp>, ConvertAny<linalg::GenericOp>,
+           ConvertAny<linalg::YieldOp>, ConvertAny<tensor::CastOp>,
+           ConvertAny<tensor::ExtractOp>, ConvertAny<tensor::FromElementsOp>,
+           ConvertAny<tensor::InsertOp>>(typeConverter, context);
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
 

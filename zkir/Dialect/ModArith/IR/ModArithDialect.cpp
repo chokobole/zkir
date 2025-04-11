@@ -15,11 +15,15 @@
 #include "mlir/IR/TypeUtilities.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
+#include "zkir/Dialect/ModArith/IR/ModArithAttributes.h"
 #include "zkir/Dialect/ModArith/IR/ModArithOps.h"
 #include "zkir/Dialect/ModArith/IR/ModArithTypes.h"
 
 // Generated definitions
 #include "zkir/Dialect/ModArith/IR/ModArithDialect.cpp.inc"
+
+#define GET_ATTRDEF_CLASSES
+#include "zkir/Dialect/ModArith/IR/ModArithAttributes.cpp.inc"
 
 #define GET_TYPEDEF_CLASSES
 #include "zkir/Dialect/ModArith/IR/ModArithTypes.cpp.inc"
@@ -48,6 +52,10 @@ class ModArithOpAsmDialectInterface : public OpAsmDialectInterface {
 };
 
 void ModArithDialect::initialize() {
+  addAttributes<
+#define GET_ATTRDEF_LIST
+#include "zkir/Dialect/ModArith/IR/ModArithAttributes.cpp.inc"  // NOLINT(build/include)
+      >();
   addTypes<
 #define GET_TYPEDEF_LIST
 #include "zkir/Dialect/ModArith/IR/ModArithTypes.cpp.inc"  // NOLINT(build/include)
@@ -97,6 +105,18 @@ LogicalResult ExtractOp::verify() {
 
 LogicalResult ReduceOp::verify() {
   return verifyModArithType(*this, getResultModArithType(*this));
+}
+
+LogicalResult MontReduceOp::verify() {
+  IntegerType integerType = getOperandIntegerType(*this);
+  ModArithType modArithType = getResultModArithType(*this);
+  unsigned intWidth = integerType.getWidth();
+  unsigned modWidth = modArithType.getModulus().getValue().getBitWidth();
+  if (intWidth != 2 * modWidth)
+    return emitOpError() << "Expected operand width to be " << 2 * modWidth
+                         << ", but got " << intWidth
+                         << " while modulus width is " << modWidth << ".";
+  return success();
 }
 
 LogicalResult AddOp::verify() {

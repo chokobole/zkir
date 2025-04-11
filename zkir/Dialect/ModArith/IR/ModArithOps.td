@@ -1,6 +1,7 @@
 #ifndef ZKIR_DIALECT_MODARITH_IR_MODARITHOPS_TD_
 #define ZKIR_DIALECT_MODARITH_IR_MODARITHOPS_TD_
 
+include "zkir/Dialect/ModArith/IR/ModArithAttributes.td"
 include "zkir/Dialect/ModArith/IR/ModArithDialect.td"
 include "zkir/Dialect/ModArith/IR/ModArithTypes.td"
 include "mlir/IR/BuiltinAttributes.td"
@@ -120,6 +121,28 @@ def ModArith_ReduceOp : ModArith_Op<"reduce", [Pure, ElementwiseMappable, SameOp
   let results = (outs ModArithLike:$output);
   let hasVerifier = 1;
   let assemblyFormat = "operands attr-dict `:` type($output)";
+}
+
+def ModArith_MontReduceOp : ModArith_Op<"mont_reduce", [Pure, ElementwiseMappable]> {
+  let summary = "applies montgomery reduction to the integer of twice the modulus bitwidth";
+
+  let description = [{
+    `mod_arith.mont_reduce` produces the canonical representative in [0, q).
+
+    Examples:
+    ```
+    %c0 = arith.constant 65538231231312311 : i512
+    %m0 = mod_arith.mont_reduce %c0 {montgomery=#mont} : i512 -> mod_arith.int<65537 : i256>
+    ```
+  }];
+
+  let arguments = (ins
+    SignlessIntegerLike:$input,
+    ModArith_MontgomeryAttr:$montgomery
+  );
+  let results = (outs ModArithLike:$output);
+  let hasVerifier = 1;
+  let assemblyFormat = "operands attr-dict `:` type($input) `->` type($output)";
 }
 
 def ModArith_InverseOp : ModArith_Op<"inverse", [Pure, ElementwiseMappable, SameOperandsAndResultType]> {
