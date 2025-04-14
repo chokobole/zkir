@@ -1,3 +1,6 @@
+#include <climits>
+#include <random>
+
 #include "benchmark/BenchmarkUtils.h"
 #include "benchmark/benchmark.h"
 #include "gtest/gtest.h"
@@ -9,9 +12,22 @@ namespace {
 
 using ::zkir::benchmark::Memref;
 
-struct i256 {
-  uint64_t limbs[4];  // 4 x 64 = 256 bits
-};
+using i256 = benchmark::BigInt<4>;
+
+// `kPrime` =
+// 21888242871839275222246405745257275088548364400416034343698204186575808495617
+const i256 kPrime = i256::fromHexString(
+    "0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001");
+
+// Fill the input with random numbers in [0, prime).
+static void fillWithRandom(Memref<i256> *input, const i256 &kPrime) {
+  // Set up the random number generator.
+  std::mt19937_64 rng(std::random_device{}());  // NOLINT(whitespace/braces)
+  std::uniform_int_distribution<uint64_t> dist(0, UINT64_MAX);
+  for (int i = 0; i < NUM_COEFFS; i++) {
+    *input->pget(0, i) = i256::randomLT(kPrime, rng, dist);
+  }
+}
 
 extern "C" void _mlir_ciface_input_generation(Memref<i256> *output);
 extern "C" void _mlir_ciface_ntt(Memref<i256> *output, Memref<i256> *input);
@@ -25,6 +41,7 @@ extern "C" void _mlir_ciface_intt_mont(Memref<i256> *output,
 void BM_ntt_benchmark(::benchmark::State &state) {
   Memref<i256> input(1, NUM_COEFFS);
   _mlir_ciface_input_generation(&input);
+  fillWithRandom(&input, kPrime);
 
   Memref<i256> ntt(1, NUM_COEFFS);
   for (auto _ : state) {
@@ -46,6 +63,7 @@ BENCHMARK(BM_ntt_benchmark)->Unit(::benchmark::kSecond);
 void BM_intt_benchmark(::benchmark::State &state) {
   Memref<i256> input(1, NUM_COEFFS);
   _mlir_ciface_input_generation(&input);
+  fillWithRandom(&input, kPrime);
 
   Memref<i256> ntt(1, NUM_COEFFS);
   _mlir_ciface_ntt(&ntt, &input);
@@ -69,6 +87,7 @@ BENCHMARK(BM_intt_benchmark)->Iterations(1)->Unit(::benchmark::kSecond);
 void BM_ntt_mont_benchmark(::benchmark::State &state) {
   Memref<i256> input(1, NUM_COEFFS);
   _mlir_ciface_input_generation(&input);
+  fillWithRandom(&input, kPrime);
 
   Memref<i256> ntt(1, NUM_COEFFS);
   for (auto _ : state) {
@@ -90,6 +109,7 @@ BENCHMARK(BM_ntt_mont_benchmark)->Unit(::benchmark::kSecond);
 void BM_intt_mont_benchmark(::benchmark::State &state) {
   Memref<i256> input(1, NUM_COEFFS);
   _mlir_ciface_input_generation(&input);
+  fillWithRandom(&input, kPrime);
 
   Memref<i256> ntt(1, NUM_COEFFS);
   _mlir_ciface_ntt_mont(&ntt, &input);
@@ -120,12 +140,12 @@ BENCHMARK(BM_intt_mont_benchmark)->Iterations(1)->Unit(::benchmark::kSecond);
 //   L1 Data 64 KiB
 //   L1 Instruction 128 KiB
 //   L2 Unified 4096 KiB (x14)
-// Load Average: 27.66, 13.59, 9.67
+// Load Average: 7.37, 7.53, 7.10
 // ------------------------------------------------------------------------------
 // Benchmark                                    Time             CPU   Iterations
 // ------------------------------------------------------------------------------
-// BM_ntt_benchmark                         0.190 s         0.183 s             4
-// BM_intt_benchmark/iterations:1           0.381 s         0.368 s             1
-// BM_ntt_mont_benchmark                    0.221 s         0.214 s             3
-// BM_intt_mont_benchmark/iterations:1      0.415 s         0.396 s             1
+// BM_ntt_benchmark                          10.4 s          10.3 s             1
+// BM_intt_benchmark/iterations:1            12.1 s          11.4 s             1
+// BM_ntt_mont_benchmark                    0.201 s         0.197 s             3
+// BM_intt_mont_benchmark/iterations:1       1.38 s          1.35 s             1
 // NOLINTEND()
