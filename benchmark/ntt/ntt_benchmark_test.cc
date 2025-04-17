@@ -140,12 +140,12 @@ BENCHMARK(BM_intt_mont_benchmark)->Iterations(1)->Unit(::benchmark::kSecond);
 //   L1 Data 64 KiB
 //   L1 Instruction 128 KiB
 //   L2 Unified 4096 KiB (x14)
-// Load Average: 7.37, 7.53, 7.10
+// Load Average: 3.97, 3.11, 2.96
 // ------------------------------------------------------------------------------
 // Benchmark                                    Time             CPU   Iterations
 // ------------------------------------------------------------------------------
-// BM_ntt_benchmark                          10.4 s          10.3 s             1
-// BM_intt_benchmark/iterations:1            12.1 s          11.4 s             1
-// BM_ntt_mont_benchmark                    0.201 s         0.197 s             3
-// BM_intt_mont_benchmark/iterations:1       1.38 s          1.35 s             1
+// BM_ntt_benchmark                          10.2 s          10.1 s             1
+// BM_intt_benchmark/iterations:1            11.1 s          11.1 s             1
+// BM_ntt_mont_benchmark                    0.190 s         0.190 s             3
+// BM_intt_mont_benchmark/iterations:1      0.316 s         0.304 s             1
 // NOLINTEND()

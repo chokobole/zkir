@@ -494,7 +494,12 @@ static Value fastNTT(ImplicitLocOpBuilder &b, PrimitiveRootAttr rootAttr,
         b.create<arith::ConstantOp>(rootAttr.getInvDegree().getValue());
     auto degreeInvTensor = b.create<tensor::SplatOp>(invDegreeConst, rootsType);
     auto fieldTensor = b.create<field::EncapsulateOp>(modType, degreeInvTensor);
-    result = b.create<field::MulOp>(result, fieldTensor);
+    if (rootAttr.getMontgomery() != mod_arith::MontgomeryAttr()) {
+      result = b.create<field::MontMulOp>(result, fieldTensor,
+                                          rootAttr.getMontgomery());
+    } else {
+      result = b.create<field::MulOp>(result, fieldTensor);
+    }
   }
 
   return result;

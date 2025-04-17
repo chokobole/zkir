@@ -94,11 +94,20 @@ PrimitiveRootAttrStorage *PrimitiveRootAttrStorage::construct(
   IntegerAttr degree = std::get<1>(key);
   zkir::mod_arith::MontgomeryAttr montgomery = std::get<2>(key);
 
+  std::optional<IntegerAttr> montgomeryR;
+  if (montgomery != zkir::mod_arith::MontgomeryAttr()) {
+    montgomeryR = montgomery.getR();
+  }
+
   APInt mod = root.getType().getModulus().getValue();
   APInt rootVal = root.getValue().getValue();
   APInt invRootVal = multiplicativeInverse(rootVal, mod);
   APInt invDegreeVal = multiplicativeInverse(
       degree.getValue().zextOrTrunc(mod.getBitWidth()), mod);
+
+  if (montgomeryR) {
+    invDegreeVal = mulMod(invDegreeVal, montgomeryR->getValue(), mod);
+  }
 
   field::PrimeFieldAttr invDegree =
       field::PrimeFieldAttr::get(root.getType(), invDegreeVal);
@@ -107,10 +116,6 @@ PrimitiveRootAttrStorage *PrimitiveRootAttrStorage::construct(
 
   // Compute the exponent table.
   SmallVector<APInt> roots, invRoots;
-  std::optional<IntegerAttr> montgomeryR;
-  if (montgomery != zkir::mod_arith::MontgomeryAttr()) {
-    montgomeryR = montgomery.getR();
-  }
   precomputeRoots(rootVal, mod, degree.getInt(), roots, invRoots, montgomeryR);
   // Create a ranked tensor type for the exponents attribute.
   auto tensorType = RankedTensorType::get(
