@@ -9,12 +9,7 @@ include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "zkir/Dialect/Field/IR/FieldAttributes.td"
-
-def EllipticCurve_AnyPointType : AnyTypeOf<[
-    EllipticCurve_AffineType,
-    EllipticCurve_JacobianType,
-    EllipticCurve_XYZZType
-]>;
+include "zkir/Dialect/Field/IR/FieldTypes.td"
 
 // Base class for elliptic curve operations.
 class EllipticCurve_Op<string mnemonic, list<Trait> traits = [Pure]> :
@@ -24,14 +19,14 @@ class EllipticCurve_Op<string mnemonic, list<Trait> traits = [Pure]> :
 
 class EllipticCurve_UnaryOp<string mnemonic, list<Trait> traits = []> :
     EllipticCurve_Op<mnemonic, traits # [Pure, ElementwiseMappable]> {
-  let arguments = (ins EllipticCurve_AnyPointType:$input);
-  let results = (outs EllipticCurve_AnyPointType:$output);
+  let arguments = (ins PointLike:$input);
+  let results = (outs PointLike:$output);
 }
 
 class EllipticCurve_BinaryOp<string mnemonic, list<Trait> traits = []> :
   EllipticCurve_Op<mnemonic, traits # [Pure, ElementwiseMappable]>,
-  Arguments<(ins EllipticCurve_AnyPointType:$lhs, EllipticCurve_AnyPointType:$rhs)>,
-  Results<(outs EllipticCurve_AnyPointType:$output)> {
+  Arguments<(ins PointLike:$lhs, PointLike:$rhs)>,
+  Results<(outs PointLike:$output)> {
   let hasVerifier = 1;
   let assemblyFormat = "operands attr-dict `:` type($lhs) `,` type($rhs) `->` type($output)";
 }
@@ -53,7 +48,7 @@ def EllipticCurve_PointOp : EllipticCurve_Op<"point"> {
   let arguments = (ins Field_PrimeFieldAttr:$x, Field_PrimeFieldAttr:$y,
                    OptionalAttr<Field_PrimeFieldAttr>:$z, OptionalAttr<Field_PrimeFieldAttr>:$zz,
                    OptionalAttr<Field_PrimeFieldAttr>:$zzz);
-  let results = (outs EllipticCurve_AnyPointType:$output);
+  let results = (outs PointLike:$output);
   let hasCustomAssemblyFormat = 1;
 }
 
@@ -150,8 +145,8 @@ def EllipticCurve_ScalarMulOp : EllipticCurve_Op<"scalar_mul", [Pure, Commutativ
     %product = elliptic_curve.scalar_mul %affine1, %b : !affine, !PF -> !jacobian
     ```
   }];
-  let arguments = (ins EllipticCurve_AnyPointType:$input, Field_PrimeFieldType:$multiplier);
-  let results = (outs EllipticCurve_AnyPointType:$output);
+  let arguments = (ins PointLike:$input, PrimeFieldLike:$multiplier);
+  let results = (outs PointLike:$output);
   let hasVerifier = 1;
   let assemblyFormat = "operands attr-dict `:` type($input) `,` type($multiplier) `->` type($output)";
 }
