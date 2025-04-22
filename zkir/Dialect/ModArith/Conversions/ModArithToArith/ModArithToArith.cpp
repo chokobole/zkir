@@ -5,6 +5,7 @@
 #include "llvm/Support/Casting.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
@@ -571,18 +572,23 @@ void ModArithToArith::runOnOperation() {
       ConvertNegate, ConvertEncapsulate, ConvertExtract, ConvertReduce,
       ConvertMontReduce, ConvertToMont, ConvertFromMont, ConvertAdd, ConvertSub,
       ConvertMul, ConvertMontMul, ConvertMac, ConvertConstant, ConvertInverse,
-      ConvertAny<affine::AffineForOp>, ConvertAny<affine::AffineYieldOp>,
-      ConvertAny<linalg::GenericOp>, ConvertAny<linalg::YieldOp>,
-      ConvertAny<tensor::CastOp>, ConvertAny<tensor::ExtractOp>,
-      ConvertAny<tensor::FromElementsOp>, ConvertAny<tensor::InsertOp>>(
-      typeConverter, context);
+      ConvertAny<affine::AffineForOp>, ConvertAny<affine::AffineParallelOp>,
+      ConvertAny<affine::AffineLoadOp>, ConvertAny<affine::AffineApplyOp>,
+      ConvertAny<affine::AffineStoreOp>, ConvertAny<affine::AffineYieldOp>,
+      ConvertAny<bufferization::ToMemrefOp>,
+      ConvertAny<bufferization::ToTensorOp>, ConvertAny<linalg::GenericOp>,
+      ConvertAny<linalg::YieldOp>, ConvertAny<tensor::CastOp>,
+      ConvertAny<tensor::ExtractOp>, ConvertAny<tensor::FromElementsOp>,
+      ConvertAny<tensor::InsertOp>>(typeConverter, context);
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
 
-  target.addDynamicallyLegalOp<affine::AffineForOp, affine::AffineYieldOp,
-                               linalg::GenericOp, linalg::YieldOp,
-                               tensor::CastOp, tensor::ExtractOp,
-                               tensor::FromElementsOp, tensor::InsertOp>(
+  target.addDynamicallyLegalOp<
+      affine::AffineForOp, affine::AffineParallelOp, affine::AffineLoadOp,
+      affine::AffineApplyOp, affine::AffineStoreOp, affine::AffineYieldOp,
+      bufferization::ToMemrefOp, bufferization::ToTensorOp, linalg::GenericOp,
+      linalg::YieldOp, tensor::CastOp, tensor::ExtractOp,
+      tensor::FromElementsOp, tensor::InsertOp>(
       [&](auto op) { return typeConverter.isLegal(op); });
 
   if (failed(applyPartialConversion(module, target, std::move(patterns)))) {

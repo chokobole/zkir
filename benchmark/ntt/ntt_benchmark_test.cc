@@ -58,7 +58,7 @@ void BM_ntt_benchmark(::benchmark::State &state) {
   }
 }
 
-BENCHMARK(BM_ntt_benchmark)->Unit(::benchmark::kSecond);
+BENCHMARK(BM_ntt_benchmark)->Unit(::benchmark::kMillisecond);
 
 void BM_intt_benchmark(::benchmark::State &state) {
   Memref<i256> input(1, NUM_COEFFS);
@@ -80,9 +80,7 @@ void BM_intt_benchmark(::benchmark::State &state) {
   }
 }
 
-// FIXME(batzor): It fails for more than 1 iteration so it seems like it is
-// modifying the input. But I am not sure why ;(
-BENCHMARK(BM_intt_benchmark)->Iterations(1)->Unit(::benchmark::kSecond);
+BENCHMARK(BM_intt_benchmark)->Unit(::benchmark::kMillisecond);
 
 void BM_ntt_mont_benchmark(::benchmark::State &state) {
   Memref<i256> input(1, NUM_COEFFS);
@@ -104,7 +102,7 @@ void BM_ntt_mont_benchmark(::benchmark::State &state) {
   }
 }
 
-BENCHMARK(BM_ntt_mont_benchmark)->Unit(::benchmark::kSecond);
+BENCHMARK(BM_ntt_mont_benchmark)->Unit(::benchmark::kMillisecond);
 
 void BM_intt_mont_benchmark(::benchmark::State &state) {
   Memref<i256> input(1, NUM_COEFFS);
@@ -126,9 +124,7 @@ void BM_intt_mont_benchmark(::benchmark::State &state) {
   }
 }
 
-// FIXME(batzor): It fails for more than 1 iteration so it seems like it is
-// modifying the input. But I am not sure why ;(
-BENCHMARK(BM_intt_mont_benchmark)->Iterations(1)->Unit(::benchmark::kSecond);
+BENCHMARK(BM_intt_mont_benchmark)->Unit(::benchmark::kMillisecond);
 
 }  // namespace
 }  // namespace zkir
@@ -140,12 +136,12 @@ BENCHMARK(BM_intt_mont_benchmark)->Iterations(1)->Unit(::benchmark::kSecond);
 //   L1 Data 64 KiB
 //   L1 Instruction 128 KiB
 //   L2 Unified 4096 KiB (x14)
-// Load Average: 1.82, 2.22, 2.39
-// ------------------------------------------------------------------------------
-// Benchmark                                    Time             CPU   Iterations
-// ------------------------------------------------------------------------------
-// BM_ntt_benchmark                          10.1 s          10.1 s             1
-// BM_intt_benchmark/iterations:1            10.1 s          10.0 s             1
-// BM_ntt_mont_benchmark                    0.183 s         0.183 s             4
-// BM_intt_mont_benchmark/iterations:1      0.266 s         0.214 s             1
+// Load Average: 6.49, 5.64, 5.49
+// -------------------------------------------------------------------------
+// Benchmark                               Time             CPU   Iterations
+// -------------------------------------------------------------------------
+// BM_ntt_benchmark                     1656 ms         1050 ms            1
+// BM_intt_benchmark/iterations:1       1791 ms         1090 ms            1
+// BM_ntt_mont_benchmark                38.6 ms         18.6 ms           40
+// BM_intt_mont_benchmark               99.4 ms         56.4 ms           11
 // NOLINTEND()

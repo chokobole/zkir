@@ -13,6 +13,7 @@ def PolyToField : Pass<"poly-to-field", "ModuleOp"> {
   }];
   let dependentDialects = [
     "mlir::affine::AffineDialect",
+    "mlir::bufferization::BufferizationDialect",
     "mlir::linalg::LinalgDialect",
     "mlir::zkir::field::FieldDialect",
   ];
