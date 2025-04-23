@@ -2,7 +2,7 @@
 #include "benchmark/benchmark.h"
 #include "gtest/gtest.h"
 
-#define DEGREE 1 << 20
+#define NUM_COEFFS (1 << 20)
 
 namespace zkir {
 namespace {
@@ -23,18 +23,18 @@ extern "C" void _mlir_ciface_intt_mont(Memref<i256> *output,
                                        Memref<i256> *input);
 
 void BM_ntt_benchmark(::benchmark::State &state) {
-  Memref<i256> input(1, DEGREE);
+  Memref<i256> input(1, NUM_COEFFS);
   _mlir_ciface_input_generation(&input);
 
-  Memref<i256> ntt(1, DEGREE);
+  Memref<i256> ntt(1, NUM_COEFFS);
   for (auto _ : state) {
     _mlir_ciface_ntt(&ntt, &input);
   }
 
-  Memref<i256> intt(1, DEGREE);
+  Memref<i256> intt(1, NUM_COEFFS);
   _mlir_ciface_intt(&intt, &ntt);
 
-  for (int i = 0; i < DEGREE; i++) {
+  for (int i = 0; i < NUM_COEFFS; i++) {
     for (int j = 0; j < 4; j++) {
       EXPECT_EQ(intt.pget(0, i)->limbs[j], input.pget(0, i)->limbs[j]);
     }
@@ -44,18 +44,18 @@ void BM_ntt_benchmark(::benchmark::State &state) {
 BENCHMARK(BM_ntt_benchmark)->Unit(::benchmark::kSecond);
 
 void BM_intt_benchmark(::benchmark::State &state) {
-  Memref<i256> input(1, DEGREE);
+  Memref<i256> input(1, NUM_COEFFS);
   _mlir_ciface_input_generation(&input);
 
-  Memref<i256> ntt(1, DEGREE);
+  Memref<i256> ntt(1, NUM_COEFFS);
   _mlir_ciface_ntt(&ntt, &input);
 
-  Memref<i256> intt(1, DEGREE);
+  Memref<i256> intt(1, NUM_COEFFS);
   for (auto _ : state) {
     _mlir_ciface_intt(&intt, &ntt);
   }
 
-  for (int i = 0; i < DEGREE; i++) {
+  for (int i = 0; i < NUM_COEFFS; i++) {
     for (int j = 0; j < 4; j++) {
       EXPECT_EQ(intt.pget(0, i)->limbs[j], input.pget(0, i)->limbs[j]);
     }
@@ -67,18 +67,18 @@ void BM_intt_benchmark(::benchmark::State &state) {
 BENCHMARK(BM_intt_benchmark)->Iterations(1)->Unit(::benchmark::kSecond);
 
 void BM_ntt_mont_benchmark(::benchmark::State &state) {
-  Memref<i256> input(1, DEGREE);
+  Memref<i256> input(1, NUM_COEFFS);
   _mlir_ciface_input_generation(&input);
 
-  Memref<i256> ntt(1, DEGREE);
+  Memref<i256> ntt(1, NUM_COEFFS);
   for (auto _ : state) {
     _mlir_ciface_ntt_mont(&ntt, &input);
   }
 
-  Memref<i256> intt(1, DEGREE);
+  Memref<i256> intt(1, NUM_COEFFS);
   _mlir_ciface_intt_mont(&intt, &ntt);
 
-  for (int i = 0; i < DEGREE; i++) {
+  for (int i = 0; i < NUM_COEFFS; i++) {
     for (int j = 0; j < 4; j++) {
       EXPECT_EQ(intt.pget(0, i)->limbs[j], input.pget(0, i)->limbs[j]);
     }
@@ -88,18 +88,18 @@ void BM_ntt_mont_benchmark(::benchmark::State &state) {
 BENCHMARK(BM_ntt_mont_benchmark)->Unit(::benchmark::kSecond);
 
 void BM_intt_mont_benchmark(::benchmark::State &state) {
-  Memref<i256> input(1, DEGREE);
+  Memref<i256> input(1, NUM_COEFFS);
   _mlir_ciface_input_generation(&input);
 
-  Memref<i256> ntt(1, DEGREE);
+  Memref<i256> ntt(1, NUM_COEFFS);
   _mlir_ciface_ntt_mont(&ntt, &input);
 
-  Memref<i256> intt(1, DEGREE);
+  Memref<i256> intt(1, NUM_COEFFS);
   for (auto _ : state) {
     _mlir_ciface_intt_mont(&intt, &ntt);
   }
 
-  for (int i = 0; i < DEGREE; i++) {
+  for (int i = 0; i < NUM_COEFFS; i++) {
     for (int j = 0; j < 4; j++) {
       EXPECT_EQ(intt.pget(0, i)->limbs[j], input.pget(0, i)->limbs[j]);
     }
