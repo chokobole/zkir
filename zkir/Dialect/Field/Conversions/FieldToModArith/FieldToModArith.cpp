@@ -4,6 +4,7 @@
 
 #include "llvm/Support/Casting.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
+#include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/BuiltinAttributeInterfaces.h"
@@ -54,6 +55,14 @@ class PrimeFieldToModArithTypeConverter : public TypeConverter {
     });
     addConversion([](ShapedType type) -> Type {
       return convertPrimeFieldLikeType(type);
+    });
+    addConversion([](MemRefType type) -> Type {
+      if (auto primeFieldType =
+              llvm::dyn_cast<PrimeFieldType>(type.getElementType())) {
+        return type.cloneWith(type.getShape(),
+                              convertPrimeFieldType(primeFieldType));
+      }
+      return type;
     });
   }
 };
@@ -262,22 +271,26 @@ void PrimeFieldToModArith::runOnOperation() {
 
   RewritePatternSet patterns(context);
   rewrites::populateWithGenerated(patterns);
-  patterns
-      .add<ConvertConstant, ConvertEncapsulate, ConvertExtract, ConvertToMont,
-           ConvertFromMont, ConvertInverse, ConvertAdd, ConvertSub, ConvertMul,
-           ConvertMontMul, ConvertAny<affine::AffineForOp>,
-           ConvertAny<affine::AffineYieldOp>, ConvertAny<linalg::GenericOp>,
-           ConvertAny<linalg::YieldOp>, ConvertAny<tensor::CastOp>,
-           ConvertAny<tensor::ExtractOp>, ConvertAny<tensor::FromElementsOp>,
-           ConvertAny<tensor::InsertOp>>(typeConverter, context);
+  patterns.add<
+      ConvertConstant, ConvertEncapsulate, ConvertExtract, ConvertToMont,
+      ConvertFromMont, ConvertInverse, ConvertAdd, ConvertSub, ConvertMul,
+      ConvertMontMul, ConvertAny<affine::AffineForOp>,
+      ConvertAny<affine::AffineParallelOp>, ConvertAny<affine::AffineLoadOp>,
+      ConvertAny<affine::AffineStoreOp>, ConvertAny<affine::AffineYieldOp>,
+      ConvertAny<linalg::GenericOp>, ConvertAny<linalg::YieldOp>,
+      ConvertAny<tensor::CastOp>, ConvertAny<tensor::ExtractOp>,
+      ConvertAny<tensor::FromElementsOp>, ConvertAny<bufferization::ToMemrefOp>,
+      ConvertAny<bufferization::ToTensorOp>, ConvertAny<tensor::InsertOp>>(
+      typeConverter, context);
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
 
-  target.addDynamicallyLegalOp<affine::AffineForOp, affine::AffineYieldOp,
-                               linalg::GenericOp, linalg::YieldOp,
-                               tensor::CastOp, tensor::ExtractOp,
-                               tensor::FromElementsOp, tensor::InsertOp>(
-      [&](auto op) { return typeConverter.isLegal(op); });
+  target.addDynamicallyLegalOp<
+      affine::AffineForOp, affine::AffineParallelOp, affine::AffineLoadOp,
+      affine::AffineStoreOp, affine::AffineYieldOp, bufferization::ToMemrefOp,
+      bufferization::ToTensorOp, linalg::GenericOp, linalg::YieldOp,
+      tensor::CastOp, tensor::ExtractOp, tensor::FromElementsOp,
+      tensor::InsertOp>([&](auto op) { return typeConverter.isLegal(op); });
 
   if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
     signalPassFailure();

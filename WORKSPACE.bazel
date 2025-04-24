@@ -14,6 +14,10 @@
 
 workspace(name = "zkir")
 
+load("//bazel:zkir_deps.bzl", "zkir_deps")
+
+zkir_deps()
+
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 LLVM_COMMIT = "f8287f6c373fcf993643dd6f0e30dde304c1be73"

@@ -146,7 +146,11 @@ def zkir_benchmark_test(name, mlir_src, test_src, zkir_opt_flags = [], data = []
             ":" + import_name,
             "@google_benchmark//:benchmark_main",
             "@googletest//:gtest",
+            "@llvm-project//mlir:mlir_runner_utils",
+            "@local_config_omp//:omp",
         ],
+        copts = ["-Xclang -fopenmp"],
+        linkopts = ["-Xclang -fopenmp"],
         tags = tags,
         data = data + [generated_obj_name],
         **kwargs

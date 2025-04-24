@@ -5,6 +5,7 @@
 #include "llvm/Support/Casting.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
@@ -128,6 +129,24 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
   }
 };
 
+struct ConvertNegate : public OpConversionPattern<NegateOp> {
+  explicit ConvertNegate(mlir::MLIRContext *context)
+      : OpConversionPattern<NegateOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      NegateOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    auto cmod = b.create<arith::ConstantOp>(modulusAttr(op));
+    auto sub = b.create<arith::SubIOp>(cmod, adaptor.getOperands()[0]);
+    rewriter.replaceOp(op, sub);
+    return success();
+  }
+};
+
 struct ConvertReduce : public OpConversionPattern<ReduceOp> {
   explicit ConvertReduce(mlir::MLIRContext *context)
       : OpConversionPattern<ReduceOp>(context) {}
@@ -163,13 +182,12 @@ struct ConvertMontReduce : public OpConversionPattern<MontReduceOp> {
 
     // `T` is the operand (e.g. the result of a multiplication, twice the
     // bitwidth of modulus).
-    Value T = adaptor.getOperands()[0];
+    Value tLow = adaptor.getOperands()[0];
+    Value tHigh = adaptor.getOperands()[1];
 
     // Extract Montgomery constants: `nPrime` and `modulus`.
-    IntegerAttr nPrimeAttr = op.getMontgomeryAttr().getNPrime();
-    Value nPrime = b.create<arith::ConstantOp>(nPrimeAttr);
+    TypedAttr nPrimeAttr = op.getMontgomeryAttr().getNPrime();
     TypedAttr modAttr = modulusAttr(op);
-    Value mod = b.create<arith::ConstantOp>(modAttr);
 
     // Retrieve the modulus bitwidth.
     unsigned modBitWidth = cast<IntegerType>(modAttr.getType()).getWidth();
@@ -178,41 +196,70 @@ struct ConvertMontReduce : public OpConversionPattern<MontReduceOp> {
     const unsigned limbWidth = APInt::APINT_BITS_PER_WORD;
     unsigned numLimbs = (modBitWidth + limbWidth - 1) / limbWidth;
 
-    // Arith operations require the operands to be of same bit width
-    Value modExt = b.create<arith::ExtUIOp>(T.getType(), mod);
-
     // Prepare constants for limb operations.
-    Value limbWidthConst =
-        b.create<arith::ConstantOp>(b.getIntegerAttr(T.getType(), limbWidth));
+    Type limbType = nPrimeAttr.getType();
+    TypedAttr limbWidthAttr =
+        b.getIntegerAttr(getElementTypeOrSelf(tLow), limbWidth);
+    TypedAttr limbMaskAttr =
+        b.getIntegerAttr(getElementTypeOrSelf(tLow),
+                         APInt::getAllOnes(limbWidth).zext(modBitWidth));
+    TypedAttr limbShiftAttr = b.getIntegerAttr(getElementTypeOrSelf(tLow),
+                                               (numLimbs - 1) * limbWidth);
 
-    // Because the number of limbs (numLimbs) is known at compile time, we can
-    // unroll the loop as a straight-line chain of operations. Let `u` be the
-    // current working value, initially `T`.
-    Value u = T;
-    for (unsigned i = 0; i < numLimbs; ++i) {
-      // Extract the current lowest limb: `u` (mod `base`)
-      Value lowerLimb = b.create<arith::TruncIOp>(nPrimeAttr.getType(), u);
-      // Compute `m` = `lowerLimb` * `nPrime` (mod `base`)
-      Value m = b.create<arith::MulIOp>(lowerLimb, nPrime);
-      // Compute `m` * `N` , where `N` is modulus
-      Value mExt = b.create<arith::ExtUIOp>(T.getType(), m);
-      Value mN = b.create<arith::MulIOp>(modExt, mExt);
-      // Add the product to `u`.
-      Value sum = b.create<arith::AddIOp>(u, mN);
-      // Shift right by `limbWidth` to discard the zeroed limb.
-      u = b.create<arith::ShRUIOp>(sum, limbWidthConst);
+    // Splat the attributes to match the shape of `tLow`.
+    if (auto shapedType = dyn_cast<ShapedType>(tLow.getType())) {
+      limbType = shapedType.cloneWith(std::nullopt, limbType);
+      nPrimeAttr =
+          SplatElementsAttr::get(cast<ShapedType>(limbType), nPrimeAttr);
+      limbWidthAttr = SplatElementsAttr::get(shapedType, limbWidthAttr);
+      limbMaskAttr = SplatElementsAttr::get(shapedType, limbMaskAttr);
+      limbShiftAttr = SplatElementsAttr::get(shapedType, limbShiftAttr);
+      modAttr = SplatElementsAttr::get(shapedType, modAttr);
     }
 
-    // Final conditional subtraction: if (`u_final` >= modulus) then subtract
-    // modulus.
-    Value cmp = b.create<arith::CmpIOp>(arith::CmpIPredicate::uge, u, modExt);
-    Value sub = b.create<arith::SubIOp>(u, modExt);
-    Value result = b.create<arith::SelectOp>(cmp, sub, u);
+    // Create constants for the Montgomery reduction.
+    auto nPrimeConst = b.create<arith::ConstantOp>(nPrimeAttr);
+    auto limbWidthConst = b.create<arith::ConstantOp>(limbWidthAttr);
+    auto limbMaskConst = b.create<arith::ConstantOp>(limbMaskAttr);
+    auto limbShiftConst = b.create<arith::ConstantOp>(limbShiftAttr);
+    auto modConst = b.create<arith::ConstantOp>(modAttr);
 
-    // Truncate the result to the bitwidth of the modulus.
-    Value truncated = b.create<arith::TruncIOp>(mod.getType(), result);
+    // Because the number of limbs (`numLimbs`) is known at compile time, we can
+    // unroll the loop as a straight-line chain of operations.
+    for (unsigned i = 0; i < numLimbs; ++i) {
+      // Extract the current lowest limb: `tLow` (mod `base`)
+      auto lowerLimb = b.create<arith::TruncIOp>(limbType, tLow);
+      // Compute `m` = `lowerLimb` * `nPrime` (mod `base`)
+      auto m = b.create<arith::MulIOp>(lowerLimb, nPrimeConst);
+      // Compute `m` * `N` , where `N` is modulus
+      auto mExt = b.create<arith::ExtUIOp>(tLow.getType(), m);
+      auto mN = b.create<arith::MulUIExtendedOp>(modConst, mExt);
+      // Add the product to `T`.
+      auto sum = b.create<arith::AddUIExtendedOp>(tLow, mN.getLow());
+      tLow = sum.getSum();
+      tHigh = b.create<arith::AddIOp>(tHigh, mN.getHigh());
+      // Add carry from the `sum` to `tHigh`.
+      auto carryExt =
+          b.create<arith::ExtUIOp>(tHigh.getType(), sum.getOverflow());
+      tHigh = b.create<arith::AddIOp>(tHigh, carryExt);
+      // Shift right by `limbWidth` to discard the zeroed limb.
+      tLow = b.create<arith::ShRUIOp>(tLow, limbWidthConst);
+      // copy the lowest limb of `tHigh` to the highest limb of `tLow`
+      Value tHighLimb = b.create<arith::AndIOp>(tHigh, limbMaskConst);
+      tHighLimb = b.create<arith::ShLIOp>(tHighLimb, limbShiftConst);
+      tLow = b.create<arith::OrIOp>(tLow, tHighLimb);
+      // Shift right `tHigh` by `limbWidth`.
+      tHigh = b.create<arith::ShRUIOp>(tHigh, limbWidthConst);
+    }
 
-    rewriter.replaceOp(op, truncated);
+    // Final conditional subtraction: if (`tLow` >= `modulus`) then subtract
+    // `modulus`.
+    auto cmp =
+        b.create<arith::CmpIOp>(arith::CmpIPredicate::uge, tLow, modConst);
+    auto sub = b.create<arith::SubIOp>(tLow, modConst);
+    auto result = b.create<arith::SelectOp>(cmp, sub, tLow);
+
+    rewriter.replaceOp(op, result);
     return success();
   }
 };
@@ -227,20 +274,15 @@ struct ConvertToMont : public OpConversionPattern<ToMontOp> {
       ToMontOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    IntegerAttr rSquaredAttr = op.getMontgomery().getRSquared();
 
     // x * R = REDC(x * rSquared)
     auto rSquared =
         b.create<arith::ConstantOp>(op.getMontgomery().getRSquared());
-    auto extended = b.create<arith::ExtUIOp>(rSquaredAttr.getType(),
-                                             adaptor.getOperands()[0]);
-
-    // TODO(batzor): Use extended multiplication to avoid full length
-    // multiplication. Now we extend both operands to 2x the bitwidth of the
-    // modulus to avoid the truncation in multiplication.
-    auto product = b.create<arith::MulIOp>(extended, rSquared);
-    auto reduced = b.create<MontReduceOp>(op.getResult().getType(), product,
-                                          op.getMontgomery());
+    auto product =
+        b.create<arith::MulUIExtendedOp>(adaptor.getOperands()[0], rSquared);
+    auto reduced =
+        b.create<MontReduceOp>(op.getResult().getType(), product.getLow(),
+                               product.getHigh(), op.getMontgomery());
     rewriter.replaceOp(op, reduced);
     return success();
   }
@@ -258,10 +300,11 @@ struct ConvertFromMont : public OpConversionPattern<FromMontOp> {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     // x * R⁻¹ = REDC(x)
-    auto extended = b.create<arith::ExtUIOp>(
-        op.getMontgomery().getRSquared().getType(), adaptor.getOperands()[0]);
-    auto reduced = b.create<MontReduceOp>(op.getResult().getType(), extended,
-                                          op.getMontgomery());
+    auto zeroHighConst = b.create<arith::ConstantOp>(
+        IntegerAttr::get(op.getMontgomery().getRSquared().getType(), 0));
+    auto reduced = b.create<MontReduceOp>(op.getResult().getType(),
+                                          adaptor.getOperands()[0],
+                                          zeroHighConst, op.getMontgomery());
     rewriter.replaceOp(op, reduced);
     return success();
   }
@@ -492,13 +535,11 @@ struct ConvertMontMul : public OpConversionPattern<MontMulOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto lhs =
-        b.create<arith::ExtUIOp>(modulusType(op, true), adaptor.getLhs());
-    auto rhs =
-        b.create<arith::ExtUIOp>(modulusType(op, true), adaptor.getRhs());
-    auto mul = b.create<arith::MulIOp>(lhs, rhs);
+    auto mul =
+        b.create<arith::MulUIExtendedOp>(adaptor.getLhs(), adaptor.getRhs());
     auto reduced = b.create<mod_arith::MontReduceOp>(
-        getResultModArithType(op), mul.getResult(), op.getMontgomery());
+        getResultModArithType(op), mul.getLow(), mul.getHigh(),
+        op.getMontgomery());
 
     rewriter.replaceOp(op, reduced);
     return success();
@@ -527,22 +568,27 @@ void ModArithToArith::runOnOperation() {
 
   RewritePatternSet patterns(context);
   rewrites::populateWithGenerated(patterns);
-  patterns
-      .add<ConvertEncapsulate, ConvertExtract, ConvertReduce, ConvertMontReduce,
-           ConvertToMont, ConvertFromMont, ConvertAdd, ConvertSub, ConvertMul,
-           ConvertMontMul, ConvertMac, ConvertConstant, ConvertInverse,
-           ConvertAny<affine::AffineForOp>, ConvertAny<affine::AffineYieldOp>,
-           ConvertAny<linalg::GenericOp>, ConvertAny<linalg::YieldOp>,
-           ConvertAny<tensor::CastOp>, ConvertAny<tensor::ExtractOp>,
-           ConvertAny<tensor::FromElementsOp>, ConvertAny<tensor::InsertOp>>(
-          typeConverter, context);
+  patterns.add<
+      ConvertNegate, ConvertEncapsulate, ConvertExtract, ConvertReduce,
+      ConvertMontReduce, ConvertToMont, ConvertFromMont, ConvertAdd, ConvertSub,
+      ConvertMul, ConvertMontMul, ConvertMac, ConvertConstant, ConvertInverse,
+      ConvertAny<affine::AffineForOp>, ConvertAny<affine::AffineParallelOp>,
+      ConvertAny<affine::AffineLoadOp>, ConvertAny<affine::AffineApplyOp>,
+      ConvertAny<affine::AffineStoreOp>, ConvertAny<affine::AffineYieldOp>,
+      ConvertAny<bufferization::ToMemrefOp>,
+      ConvertAny<bufferization::ToTensorOp>, ConvertAny<linalg::GenericOp>,
+      ConvertAny<linalg::YieldOp>, ConvertAny<tensor::CastOp>,
+      ConvertAny<tensor::ExtractOp>, ConvertAny<tensor::FromElementsOp>,
+      ConvertAny<tensor::InsertOp>>(typeConverter, context);
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
 
-  target.addDynamicallyLegalOp<affine::AffineForOp, affine::AffineYieldOp,
-                               linalg::GenericOp, linalg::YieldOp,
-                               tensor::CastOp, tensor::ExtractOp,
-                               tensor::FromElementsOp, tensor::InsertOp>(
+  target.addDynamicallyLegalOp<
+      affine::AffineForOp, affine::AffineParallelOp, affine::AffineLoadOp,
+      affine::AffineApplyOp, affine::AffineStoreOp, affine::AffineYieldOp,
+      bufferization::ToMemrefOp, bufferization::ToTensorOp, linalg::GenericOp,
+      linalg::YieldOp, tensor::CastOp, tensor::ExtractOp,
+      tensor::FromElementsOp, tensor::InsertOp>(
       [&](auto op) { return typeConverter.isLegal(op); });
 
   if (failed(applyPartialConversion(module, target, std::move(patterns)))) {

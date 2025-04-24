@@ -3,6 +3,7 @@
 #include <utility>
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
+#include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/ImplicitLocOpBuilder.h"
@@ -334,7 +335,9 @@ static Value fastNTT(ImplicitLocOpBuilder &b, PrimitiveRootAttr rootAttr,
   //          B = coeffs[k*m + j + m/2]
   //          // Compute twiddle factor from precomputed roots:
   //          root = roots[ (j * rootExp) ]
-  //          (A, B) = bflyOp(A, B, root)
+  //          (bfA, bfB) = bflyOp(A, B, root)
+  //          coeffs[k*m + j] = bfA
+  //          coeffs[k*m + j + m/2] = bfB
   //      Update:
   //         batchSize = kInverse ? batchSize/2 : batchSize*2
   //         rootExp   = kInverse ? rootExp*2   : batchSize/2
@@ -349,9 +352,12 @@ static Value fastNTT(ImplicitLocOpBuilder &b, PrimitiveRootAttr rootAttr,
       b.create<arith::ConstantIndexOp>(kInverse ? degree : 2);
   Value initialRootExp =
       b.create<arith::ConstantIndexOp>(kInverse ? 1 : degree / 2);
-  Value zero = b.create<arith::ConstantIndexOp>(0);
   Value two = b.create<arith::ConstantIndexOp>(2);
   Value n = b.create<arith::ConstantIndexOp>(degree);
+
+  // Create a memref buffer for in-place updates
+  auto memrefType = MemRefType::get(tensorType.getShape(), baseFieldType);
+  Value inputMemref = b.create<bufferization::ToMemrefOp>(memrefType, input);
 
   // Define affine expressions for index calculations.
   // `x` and `y` will be used in affine maps to compute proper indices.
@@ -360,106 +366,101 @@ static Value fastNTT(ImplicitLocOpBuilder &b, PrimitiveRootAttr rootAttr,
 
   // Begin the outer loop over the stages of the NTT.
   // The iterative loop carries three values:
-  //   - The current state of the coefficients (input tensor),
   //   - The current batchSize,
   //   - The current root exponent (rootExp).
-  auto stagesLoop = b.create<affine::AffineForOp>(
+  b.create<affine::AffineForOp>(
       /*lowerBound=*/0, /* upperBound=*/stages, /*step=*/1,
-      /*iterArgs=*/ValueRange{input, initialBatchSize, initialRootExp},
+      /*iterArgs=*/ValueRange{initialBatchSize, initialRootExp},
       /*bodyBuilder=*/
       [&](OpBuilder &nestedBuilder, Location nestedLoc, Value index,
           ValueRange args) {
         ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
-        Value batchSize = args[1];
-        Value rootExp = args[2];
+        Value batchSize = args[0];
+        Value rootExp = args[1];
 
         // The inner loop processes groups of coefficients defined by the
         // current batchSize.
-        auto innerLoop = b.create<affine::AffineForOp>(
-            /*lbOperands=*/zero, /*lbMap=*/AffineMap::get(1, 0, x),
-            /*ubOperands=*/ValueRange{n, batchSize},
-            /*ubMap=*/AffineMap::get(2, 0, x.floorDiv(y)),
-            /*step=*/1,
-            // Pass the current coefficient tensor as the iteration argument.
-            /*iterArgs=*/args[0],
-            /*bodyBuilder=*/
-            [&](OpBuilder &nestedBuilder, Location nestedLoc, Value index,
-                ValueRange args) {
-              ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
+        auto parallelLoop = b.create<affine::AffineParallelOp>(
+            /*resultTypes=*/TypeRange{},
+            /*reductions=*/ArrayRef<arith::AtomicRMWKind>{},
+            /*lbMaps=*/
+            ArrayRef<AffineMap>{b.getConstantAffineMap(0),
+                                b.getConstantAffineMap(0)},
+            /*lbArgs=*/ValueRange{},
+            /*ubMaps=*/
+            ArrayRef<AffineMap>{AffineMap::get(2, 0, x.floorDiv(y)),
+                                AffineMap::get(2, 0, y.floorDiv(2))},
+            /*ubArgs=*/ValueRange{n, batchSize},
+            /*steps=*/ArrayRef<int64_t>{1, 1});
 
-              // `indexK` calculates the starting index of the current butterfly
-              // group.
-              Value indexK = b.create<affine::AffineApplyOp>(
-                  x * y, ValueRange{batchSize, index});
+        // Build the body of the parallel loop.
+        {
+          Block &parallelBlock = parallelLoop.getRegion().front();
+          OpBuilder parallelBuilder = OpBuilder::atBlockBegin(&parallelBlock);
+          ImplicitLocOpBuilder pb(parallelBlock.getArgument(0).getLoc(),
+                                  parallelBuilder);
 
-              // Process each butterfly pair within the current group.
-              auto arithLoop = b.create<affine::AffineForOp>(
-                  /*lbOperands=*/zero, /*lbMap=*/AffineMap::get(1, 0, x),
-                  /*ubOperands=*/batchSize,
-                  /*ubMap=*/AffineMap::get(1, 0, x.floorDiv(2)),
-                  /*step=*/1, /*iterArgs=*/args[0],
-                  /*bodyBuilder=*/
-                  [&](OpBuilder &nestedBuilder, Location nestedLoc,
-                      Value indexJ, ValueRange args) {
-                    ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
+          Value indexK = parallelBlock.getArgument(0);
+          Value indexJ = parallelBlock.getArgument(1);
 
-                    Value target = args[0];
+          // `indexBfly` calculates the starting index of the current butterfly
+          // group.
+          Value indexBfly = pb.create<affine::AffineApplyOp>(
+              x * y, ValueRange{batchSize, indexK});
 
-                    // ---------------------------------------------------------
-                    // Compute the indices for the butterfly pair:
-                    //   - `A` is the coefficient from the upper half of the
-                    //   butterfly.
-                    //   - `B` is the coefficient from the lower half.
-                    // ---------------------------------------------------------
+          // ---------------------------------------------------------
+          // Compute the indices for the butterfly pair:
+          //   - `A` is the coefficient from the upper half of the
+          //   butterfly.
+          //   - `B` is the coefficient from the lower half.
+          // ---------------------------------------------------------
 
-                    // `indexA` is computed by combining the local index
-                    // `indexJ` with the base `indexK`.
-                    Value indexA = b.create<affine::AffineApplyOp>(
-                        x + y, ValueRange{indexJ, indexK});
-                    Value A = b.create<tensor::ExtractOp>(target, indexA);
+          // `indexA` is computed by combining the local index
+          // `indexJ` with the base `indexBfly`.
+          Value indexA = pb.create<affine::AffineApplyOp>(
+              x + y, ValueRange{indexJ, indexBfly});
+          // `indexB` is calculated by shifting `indexA` by half the
+          // batch size.
+          Value indexB = pb.create<affine::AffineApplyOp>(
+              x + y.floorDiv(2), ValueRange{indexA, batchSize});
 
-                    // `indexB` is calculated by shifting `indexA` by half the
-                    // batch size.
-                    Value indexB = b.create<affine::AffineApplyOp>(
-                        x + y.floorDiv(2), ValueRange{indexA, batchSize});
-                    Value B = b.create<tensor::ExtractOp>(target, indexB);
+          // Load values from memref
+          Value A =
+              pb.create<affine::AffineLoadOp>(inputMemref, ValueRange{indexA});
+          Value B =
+              pb.create<affine::AffineLoadOp>(inputMemref, ValueRange{indexB});
 
-                    // ---------------------------------------------------------
-                    // Compute the twiddle factor for the butterfly.
-                    // The appropriate twiddle factor is selected from the
-                    // precomputed `roots` tensor. The index is computed via an
-                    // affine map using the current butterfly index `indexJ` and
-                    // the current `rootExp` value
-                    // ---------------------------------------------------------
-                    Value rootIndex = b.create<affine::AffineApplyOp>(
-                        x * y, ValueRange{indexJ, rootExp});
-                    Value root = b.create<tensor::ExtractOp>(roots, rootIndex);
+          // ---------------------------------------------------------
+          // Compute the twiddle factor for the butterfly.
+          // The appropriate twiddle factor is selected from the
+          // precomputed `roots` tensor. The index is computed via an
+          // affine map using the current butterfly index `indexJ` and
+          // the current `rootExp` value
+          // ---------------------------------------------------------
+          Value rootIndex = pb.create<affine::AffineApplyOp>(
+              x * y, ValueRange{indexJ, rootExp});
+          Value root = pb.create<tensor::ExtractOp>(roots, rootIndex);
 
-                    // ---------------------------------------------------------
-                    // Apply the butterfly operation.
-                    // Use either the Cooley-Tukey (bflyCT) or Gentleman-Sande
-                    // (bflyGS) variant, depending on whether we are performing
-                    // an inverse transform.
-                    // ---------------------------------------------------------
-                    auto bflyResult =
-                        kInverse
-                            ? bflyGS(b, A, B, root, rootAttr.getMontgomery())
-                            : bflyCT(b, A, B, root, rootAttr.getMontgomery());
+          // ---------------------------------------------------------
+          // Apply the butterfly operation.
+          // Use either the Cooley-Tukey (bflyCT) or Gentleman-Sande
+          // (bflyGS) variant, depending on whether we are performing
+          // an inverse transform.
+          // ---------------------------------------------------------
+          auto bflyResult =
+              kInverse ? bflyGS(pb, A, B, root, rootAttr.getMontgomery())
+                       : bflyCT(pb, A, B, root, rootAttr.getMontgomery());
 
-                    // Write the results back into the coefficient array.
-                    // Insert the "plus" result into `indexA` and the "minus"
-                    // result into `indexB`.
-                    auto insertPlus = b.create<tensor::InsertOp>(
-                        bflyResult.first, target, indexA);
-                    auto insertMinus = b.create<tensor::InsertOp>(
-                        bflyResult.second, insertPlus, indexB);
+          // Write the results back into the coefficient array.
+          // Insert the "plus" result into `indexA` and the "minus"
+          // result into `indexB`.
+          pb.create<affine::AffineStoreOp>(bflyResult.first, inputMemref,
+                                           ValueRange{indexA});
+          pb.create<affine::AffineStoreOp>(bflyResult.second, inputMemref,
+                                           ValueRange{indexB});
 
-                    b.create<affine::AffineYieldOp>(insertMinus.getResult());
-                  });
-
-              // Yield the updated coefficient tensor from the inner loop.
-              b.create<affine::AffineYieldOp>(arithLoop.getResult(0));
-            });
+          // Empty yield is implicitly added here.
+        }
 
         // ---------------------------------------------------------------------
         // Update control variables for the next stage:
@@ -477,14 +478,16 @@ static Value fastNTT(ImplicitLocOpBuilder &b, PrimitiveRootAttr rootAttr,
         rootExp = kInverse ? b.create<arith::MulIOp>(rootExp, two).getResult()
                            : b.create<arith::DivUIOp>(rootExp, two).getResult();
 
-        // Yield the updated tensor, `batchSize`, and `rootExp` for the next
+        // Yield the updated `batchSize`, and `rootExp` for the next
         // stage.
-        b.create<affine::AffineYieldOp>(
-            ValueRange{innerLoop.getResult(0), batchSize, rootExp});
+        b.create<affine::AffineYieldOp>(ValueRange{batchSize, rootExp});
       });
 
   // The final result is the coefficient tensor after all stages.
-  Value result = stagesLoop.getResult(0);
+  UnitAttr restrictAttr = b.getUnitAttr();
+  Value result = b.create<bufferization::ToTensorOp>(
+      tensorType.cloneWith(std::nullopt, baseFieldType), inputMemref,
+      restrictAttr);
 
   // For the inverse NTT, we must scale the output by the multiplicative inverse
   // of the degree.
@@ -494,7 +497,12 @@ static Value fastNTT(ImplicitLocOpBuilder &b, PrimitiveRootAttr rootAttr,
         b.create<arith::ConstantOp>(rootAttr.getInvDegree().getValue());
     auto degreeInvTensor = b.create<tensor::SplatOp>(invDegreeConst, rootsType);
     auto fieldTensor = b.create<field::EncapsulateOp>(modType, degreeInvTensor);
-    result = b.create<field::MulOp>(result, fieldTensor);
+    if (rootAttr.getMontgomery() != mod_arith::MontgomeryAttr()) {
+      result = b.create<field::MontMulOp>(result, fieldTensor,
+                                          rootAttr.getMontgomery());
+    } else {
+      result = b.create<field::MulOp>(result, fieldTensor);
+    }
   }
 
   return result;
