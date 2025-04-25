@@ -8,6 +8,8 @@
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/PointOperations/Jacobian/Add.h"
+#include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/PointOperations/XYZZ/Add.h"
 #include "zkir/Dialect/EllipticCurve/IR/EllipticCurveDialect.h"
 #include "zkir/Dialect/EllipticCurve/IR/EllipticCurveOps.h"
 #include "zkir/Dialect/EllipticCurve/IR/EllipticCurveTypes.h"
@@ -254,6 +256,44 @@ struct ConvertConvertPointType
   }
 };
 
+///////////// POINT ARITHMETIC OPERATIONS //////////////
+
+// `p1` and `p2` must be tensor::from_elements ops
+static Value convertAddImpl(Value p1, Value p2, Type p1Type, Type p2Type,
+                            Type outputType, ImplicitLocOpBuilder &b) {
+  if (isa<XYZZType>(outputType)) {
+    return xyzzAdd(p1, p2, p1Type, p2Type, b);
+  } else if (isa<JacobianType>(outputType)) {
+    return jacobianAdd(p1, p2, p1Type, p2Type, b);
+  } else {
+    assert(false && "Unsupported point types for addition");
+  }
+}
+
+struct ConvertAdd : public OpConversionPattern<AddOp> {
+  explicit ConvertAdd(MLIRContext *context)
+      : OpConversionPattern<AddOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      AddOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    // `p1` and `p2` are tensor::from_elements ops
+    Value p1 = adaptor.getLhs();
+    Value p2 = adaptor.getRhs();
+    Type p1Type = op.getLhs().getType();
+    Type p2Type = op.getRhs().getType();
+    Type outputType = op.getOutput().getType();
+
+    rewriter.replaceOp(op,
+                       convertAddImpl(p1, p2, p1Type, p2Type, outputType, b));
+    return success();
+  }
+};
+
 namespace rewrites {
 // In an inner namespace to avoid conflicts with canonicalization patterns
 #include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/EllipticCurveToField.cpp.inc"
@@ -277,8 +317,9 @@ void EllipticCurveToField::runOnOperation() {
 
   RewritePatternSet patterns(context);
   rewrites::populateWithGenerated(patterns);
-  patterns.add<ConvertPoint, ConvertExtract, ConvertConvertPointType>(
-      typeConverter, context);
+  patterns
+      .add<ConvertPoint, ConvertExtract, ConvertConvertPointType, ConvertAdd>(
+          typeConverter, context);
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
 
