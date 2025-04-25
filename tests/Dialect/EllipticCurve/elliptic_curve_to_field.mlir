@@ -79,3 +79,22 @@ func.func @test_addition() {
   %xyzz5 = elliptic_curve.add %xyzz1, %xyzz2 : !xyzz, !xyzz -> !xyzz
   return
 }
+
+// CHECK-LABEL: @test_double
+func.func @test_double() {
+  %var1 = field.pf.constant 1 : !PF
+  %var2 = field.pf.constant 2 : !PF
+  %var4 = field.pf.constant 4 : !PF
+  %var5 = field.pf.constant 5 : !PF
+  %var8 = field.pf.constant 8 : !PF
+
+  %affine1 = elliptic_curve.point %var1, %var5 : !PF -> !affine
+  %jacobian1 = elliptic_curve.point %var1, %var5, %var2 : !PF -> !jacobian
+  %xyzz1 = elliptic_curve.point %var1, %var5, %var4, %var8 : !PF -> !xyzz
+
+  // CHECK-NOT: elliptic_curve.double
+  %affine2 = elliptic_curve.double %affine1 : !affine -> !jacobian
+  %jacobian2 = elliptic_curve.double %jacobian1 : !jacobian -> !jacobian
+  %xyzz2 = elliptic_curve.double %xyzz1 : !xyzz -> !xyzz
+  return
+}
