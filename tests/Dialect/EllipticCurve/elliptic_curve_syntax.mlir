@@ -230,23 +230,23 @@ func.func @test_scalar_mul() {
 
   // CHECK: %[[AFFINE1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]] : ![[PF]] -> ![[AF:.*]]
   %affine1 = elliptic_curve.point %var1, %var5 : !PF -> !affine
-  // CHECK: %[[AFFINE2:.*]] = elliptic_curve.scalar_mul %[[AFFINE1]], %[[VAR1]] : ![[AF]], ![[PF]] -> ![[JA:.*]]
-  %affine2 = elliptic_curve.scalar_mul %affine1, %var1 : !affine, !PF -> !jacobian
-  // CHECK: %[[JACOBIAN4:.*]] = elliptic_curve.scalar_mul %[[AFFINE1]], %[[VAR8]] : ![[AF]], ![[PF]] -> ![[JA]]
-  %jacobian4 = elliptic_curve.scalar_mul %affine1, %var8 : !affine, !PF -> !jacobian
+  // CHECK: %[[AFFINE2:.*]] = elliptic_curve.scalar_mul %[[VAR1]], %[[AFFINE1]] : ![[PF]], ![[AF]] -> ![[JA:.*]]
+  %affine2 = elliptic_curve.scalar_mul %var1, %affine1 : !PF, !affine -> !jacobian
+  // CHECK: %[[JACOBIAN4:.*]] = elliptic_curve.scalar_mul %[[VAR8]], %[[AFFINE1]] : ![[PF]], ![[AF]] -> ![[JA]]
+  %jacobian4 = elliptic_curve.scalar_mul %var8, %affine1 : !PF, !affine -> !jacobian
 
   // CHECK: %[[JACOBIAN1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]], %[[VAR2]] : ![[PF]] -> ![[JA:.*]]
   %jacobian1 = elliptic_curve.point %var1, %var5, %var2 : !PF -> !jacobian
-  // CHECK: %[[JACOBIAN2:.*]] = elliptic_curve.scalar_mul %[[JACOBIAN1]], %[[VAR1]] : ![[JA]], ![[PF]] -> ![[JA]]
-  %jacobian2 = elliptic_curve.scalar_mul %jacobian1, %var1 : !jacobian, !PF -> !jacobian
-  // CHECK: %[[JACOBIAN3:.*]] = elliptic_curve.scalar_mul %[[JACOBIAN1]], %[[VAR8]] : ![[JA]], ![[PF]] -> ![[JA]]
-  %jacobian3 = elliptic_curve.scalar_mul %jacobian1, %var8 : !jacobian, !PF -> !jacobian
+  // CHECK: %[[JACOBIAN2:.*]] = elliptic_curve.scalar_mul %[[VAR1]], %[[JACOBIAN1]] : ![[PF]], ![[JA]] -> ![[JA]]
+  %jacobian2 = elliptic_curve.scalar_mul %var1, %jacobian1 : !PF, !jacobian -> !jacobian
+  // CHECK: %[[JACOBIAN3:.*]] = elliptic_curve.scalar_mul %[[VAR8]], %[[JACOBIAN1]] : ![[PF]], ![[JA]] -> ![[JA]]
+  %jacobian3 = elliptic_curve.scalar_mul %var8, %jacobian1 : !PF, !jacobian -> !jacobian
 
   // CHECK: %[[XYZZ1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]], %[[VAR4]], %[[VAR8]] : ![[PF]] -> ![[XY:.*]]
   %xyzz1 = elliptic_curve.point %var1, %var5, %var4, %var8 : !PF -> !xyzz
-  // CHECK: %[[XYZZ2:.*]] = elliptic_curve.scalar_mul %[[XYZZ1]], %[[VAR1]] : ![[XY]], ![[PF]] -> ![[XY]]
-  %xyzz2 = elliptic_curve.scalar_mul %xyzz1, %var1 : !xyzz, !PF -> !xyzz
-  // CHECK: %[[XYZZ3:.*]] = elliptic_curve.scalar_mul %[[XYZZ1]], %[[VAR8]] : ![[XY]], ![[PF]] -> ![[XY]]
-  %xyzz3 = elliptic_curve.scalar_mul %xyzz1, %var8 : !xyzz, !PF -> !xyzz
+  // CHECK: %[[XYZZ2:.*]] = elliptic_curve.scalar_mul %[[VAR1]], %[[XYZZ1]] : ![[PF]], ![[XY]] -> ![[XY]]
+  %xyzz2 = elliptic_curve.scalar_mul %var1, %xyzz1 : !PF, !xyzz -> !xyzz
+  // CHECK: %[[XYZZ3:.*]] = elliptic_curve.scalar_mul %[[VAR8]], %[[XYZZ1]] : ![[PF]], ![[XY]] -> ![[XY]]
+  %xyzz3 = elliptic_curve.scalar_mul %var8, %xyzz1 : !PF, !xyzz -> !xyzz
   return
 }

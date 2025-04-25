@@ -207,20 +207,25 @@ LogicalResult AddOp::verify() { return verifyBinaryOp(*this); }
 
 LogicalResult SubOp::verify() { return verifyBinaryOp(*this); }
 
-template <typename OpType>
-LogicalResult verifyUnaryOp(OpType op) {
-  auto inputType = op.getInput().getType();
-  auto outputType = op.getOutput().getType();
+LogicalResult DoubleOp::verify() {
+  auto inputType = getInput().getType();
+  auto outputType = getOutput().getType();
   if ((dyn_cast<AffineType>(inputType) && dyn_cast<JacobianType>(outputType)) ||
       inputType == outputType)
     return success();
   // TODO(ashjeong): check curves/fields are the same
-  return op->emitError() << "wrong output type given input type";
+  return emitError() << "wrong output type given input type";
 }
 
-LogicalResult DblOp::verify() { return verifyUnaryOp(*this); }
-
-LogicalResult ScalarMulOp::verify() { return verifyUnaryOp(*this); }
+LogicalResult ScalarMulOp::verify() {
+  Type pointType = getPoint().getType();
+  Type outputType = getOutput().getType();
+  if ((dyn_cast<AffineType>(pointType) && dyn_cast<JacobianType>(outputType)) ||
+      pointType == outputType)
+    return success();
+  // TODO(ashjeong): check curves/fields are the same
+  return emitError() << "wrong output type given point type";
+}
 
 /////////////// VERIFY POINT CONVERSIONS ////////////////
 

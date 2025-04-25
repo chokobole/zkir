@@ -159,13 +159,13 @@ def EllipticCurve_ScalarMulOp : EllipticCurve_Op<"scalar_mul", [Pure, Commutativ
 
     Example:
     ```
-    %product = elliptic_curve.scalar_mul %affine1, %b : !affine, !PF -> !jacobian
+    %product = elliptic_curve.scalar_mul %f, %affine1 : !PF, !affine -> !jacobian
     ```
   }];
-  let arguments = (ins PointLike:$input, PrimeFieldLike:$multiplier);
+  let arguments = (ins PrimeFieldLike:$scalar, PointLike:$point);
   let results = (outs PointLike:$output);
   let hasVerifier = 1;
-  let assemblyFormat = "operands attr-dict `:` type($input) `,` type($multiplier) `->` type($output)";
+  let assemblyFormat = "operands attr-dict `:` type($scalar) `,` type($point) `->` type($output)";
 }
 
 ////////////// POINT CONVERSIONS //////////////
