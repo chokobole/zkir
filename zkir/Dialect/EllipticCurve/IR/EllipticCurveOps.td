@@ -51,6 +51,24 @@ def EllipticCurve_PointOp : EllipticCurve_Op<"point"> {
   let hasVerifier = 1;
 }
 
+/////////// POINT EXTRACTION //////////////
+
+def EllipticCurve_ExtractOp : EllipticCurve_Op<"extract"> {
+  let summary = "Extracts coordinates of a point";
+  let description = [{
+    Outputs coordinates of an elliptic curve point as integers.
+
+    Example:
+    ```
+    %coords = elliptic_curve.extract %point : elliptic_curve.affine<#curve> -> !PF
+    ```
+  }];
+
+  let arguments = (ins PointLike:$input);
+  let results = (outs TensorOf<[Field_PrimeFieldType]>:$output);
+  let assemblyFormat = "operands attr-dict `:` type($input) `->` type($output)";
+}
+
 ////////////// POINT ARITHMETIC OPERATIONS //////////////
 
 // Elliptic curve point addition.
