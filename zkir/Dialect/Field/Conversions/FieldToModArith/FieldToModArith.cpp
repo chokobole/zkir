@@ -353,6 +353,7 @@ void PrimeFieldToModArith::runOnOperation() {
       ConvertAny<affine::AffineYieldOp>, ConvertAny<linalg::GenericOp>,
       ConvertAny<linalg::YieldOp>, ConvertAny<tensor::CastOp>,
       ConvertAny<tensor::ExtractOp>, ConvertAny<tensor::FromElementsOp>,
+      ConvertAny<bufferization::MaterializeInDestinationOp>,
       ConvertAny<bufferization::ToMemrefOp>,
       ConvertAny<bufferization::ToTensorOp>, ConvertAny<tensor::InsertOp>>(
       typeConverter, context);
@@ -361,7 +362,8 @@ void PrimeFieldToModArith::runOnOperation() {
 
   target.addDynamicallyLegalOp<
       affine::AffineForOp, affine::AffineParallelOp, affine::AffineLoadOp,
-      affine::AffineStoreOp, affine::AffineYieldOp, bufferization::ToMemrefOp,
+      affine::AffineStoreOp, affine::AffineYieldOp,
+      bufferization::MaterializeInDestinationOp, bufferization::ToMemrefOp,
       bufferization::ToTensorOp, linalg::GenericOp, linalg::YieldOp,
       tensor::CastOp, tensor::ExtractOp, tensor::FromElementsOp,
       tensor::InsertOp>([&](auto op) { return typeConverter.isLegal(op); });

@@ -619,10 +619,10 @@ void ModArithToArith::runOnOperation() {
   target.addDynamicallyLegalOp<
       affine::AffineForOp, affine::AffineParallelOp, affine::AffineLoadOp,
       affine::AffineApplyOp, affine::AffineStoreOp, affine::AffineYieldOp,
-      bufferization::ToMemrefOp, bufferization::ToTensorOp, linalg::GenericOp,
-      linalg::YieldOp, tensor::CastOp, tensor::ExtractOp,
-      tensor::FromElementsOp, tensor::InsertOp>(
-      [&](auto op) { return typeConverter.isLegal(op); });
+      bufferization::MaterializeInDestinationOp, bufferization::ToMemrefOp,
+      bufferization::ToTensorOp, linalg::GenericOp, linalg::YieldOp,
+      tensor::CastOp, tensor::ExtractOp, tensor::FromElementsOp,
+      tensor::InsertOp>([&](auto op) { return typeConverter.isLegal(op); });
 
   if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
     signalPassFailure();
