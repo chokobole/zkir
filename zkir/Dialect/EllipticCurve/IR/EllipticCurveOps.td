@@ -110,7 +110,7 @@ def EllipticCurve_SubOp : EllipticCurve_BinaryOp<"sub"> {
 }
 
 // Elliptic curve point negation.
-def EllipticCurve_NegOp : EllipticCurve_UnaryOp<"neg", [Involution, SameOperandsAndResultType]> {
+def EllipticCurve_NegateOp : EllipticCurve_UnaryOp<"negate", [Involution, SameOperandsAndResultType]> {
   let summary = "Elliptic curve point negation operation";
   let description = [{
     Computes the negation of an elliptic curve point.
@@ -121,7 +121,7 @@ def EllipticCurve_NegOp : EllipticCurve_UnaryOp<"neg", [Involution, SameOperands
 
     Example:
     ```
-    %negation = elliptic_curve.neg %a : !jacobian
+    %negation = elliptic_curve.negate %a : !jacobian
     ```
   }];
   let assemblyFormat = "operands attr-dict `:` type($output)";

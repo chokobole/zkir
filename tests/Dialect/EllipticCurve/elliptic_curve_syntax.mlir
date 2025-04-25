@@ -170,18 +170,18 @@ func.func @test_negation() {
 
   // CHECK: %[[AFFINE1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]] : ![[PF]] -> ![[AF:.*]]
   %affine1 = elliptic_curve.point %var1, %var5 : !PF -> !affine
-  // CHECK: %[[AFFINE2:.*]] = elliptic_curve.neg %[[AFFINE1]] : ![[AF]]
-  %affine2 = elliptic_curve.neg %affine1 : !affine
+  // CHECK: %[[AFFINE2:.*]] = elliptic_curve.negate %[[AFFINE1]] : ![[AF]]
+  %affine2 = elliptic_curve.negate %affine1 : !affine
 
   // CHECK: %[[JACOBIAN1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]], %[[VAR2]] : ![[PF]] -> ![[JA:.*]]
   %jacobian1 = elliptic_curve.point %var1, %var5, %var2 : !PF -> !jacobian
-  // CHECK: %[[JACOBIAN2:.*]] = elliptic_curve.neg %[[JACOBIAN1]] : ![[JA]]
-  %jacobian2 = elliptic_curve.neg %jacobian1 : !jacobian
+  // CHECK: %[[JACOBIAN2:.*]] = elliptic_curve.negate %[[JACOBIAN1]] : ![[JA]]
+  %jacobian2 = elliptic_curve.negate %jacobian1 : !jacobian
 
   // CHECK: %[[XYZZ1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]], %[[VAR4]], %[[VAR8]] : ![[PF]] -> ![[XY:.*]]
   %xyzz1 = elliptic_curve.point %var1, %var5, %var4, %var8 : !PF -> !xyzz
-  // CHECK: %[[XYZZ2:.*]] = elliptic_curve.neg %[[XYZZ1]] : ![[XY]]
-  %xyzz2 = elliptic_curve.neg %xyzz1 : !xyzz
+  // CHECK: %[[XYZZ2:.*]] = elliptic_curve.negate %[[XYZZ1]] : ![[XY]]
+  %xyzz2 = elliptic_curve.negate %xyzz1 : !xyzz
   return
 }
 
