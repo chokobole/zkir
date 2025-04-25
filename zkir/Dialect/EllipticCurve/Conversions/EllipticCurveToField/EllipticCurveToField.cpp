@@ -2,6 +2,7 @@
 
 #include <utility>
 
+#include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/ImplicitLocOpBuilder.h"
@@ -398,6 +399,115 @@ struct ConvertSub : public OpConversionPattern<SubOp> {
   }
 };
 
+// Currently implements Double-and-Add algorithm
+// TODO(ashjeong): implement GLV
+struct ConvertScalarMul : public OpConversionPattern<ScalarMulOp> {
+  explicit ConvertScalarMul(MLIRContext *context)
+      : OpConversionPattern<ScalarMulOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      ScalarMulOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    Type inputType = op.getPoint().getType();
+    Type outputType = op.getOutput().getType();
+
+    Value scalarPF = op.getScalar();
+    auto pfType = cast<field::PrimeFieldType>(scalarPF.getType());
+    unsigned outputBitWidth = pfType.getModulus().getValue().getBitWidth();
+    auto signlessIntType = IntegerType::get(op.getContext(), outputBitWidth,
+                                            IntegerType::Signless);
+    auto scalar = b.create<field::ExtractOp>(signlessIntType, scalarPF);
+
+    Value point = adaptor.getPoint();
+    auto zeroPF = b.create<field::ConstantOp>(pfType, 0);
+    SmallVector<Value> zeroes{zeroPF, zeroPF, zeroPF};
+    Value initalPoint;
+
+    if (isa<XYZZType>(outputType)) {
+      zeroes.push_back(zeroPF);
+      initalPoint = point;
+    } else if (isa<AffineType>(inputType)) {
+      initalPoint =
+          convertConvertPointTypeImpl(point, inputType, outputType, b);
+    } else {
+      initalPoint = point;
+    }
+    Value zeroPoint = b.create<tensor::FromElementsOp>(zeroes);
+
+    // `decreasingScalar` set to `scalar` and `result` set to zero point.
+    auto whileOp = b.create<scf::WhileOp>(
+        /*resultTypes=*/
+        TypeRange(
+            {signlessIntType, initalPoint.getType(), zeroPoint.getType()}),
+        /*operands=*/
+        ValueRange({scalar, initalPoint, zeroPoint}),
+        /*beforeBuilder=*/
+        [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
+          ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
+          auto arithZero = b.create<arith::ConstantIntOp>(0, signlessIntType);
+          // if `decreasingScalar` > 0, continue
+          Value decreasingScalar = args[0];
+          auto cmpGt = b.create<arith::CmpIOp>(arith::CmpIPredicate::ugt,
+                                               decreasingScalar, arithZero);
+          b.create<scf::ConditionOp>(cmpGt, args);
+        },
+        /*afterBuilder=*/
+        [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
+          ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
+          auto arithOne = b.create<arith::ConstantIntOp>(1, signlessIntType);
+          Value decreasingScalar = args[0];
+          Value multiplyingPoint = args[1];
+          Value result = args[2];
+
+          // if `decreasingScalar` % 1 == 1...
+          auto bitAdd = b.create<arith::AndIOp>(decreasingScalar, arithOne);
+          auto cmpEq = b.create<arith::CmpIOp>(arith::CmpIPredicate::eq, bitAdd,
+                                               arithOne);
+          auto ifOp = b.create<scf::IfOp>(
+              cmpEq,
+              // ...then add `multiplyingPoint` to `result`
+              /*thenBuilder=*/
+              [&](OpBuilder &builder, Location loc) {
+                ImplicitLocOpBuilder b(loc, builder);
+                Value innerResult =
+                    convertAddImpl(result, multiplyingPoint, outputType,
+                                   outputType, outputType, b);
+                b.create<scf::YieldOp>(innerResult);
+              },
+              /*elseBuilder=*/
+              [&](OpBuilder &builder, Location loc) {
+                b.create<scf::YieldOp>(result);
+              });
+          // double `multiplyingPoint`
+          Value doubledPoint =
+              convertDoubleImpl(multiplyingPoint, outputType, outputType, b);
+          // right shift `decreasingScalar` by 1
+          decreasingScalar =
+              b.create<arith::ShRUIOp>(decreasingScalar, arithOne);
+
+          // See here for more info:
+          // https://github.com/iree-org/iree/issues/16956
+          auto multPointBufferOp =
+              b.create<bufferization::MaterializeInDestinationOp>(
+                  doubledPoint, multiplyingPoint);
+          auto resultBufferOp =
+              b.create<bufferization::MaterializeInDestinationOp>(
+                  ifOp.getResult(0), result);
+
+          b.create<scf::YieldOp>(
+              ValueRange({decreasingScalar, multPointBufferOp.getResult(),
+                          resultBufferOp.getResult()}));
+        });
+
+    rewriter.replaceOp(op, whileOp.getResult(2));
+    return success();
+  }
+};
+
 namespace rewrites {
 // In an inner namespace to avoid conflicts with canonicalization patterns
 #include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/EllipticCurveToField.cpp.inc"
@@ -421,9 +531,10 @@ void EllipticCurveToField::runOnOperation() {
 
   RewritePatternSet patterns(context);
   rewrites::populateWithGenerated(patterns);
-  patterns.add<ConvertPoint, ConvertExtract, ConvertConvertPointType,
-               ConvertAdd, ConvertDouble, ConvertNegate, ConvertSub>(
-      typeConverter, context);
+  patterns
+      .add<ConvertPoint, ConvertExtract, ConvertConvertPointType, ConvertAdd,
+           ConvertDouble, ConvertNegate, ConvertSub, ConvertScalarMul>(
+          typeConverter, context);
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
 
