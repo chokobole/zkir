@@ -102,6 +102,22 @@ struct ConvertPoint : public OpConversionPattern<PointOp> {
   }
 };
 
+struct ConvertExtract : public OpConversionPattern<ExtractOp> {
+  explicit ConvertExtract(MLIRContext *context)
+      : OpConversionPattern<ExtractOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      ExtractOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    rewriter.replaceOp(op, adaptor.getInput());
+    return success();
+  }
+};
+
 namespace rewrites {
 // In an inner namespace to avoid conflicts with canonicalization patterns
 #include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/EllipticCurveToField.cpp.inc"
@@ -125,7 +141,7 @@ void EllipticCurveToField::runOnOperation() {
 
   RewritePatternSet patterns(context);
   rewrites::populateWithGenerated(patterns);
-  patterns.add<ConvertPoint>(typeConverter, context);
+  patterns.add<ConvertPoint, ConvertExtract>(typeConverter, context);
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
 
