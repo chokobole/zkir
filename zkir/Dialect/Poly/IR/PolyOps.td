@@ -131,6 +131,7 @@ def Poly_ToTensorOp : Poly_Op<"to_tensor", [Pure]> {
   let arguments = (ins Poly_PolyType:$input);
   let results = (outs RankedTensorOf<[AnyType]>:$output);
   let assemblyFormat = "$input attr-dict `:` type($input) `->` type($output)";
+  let hasCanonicalizer = 1;
 }
 
 def Poly_FromTensorOp : Poly_Op<"from_tensor", [Pure]> {
@@ -155,6 +156,7 @@ def Poly_FromTensorOp : Poly_Op<"from_tensor", [Pure]> {
   let arguments = (ins RankedTensorOf<[AnyType]>:$input);
   let results = (outs Poly_PolyType:$output);
   let assemblyFormat = "$input attr-dict `:` type($input) `->` type($output)";
+  let hasCanonicalizer = 1;
 }
 
 def Poly_BitReverseOp : Poly_Op<"bit_reverse", [Involution, DestinationStyleOpInterface, SameOperandsAndResultType]> {

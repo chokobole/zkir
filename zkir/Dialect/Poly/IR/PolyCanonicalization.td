@@ -19,4 +19,14 @@ def NTTAfterINTT : Pat<
   [(Equal $r1, $r2)]
 >;
 
+def FromToTensor : Pat<
+  (Poly_FromTensorOp (Poly_ToTensorOp $poly)),
+  (replaceWithValue $poly)
+>;
+
+def ToFromTensor : Pat<
+  (Poly_ToTensorOp (Poly_FromTensorOp $tensor)),
+  (replaceWithValue $tensor)
+>;
+
 #endif  // LIB_DIALECT_POLYNOMIAL_IR_POLYNOMIALCANONICALIZATION_TD_
