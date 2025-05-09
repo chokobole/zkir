@@ -67,7 +67,7 @@ FailureOr<CommonConversionInfo> getCommonConversionInfo(
 }
 
 struct ConvertConstant : public OpConversionPattern<ConstantOp> {
-  explicit ConvertConstant(mlir::MLIRContext *context)
+  explicit ConvertConstant(MLIRContext *context)
       : OpConversionPattern<ConstantOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -131,7 +131,7 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
 
 template <typename SourceOp, typename TargetFieldOp>
 struct ConvertPolyBinOp : public OpConversionPattern<SourceOp> {
-  explicit ConvertPolyBinOp(mlir::MLIRContext *context)
+  explicit ConvertPolyBinOp(MLIRContext *context)
       : OpConversionPattern<SourceOp>(context) {}
 
   using OpConversionPattern<SourceOp>::OpConversionPattern;
@@ -150,7 +150,7 @@ struct ConvertPolyBinOp : public OpConversionPattern<SourceOp> {
 };
 
 struct ConvertToTensor : public OpConversionPattern<ToTensorOp> {
-  explicit ConvertToTensor(mlir::MLIRContext *context)
+  explicit ConvertToTensor(MLIRContext *context)
       : OpConversionPattern<ToTensorOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -164,7 +164,7 @@ struct ConvertToTensor : public OpConversionPattern<ToTensorOp> {
 };
 
 struct ConvertFromTensor : public OpConversionPattern<FromTensorOp> {
-  explicit ConvertFromTensor(mlir::MLIRContext *context)
+  explicit ConvertFromTensor(MLIRContext *context)
       : OpConversionPattern<FromTensorOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -509,7 +509,7 @@ static Value fastNTT(ImplicitLocOpBuilder &b, PrimitiveRootAttr rootAttr,
 }
 
 struct ConvertNTT : public OpConversionPattern<NTTOp> {
-  explicit ConvertNTT(mlir::MLIRContext *context)
+  explicit ConvertNTT(MLIRContext *context)
       : OpConversionPattern<NTTOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -544,7 +544,7 @@ struct ConvertNTT : public OpConversionPattern<NTTOp> {
 };
 
 struct ConvertINTT : public OpConversionPattern<INTTOp> {
-  explicit ConvertINTT(mlir::MLIRContext *context)
+  explicit ConvertINTT(MLIRContext *context)
       : OpConversionPattern<INTTOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;

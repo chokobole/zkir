@@ -71,7 +71,7 @@ class ArithToModArithTypeConverter : public TypeConverter {
 };
 
 struct ConvertConstant : public OpConversionPattern<mlir::arith::ConstantOp> {
-  explicit ConvertConstant(mlir::MLIRContext *context)
+  explicit ConvertConstant(MLIRContext *context)
       : OpConversionPattern<mlir::arith::ConstantOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -94,7 +94,7 @@ struct ConvertConstant : public OpConversionPattern<mlir::arith::ConstantOp> {
 };
 
 struct ConvertExtSI : public OpConversionPattern<mlir::arith::ExtSIOp> {
-  explicit ConvertExtSI(mlir::MLIRContext *context)
+  explicit ConvertExtSI(MLIRContext *context)
       : OpConversionPattern<mlir::arith::ExtSIOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -112,7 +112,7 @@ struct ConvertExtSI : public OpConversionPattern<mlir::arith::ExtSIOp> {
 };
 
 struct ConvertExtUI : public OpConversionPattern<mlir::arith::ExtUIOp> {
-  explicit ConvertExtUI(mlir::MLIRContext *context)
+  explicit ConvertExtUI(MLIRContext *context)
       : OpConversionPattern<mlir::arith::ExtUIOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -130,7 +130,7 @@ struct ConvertExtUI : public OpConversionPattern<mlir::arith::ExtUIOp> {
 };
 
 struct ConvertLoadOp : public OpConversionPattern<mlir::memref::LoadOp> {
-  explicit ConvertLoadOp(mlir::MLIRContext *context)
+  explicit ConvertLoadOp(MLIRContext *context)
       : OpConversionPattern<mlir::memref::LoadOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
