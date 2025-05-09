@@ -9,6 +9,7 @@ cc_library(
     srcs = ["PipelineRegistration.cpp"],
     hdrs = ["PipelineRegistration.h"],
     deps = [
+        "//zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField",
         "//zkir/Dialect/Field/Conversions/FieldToModArith",
         "//zkir/Dialect/ModArith/Conversions/ModArithToArith",
         "//zkir/Dialect/Poly/Conversions/PolyToField",

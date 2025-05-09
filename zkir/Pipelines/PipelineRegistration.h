@@ -11,6 +11,7 @@ void oneShotBufferize(OpPassManager &manager);
 
 template <bool allowOpenMP>
 void polyToLLVMPipelineBuilder(OpPassManager &manager);
+void ellipticCurveToLLVMPipelineBuilder(OpPassManager &manager);
 
 extern template void polyToLLVMPipelineBuilder<false>(
     mlir::OpPassManager &manager);

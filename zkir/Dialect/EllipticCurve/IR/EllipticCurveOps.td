@@ -9,12 +9,7 @@ include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "zkir/Dialect/Field/IR/FieldAttributes.td"
-
-def EllipticCurve_AnyPointType : AnyTypeOf<[
-    EllipticCurve_AffineType,
-    EllipticCurve_JacobianType,
-    EllipticCurve_XYZZType
-]>;
+include "zkir/Dialect/Field/IR/FieldTypes.td"
 
 // Base class for elliptic curve operations.
 class EllipticCurve_Op<string mnemonic, list<Trait> traits = [Pure]> :
@@ -24,14 +19,14 @@ class EllipticCurve_Op<string mnemonic, list<Trait> traits = [Pure]> :
 
 class EllipticCurve_UnaryOp<string mnemonic, list<Trait> traits = []> :
     EllipticCurve_Op<mnemonic, traits # [Pure, ElementwiseMappable]> {
-  let arguments = (ins EllipticCurve_AnyPointType:$input);
-  let results = (outs EllipticCurve_AnyPointType:$output);
+  let arguments = (ins PointLike:$input);
+  let results = (outs PointLike:$output);
 }
 
 class EllipticCurve_BinaryOp<string mnemonic, list<Trait> traits = []> :
   EllipticCurve_Op<mnemonic, traits # [Pure, ElementwiseMappable]>,
-  Arguments<(ins EllipticCurve_AnyPointType:$lhs, EllipticCurve_AnyPointType:$rhs)>,
-  Results<(outs EllipticCurve_AnyPointType:$output)> {
+  Arguments<(ins PointLike:$lhs, PointLike:$rhs)>,
+  Results<(outs PointLike:$output)> {
   let hasVerifier = 1;
   let assemblyFormat = "operands attr-dict `:` type($lhs) `,` type($rhs) `->` type($output)";
 }
@@ -41,25 +36,42 @@ class EllipticCurve_BinaryOp<string mnemonic, list<Trait> traits = []> :
 def EllipticCurve_PointOp : EllipticCurve_Op<"point"> {
   let summary = "An elliptic curve point";
   let description = [{
-    Defines an elliptic curve point in affine(x, y), Jacobian(x, y, z), or XYZZ(x, y, z², z³) form.
+    Defines an elliptic curve point in Affine(x, y), Jacobian(x, y, z), or XYZZ(x, y, z², z³) form.
 
     Example:
     ```
-    %0 = elliptic_curve.point %x, %y : !elliptic_curve.affine<#curve>
-    %1 = elliptic_curve.point %x, %y, %z : !elliptic_curve.jacobian<#curve>
-    %2 = elliptic_curve.point %x, %y, %zz, %zzz : !elliptic_curve.xyzz<#curve>
+    %0 = elliptic_curve.point %x, %y : elliptic_curve.affine<#curve>
+    %1 = elliptic_curve.point %x, %y, %z : elliptic_curve.jacobian<#curve>
+    %2 = elliptic_curve.point %x, %y, %zz, %zzz : elliptic_curve.xyzz<#curve>
     ```
   }];
-  let arguments = (ins Field_PrimeFieldAttr:$x, Field_PrimeFieldAttr:$y,
-                   OptionalAttr<Field_PrimeFieldAttr>:$z, OptionalAttr<Field_PrimeFieldAttr>:$zz,
-                   OptionalAttr<Field_PrimeFieldAttr>:$zzz);
-  let results = (outs EllipticCurve_AnyPointType:$output);
+  let arguments = (ins Variadic<Field_PrimeFieldType>:$coords);
+  let results = (outs PointLike:$output);
   let hasCustomAssemblyFormat = 1;
+  let hasVerifier = 1;
 }
 
-////////////// BINARY OPERATIONS //////////////
+/////////// POINT EXTRACTION //////////////
 
-// // Elliptic curve point addition.
+def EllipticCurve_ExtractOp : EllipticCurve_Op<"extract"> {
+  let summary = "Extracts coordinates of a point";
+  let description = [{
+    Outputs coordinates of an elliptic curve point as integers.
+
+    Example:
+    ```
+    %coords = elliptic_curve.extract %point : elliptic_curve.affine<#curve> -> !PF
+    ```
+  }];
+
+  let arguments = (ins PointLike:$input);
+  let results = (outs TensorOf<[Field_PrimeFieldType]>:$output);
+  let assemblyFormat = "operands attr-dict `:` type($input) `->` type($output)";
+}
+
+////////////// POINT ARITHMETIC OPERATIONS //////////////
+
+// Elliptic curve point addition.
 def EllipticCurve_AddOp : EllipticCurve_BinaryOp<"add", [Commutative]> {
   let summary = "Elliptic curve point addition operation";
   let description = [{
@@ -78,7 +90,7 @@ def EllipticCurve_AddOp : EllipticCurve_BinaryOp<"add", [Commutative]> {
   }];
 }
 
-// // Elliptic curve point subtraction.
+// Elliptic curve point subtraction.
 def EllipticCurve_SubOp : EllipticCurve_BinaryOp<"sub"> {
   let summary = "Elliptic curve point subtraction operation";
   let description = [{
@@ -98,7 +110,7 @@ def EllipticCurve_SubOp : EllipticCurve_BinaryOp<"sub"> {
 }
 
 // Elliptic curve point negation.
-def EllipticCurve_NegOp : EllipticCurve_UnaryOp<"neg", [Involution, SameOperandsAndResultType]> {
+def EllipticCurve_NegateOp : EllipticCurve_UnaryOp<"negate", [Involution, SameOperandsAndResultType]> {
   let summary = "Elliptic curve point negation operation";
   let description = [{
     Computes the negation of an elliptic curve point.
@@ -109,14 +121,14 @@ def EllipticCurve_NegOp : EllipticCurve_UnaryOp<"neg", [Involution, SameOperands
 
     Example:
     ```
-    %negation = elliptic_curve.neg %a : !jacobian
+    %negation = elliptic_curve.negate %a : !jacobian
     ```
   }];
   let assemblyFormat = "operands attr-dict `:` type($output)";
 }
 
 // Elliptic curve point doubling.
-def EllipticCurve_DblOp : EllipticCurve_UnaryOp<"dbl"> {
+def EllipticCurve_DoubleOp : EllipticCurve_UnaryOp<"double"> {
   let summary = "Elliptic curve point doubling operation";
   let description = [{
     Computes the double of an elliptic curve point. If an affine point is doubled,
@@ -128,7 +140,7 @@ def EllipticCurve_DblOp : EllipticCurve_UnaryOp<"dbl"> {
 
     Example:
     ```
-    %doubled = elliptic_curve.dbl %a : !affine -> !jacobian
+    %doubled = elliptic_curve.double %a : !affine -> !jacobian
     ```
   }];
   let hasVerifier = 1;
@@ -147,13 +159,13 @@ def EllipticCurve_ScalarMulOp : EllipticCurve_Op<"scalar_mul", [Pure, Commutativ
 
     Example:
     ```
-    %product = elliptic_curve.scalar_mul %affine1, %b : !affine, !PF -> !jacobian
+    %product = elliptic_curve.scalar_mul %f, %affine1 : !PF, !affine -> !jacobian
     ```
   }];
-  let arguments = (ins EllipticCurve_AnyPointType:$input, Field_PrimeFieldType:$multiplier);
-  let results = (outs EllipticCurve_AnyPointType:$output);
+  let arguments = (ins PrimeFieldLike:$scalar, PointLike:$point);
+  let results = (outs PointLike:$output);
   let hasVerifier = 1;
-  let assemblyFormat = "operands attr-dict `:` type($input) `,` type($multiplier) `->` type($output)";
+  let assemblyFormat = "operands attr-dict `:` type($scalar) `,` type($point) `->` type($output)";
 }
 
 ////////////// POINT CONVERSIONS //////////////
@@ -166,8 +178,8 @@ def EllipticCurve_ConvertPointTypeOp : EllipticCurve_UnaryOp<"convert_point_type
 
     Example:
     ```
-    !affine = !elliptic_curve.affine<#sw>
-    !jacobian = !elliptic_curve.jacobian<#sw>
+    !affine = elliptic_curve.affine<#sw>
+    !jacobian = elliptic_curve.jacobian<#sw>
 
     %converted = elliptic_curve.convert_point_type %0 : !affine -> !jacobian
     ```

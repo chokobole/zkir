@@ -31,12 +31,12 @@ namespace mlir::zkir::mod_arith {
 #define GEN_PASS_DEF_MODARITHTOARITH
 #include "zkir/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.h.inc"
 
-IntegerType convertModArithType(ModArithType type) {
+static IntegerType convertModArithType(ModArithType type) {
   APInt modulus = type.getModulus().getValue();
   return IntegerType::get(type.getContext(), modulus.getBitWidth());
 }
 
-Type convertModArithLikeType(ShapedType type) {
+static Type convertModArithLikeType(ShapedType type) {
   if (auto modArithType = llvm::dyn_cast<ModArithType>(type.getElementType())) {
     return type.cloneWith(type.getShape(), convertModArithType(modArithType));
   }
@@ -58,7 +58,7 @@ class ModArithToArithTypeConverter : public TypeConverter {
 // needed to represent the result of mod_arith op as an integer
 // before applying a remainder operation
 template <typename Op>
-TypedAttr modulusAttr(Op op, bool mul = false) {
+static TypedAttr modulusAttr(Op op, bool mul = false) {
   auto type = op.getResult().getType();
   auto modArithType = getResultModArithType(op);
   APInt modulus = modArithType.getModulus().getValue();
@@ -80,12 +80,12 @@ TypedAttr modulusAttr(Op op, bool mul = false) {
 
 // used for extui/trunci
 template <typename Op>
-inline Type modulusType(Op op, bool mul = false) {
+static inline Type modulusType(Op op, bool mul = false) {
   return modulusAttr(op, mul).getType();
 }
 
 struct ConvertEncapsulate : public OpConversionPattern<EncapsulateOp> {
-  explicit ConvertEncapsulate(mlir::MLIRContext *context)
+  explicit ConvertEncapsulate(MLIRContext *context)
       : OpConversionPattern<EncapsulateOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -99,7 +99,7 @@ struct ConvertEncapsulate : public OpConversionPattern<EncapsulateOp> {
 };
 
 struct ConvertExtract : public OpConversionPattern<ExtractOp> {
-  explicit ConvertExtract(mlir::MLIRContext *context)
+  explicit ConvertExtract(MLIRContext *context)
       : OpConversionPattern<ExtractOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -113,7 +113,7 @@ struct ConvertExtract : public OpConversionPattern<ExtractOp> {
 };
 
 struct ConvertConstant : public OpConversionPattern<ConstantOp> {
-  explicit ConvertConstant(mlir::MLIRContext *context)
+  explicit ConvertConstant(MLIRContext *context)
       : OpConversionPattern<ConstantOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -130,7 +130,7 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
 };
 
 struct ConvertNegate : public OpConversionPattern<NegateOp> {
-  explicit ConvertNegate(mlir::MLIRContext *context)
+  explicit ConvertNegate(MLIRContext *context)
       : OpConversionPattern<NegateOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -148,7 +148,7 @@ struct ConvertNegate : public OpConversionPattern<NegateOp> {
 };
 
 struct ConvertReduce : public OpConversionPattern<ReduceOp> {
-  explicit ConvertReduce(mlir::MLIRContext *context)
+  explicit ConvertReduce(MLIRContext *context)
       : OpConversionPattern<ReduceOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -170,7 +170,7 @@ struct ConvertReduce : public OpConversionPattern<ReduceOp> {
 };
 
 struct ConvertMontReduce : public OpConversionPattern<MontReduceOp> {
-  explicit ConvertMontReduce(mlir::MLIRContext *context)
+  explicit ConvertMontReduce(MLIRContext *context)
       : OpConversionPattern<MontReduceOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -265,7 +265,7 @@ struct ConvertMontReduce : public OpConversionPattern<MontReduceOp> {
 };
 
 struct ConvertToMont : public OpConversionPattern<ToMontOp> {
-  explicit ConvertToMont(mlir::MLIRContext *context)
+  explicit ConvertToMont(MLIRContext *context)
       : OpConversionPattern<ToMontOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -289,7 +289,7 @@ struct ConvertToMont : public OpConversionPattern<ToMontOp> {
 };
 
 struct ConvertFromMont : public OpConversionPattern<FromMontOp> {
-  explicit ConvertFromMont(mlir::MLIRContext *context)
+  explicit ConvertFromMont(MLIRContext *context)
       : OpConversionPattern<FromMontOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -311,7 +311,7 @@ struct ConvertFromMont : public OpConversionPattern<FromMontOp> {
 };
 
 struct ConvertInverse : public OpConversionPattern<InverseOp> {
-  explicit ConvertInverse(mlir::MLIRContext *context)
+  explicit ConvertInverse(MLIRContext *context)
       : OpConversionPattern<InverseOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -427,7 +427,7 @@ struct ConvertInverse : public OpConversionPattern<InverseOp> {
 // It is assumed inputs are canonical representatives
 // ModArithType ensures add/sub result can not overflow
 struct ConvertAdd : public OpConversionPattern<AddOp> {
-  explicit ConvertAdd(mlir::MLIRContext *context)
+  explicit ConvertAdd(MLIRContext *context)
       : OpConversionPattern<AddOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -449,7 +449,7 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
 };
 
 struct ConvertSub : public OpConversionPattern<SubOp> {
-  explicit ConvertSub(mlir::MLIRContext *context)
+  explicit ConvertSub(MLIRContext *context)
       : OpConversionPattern<SubOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -472,7 +472,7 @@ struct ConvertSub : public OpConversionPattern<SubOp> {
 };
 
 struct ConvertMul : public OpConversionPattern<MulOp> {
-  explicit ConvertMul(mlir::MLIRContext *context)
+  explicit ConvertMul(MLIRContext *context)
       : OpConversionPattern<MulOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -497,7 +497,7 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
 };
 
 struct ConvertMac : public OpConversionPattern<MacOp> {
-  explicit ConvertMac(mlir::MLIRContext *context)
+  explicit ConvertMac(MLIRContext *context)
       : OpConversionPattern<MacOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -525,7 +525,7 @@ struct ConvertMac : public OpConversionPattern<MacOp> {
 };
 
 struct ConvertMontMul : public OpConversionPattern<MontMulOp> {
-  explicit ConvertMontMul(mlir::MLIRContext *context)
+  explicit ConvertMontMul(MLIRContext *context)
       : OpConversionPattern<MontMulOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -542,6 +542,37 @@ struct ConvertMontMul : public OpConversionPattern<MontMulOp> {
         op.getMontgomery());
 
     rewriter.replaceOp(op, reduced);
+    return success();
+  }
+};
+
+// TODO(ashjeong): Account for Montgomery domain inputs. Currently only accounts
+// for base domain inputs.
+struct ConvertCmp : public OpConversionPattern<CmpOp> {
+  explicit ConvertCmp(MLIRContext *context)
+      : OpConversionPattern<CmpOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      CmpOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    unsigned outputBitWidth = dyn_cast<ModArithType>(op.getLhs().getType())
+                                  .getModulus()
+                                  .getValue()
+                                  .getBitWidth();
+    auto signlessIntType =
+        IntegerType::get(b.getContext(), outputBitWidth, IntegerType::Signless);
+    auto extractedLHS =
+        b.create<mod_arith::ExtractOp>(signlessIntType, op.getLhs());
+    auto extractedRHS =
+        b.create<mod_arith::ExtractOp>(signlessIntType, op.getRhs());
+
+    auto cmpOp =
+        b.create<arith::CmpIOp>(op.getPredicate(), extractedLHS, extractedRHS);
+    rewriter.replaceOp(op, cmpOp);
     return success();
   }
 };
@@ -568,28 +599,30 @@ void ModArithToArith::runOnOperation() {
 
   RewritePatternSet patterns(context);
   rewrites::populateWithGenerated(patterns);
-  patterns.add<
-      ConvertNegate, ConvertEncapsulate, ConvertExtract, ConvertReduce,
-      ConvertMontReduce, ConvertToMont, ConvertFromMont, ConvertAdd, ConvertSub,
-      ConvertMul, ConvertMontMul, ConvertMac, ConvertConstant, ConvertInverse,
-      ConvertAny<affine::AffineForOp>, ConvertAny<affine::AffineParallelOp>,
-      ConvertAny<affine::AffineLoadOp>, ConvertAny<affine::AffineApplyOp>,
-      ConvertAny<affine::AffineStoreOp>, ConvertAny<affine::AffineYieldOp>,
-      ConvertAny<bufferization::ToMemrefOp>,
-      ConvertAny<bufferization::ToTensorOp>, ConvertAny<linalg::GenericOp>,
-      ConvertAny<linalg::YieldOp>, ConvertAny<tensor::CastOp>,
-      ConvertAny<tensor::ExtractOp>, ConvertAny<tensor::FromElementsOp>,
-      ConvertAny<tensor::InsertOp>>(typeConverter, context);
+  patterns
+      .add<ConvertNegate, ConvertEncapsulate, ConvertExtract, ConvertReduce,
+           ConvertMontReduce, ConvertToMont, ConvertFromMont, ConvertAdd,
+           ConvertSub, ConvertMul, ConvertMontMul, ConvertMac, ConvertCmp,
+           ConvertConstant, ConvertInverse, ConvertAny<affine::AffineForOp>,
+           ConvertAny<affine::AffineParallelOp>,
+           ConvertAny<affine::AffineLoadOp>, ConvertAny<affine::AffineApplyOp>,
+           ConvertAny<affine::AffineStoreOp>, ConvertAny<affine::AffineYieldOp>,
+           ConvertAny<bufferization::MaterializeInDestinationOp>,
+           ConvertAny<bufferization::ToMemrefOp>,
+           ConvertAny<bufferization::ToTensorOp>, ConvertAny<linalg::GenericOp>,
+           ConvertAny<linalg::YieldOp>, ConvertAny<tensor::CastOp>,
+           ConvertAny<tensor::ExtractOp>, ConvertAny<tensor::FromElementsOp>,
+           ConvertAny<tensor::InsertOp>>(typeConverter, context);
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
 
   target.addDynamicallyLegalOp<
       affine::AffineForOp, affine::AffineParallelOp, affine::AffineLoadOp,
       affine::AffineApplyOp, affine::AffineStoreOp, affine::AffineYieldOp,
-      bufferization::ToMemrefOp, bufferization::ToTensorOp, linalg::GenericOp,
-      linalg::YieldOp, tensor::CastOp, tensor::ExtractOp,
-      tensor::FromElementsOp, tensor::InsertOp>(
-      [&](auto op) { return typeConverter.isLegal(op); });
+      bufferization::MaterializeInDestinationOp, bufferization::ToMemrefOp,
+      bufferization::ToTensorOp, linalg::GenericOp, linalg::YieldOp,
+      tensor::CastOp, tensor::ExtractOp, tensor::FromElementsOp,
+      tensor::InsertOp>([&](auto op) { return typeConverter.isLegal(op); });
 
   if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
     signalPassFailure();
