@@ -18,7 +18,7 @@ namespace mlir::zkir::poly {
 #define GEN_PASS_DEF_POLYTOFIELD
 #include "zkir/Dialect/Poly/Conversions/PolyToField/PolyToField.h.inc"
 
-RankedTensorType convertPolyType(PolyType type) {
+static RankedTensorType convertPolyType(PolyType type) {
   int64_t maxDegree = type.getMaxDegree().getValue().getSExtValue();
   return RankedTensorType::get({static_cast<int64_t>(maxDegree + 1)},
                                type.getBaseField());
@@ -41,7 +41,7 @@ struct CommonConversionInfo {
   RankedTensorType tensorType;
 };
 
-FailureOr<CommonConversionInfo> getCommonConversionInfo(
+static FailureOr<CommonConversionInfo> getCommonConversionInfo(
     Operation *op, const TypeConverter *typeConverter) {
   // Most ops have a single result type that is a polynomial
   PolyType polyTy = dyn_cast<PolyType>(op->getResult(0).getType());

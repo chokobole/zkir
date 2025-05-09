@@ -32,12 +32,12 @@ namespace mlir::zkir::field {
 #define GEN_PASS_DEF_PRIMEFIELDTOMODARITH
 #include "zkir/Dialect/Field/Conversions/FieldToModArith/FieldToModArith.h.inc"
 
-mod_arith::ModArithType convertPrimeFieldType(PrimeFieldType type) {
+static mod_arith::ModArithType convertPrimeFieldType(PrimeFieldType type) {
   IntegerAttr modulus = type.getModulus();
   return mod_arith::ModArithType::get(type.getContext(), modulus);
 }
 
-Type convertPrimeFieldLikeType(ShapedType type) {
+static Type convertPrimeFieldLikeType(ShapedType type) {
   if (auto primeFieldType =
           llvm::dyn_cast<PrimeFieldType>(type.getElementType())) {
     return type.cloneWith(type.getShape(),

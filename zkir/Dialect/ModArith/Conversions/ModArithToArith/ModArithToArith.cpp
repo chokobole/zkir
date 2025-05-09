@@ -31,12 +31,12 @@ namespace mlir::zkir::mod_arith {
 #define GEN_PASS_DEF_MODARITHTOARITH
 #include "zkir/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.h.inc"
 
-IntegerType convertModArithType(ModArithType type) {
+static IntegerType convertModArithType(ModArithType type) {
   APInt modulus = type.getModulus().getValue();
   return IntegerType::get(type.getContext(), modulus.getBitWidth());
 }
 
-Type convertModArithLikeType(ShapedType type) {
+static Type convertModArithLikeType(ShapedType type) {
   if (auto modArithType = llvm::dyn_cast<ModArithType>(type.getElementType())) {
     return type.cloneWith(type.getShape(), convertModArithType(modArithType));
   }
@@ -58,7 +58,7 @@ class ModArithToArithTypeConverter : public TypeConverter {
 // needed to represent the result of mod_arith op as an integer
 // before applying a remainder operation
 template <typename Op>
-TypedAttr modulusAttr(Op op, bool mul = false) {
+static TypedAttr modulusAttr(Op op, bool mul = false) {
   auto type = op.getResult().getType();
   auto modArithType = getResultModArithType(op);
   APInt modulus = modArithType.getModulus().getValue();
@@ -80,7 +80,7 @@ TypedAttr modulusAttr(Op op, bool mul = false) {
 
 // used for extui/trunci
 template <typename Op>
-inline Type modulusType(Op op, bool mul = false) {
+static inline Type modulusType(Op op, bool mul = false) {
   return modulusAttr(op, mul).getType();
 }
 
