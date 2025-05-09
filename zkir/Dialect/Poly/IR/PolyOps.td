@@ -25,7 +25,6 @@ def Poly_ConstantOp : Op<Poly_Dialect, "constant", [Pure]> {
     %0 = poly.constant <1 + x**2> : !poly_ty
     ```
   }];
-
   let arguments = (ins Poly_UnivariatePolyAttr:$value);
   let results = (outs Poly_PolyType:$output);
   let hasCustomAssemblyFormat = 1;
@@ -38,7 +37,7 @@ class Poly_UnaryOp<string mnemonic, list<Trait> traits = []> :
 }
 
 class Poly_BinaryOp<string mnemonic, list<Trait> traits = []> :
-    Poly_Op<mnemonic, !listconcat(traits, [Pure, SameOperandsAndResultType, ElementwiseMappable])> {
+    Poly_Op<mnemonic, !listconcat(traits, [SameOperandsAndResultType, ElementwiseMappable])> {
   let arguments = (ins PolyLike:$lhs, PolyLike:$rhs);
   let results = (outs PolyLike:$result);
   let assemblyFormat = "operands attr-dict `:` type($result)";
@@ -113,7 +112,7 @@ def Poly_MulOp : Poly_BinaryOp<"mul", [Commutative]> {
   }];
 }
 
-def Poly_ToTensorOp : Poly_Op<"to_tensor", [Pure]> {
+def Poly_ToTensorOp : Poly_Op<"to_tensor"> {
   let summary = "Create a tensor containing the coefficients of a polynomial.";
   let description = [{
     Creates a dense tensor value containing the coefficients of the input polynomial.
@@ -127,14 +126,13 @@ def Poly_ToTensorOp : Poly_Op<"to_tensor", [Pure]> {
     %tensor = poly.to_tensor %0
     ```
   }];
-
   let arguments = (ins Poly_PolyType:$input);
   let results = (outs RankedTensorOf<[AnyType]>:$output);
   let assemblyFormat = "$input attr-dict `:` type($input) `->` type($output)";
   let hasCanonicalizer = 1;
 }
 
-def Poly_FromTensorOp : Poly_Op<"from_tensor", [Pure]> {
+def Poly_FromTensorOp : Poly_Op<"from_tensor"> {
   let summary = "Create a polynomial from integer coefficients stored in a tensor.";
   let description = [{
     `polynomial.from_tensor` creates a polynomial value from a tensor of coefficients.
@@ -152,7 +150,6 @@ def Poly_FromTensorOp : Poly_Op<"from_tensor", [Pure]> {
     %poly = poly.from_tensor %coeffs : tensor<3xi32> -> !poly_ty
     ```
   }];
-
   let arguments = (ins RankedTensorOf<[AnyType]>:$input);
   let results = (outs Poly_PolyType:$output);
   let assemblyFormat = "$input attr-dict `:` type($input) `->` type($output)";
@@ -177,7 +174,7 @@ def Poly_BitReverseOp : Poly_Op<"bit_reverse", [Involution, DestinationStyleOpIn
   }];
 }
 
-def Poly_NTTOp : Poly_Op<"ntt", [Pure, DestinationStyleOpInterface, SameOperandsAndResultType]> {
+def Poly_NTTOp : Poly_Op<"ntt", [DestinationStyleOpInterface, SameOperandsAndResultType]> {
   let summary = "Compute the number theoretic transform.";
   let description = [{
     Computes the forward integer Number Theoretic Transform
@@ -195,7 +192,6 @@ def Poly_NTTOp : Poly_Op<"ntt", [Pure, DestinationStyleOpInterface, SameOperands
     %evals = poly.ntt %coeffs {root=#root}: tensor<4x!pf>
     ```
   }];
-
   let arguments = (ins
     RankedTensorOf<[Field_PrimeFieldType]>:$dest,
     Poly_PrimitiveRootAttr:$root
@@ -208,7 +204,7 @@ def Poly_NTTOp : Poly_Op<"ntt", [Pure, DestinationStyleOpInterface, SameOperands
   }];
 }
 
-def Poly_INTTOp : Poly_Op<"intt", [Pure, DestinationStyleOpInterface, SameOperandsAndResultType]> {
+def Poly_INTTOp : Poly_Op<"intt", [DestinationStyleOpInterface, SameOperandsAndResultType]> {
   let summary = "Compute the inverse Number Theoretic Transform.";
   let description = [{
     Computes the inverse Number Theoretic Transform (INTT) on the input
