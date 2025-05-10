@@ -35,6 +35,16 @@ namespace {
 #include "zkir/Dialect/Poly/IR/PolyCanonicalization.cpp.inc"
 }  // namespace
 
+void FromTensorOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                               MLIRContext *context) {
+  results.add<ToFromTensor>(context);
+}
+
+void ToTensorOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                             MLIRContext *context) {
+  results.add<FromToTensor>(context);
+}
+
 void NTTOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                         MLIRContext *context) {
   results.add<NTTAfterINTT>(context);

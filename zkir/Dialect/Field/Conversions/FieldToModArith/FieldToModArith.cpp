@@ -6,6 +6,7 @@
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/BuiltinAttributeInterfaces.h"
 #include "mlir/IR/BuiltinAttributes.h"
@@ -351,8 +352,10 @@ void PrimeFieldToModArith::runOnOperation() {
       ConvertAny<affine::AffineForOp>, ConvertAny<affine::AffineParallelOp>,
       ConvertAny<affine::AffineLoadOp>, ConvertAny<affine::AffineStoreOp>,
       ConvertAny<affine::AffineYieldOp>, ConvertAny<linalg::GenericOp>,
-      ConvertAny<linalg::YieldOp>, ConvertAny<tensor::CastOp>,
-      ConvertAny<tensor::ExtractOp>, ConvertAny<tensor::FromElementsOp>,
+      ConvertAny<linalg::MapOp>, ConvertAny<memref::LoadOp>,
+      ConvertAny<memref::StoreOp>, ConvertAny<linalg::YieldOp>,
+      ConvertAny<tensor::CastOp>, ConvertAny<tensor::ExtractOp>,
+      ConvertAny<tensor::FromElementsOp>,
       ConvertAny<bufferization::MaterializeInDestinationOp>,
       ConvertAny<bufferization::ToMemrefOp>,
       ConvertAny<bufferization::ToTensorOp>, ConvertAny<tensor::InsertOp>>(
@@ -364,9 +367,10 @@ void PrimeFieldToModArith::runOnOperation() {
       affine::AffineForOp, affine::AffineParallelOp, affine::AffineLoadOp,
       affine::AffineStoreOp, affine::AffineYieldOp,
       bufferization::MaterializeInDestinationOp, bufferization::ToMemrefOp,
-      bufferization::ToTensorOp, linalg::GenericOp, linalg::YieldOp,
-      tensor::CastOp, tensor::ExtractOp, tensor::FromElementsOp,
-      tensor::InsertOp>([&](auto op) { return typeConverter.isLegal(op); });
+      bufferization::ToTensorOp, linalg::GenericOp, linalg::MapOp,
+      linalg::YieldOp, memref::LoadOp, memref::StoreOp, tensor::CastOp,
+      tensor::ExtractOp, tensor::FromElementsOp, tensor::InsertOp>(
+      [&](auto op) { return typeConverter.isLegal(op); });
 
   if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
     signalPassFailure();

@@ -5,6 +5,8 @@
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/ImplicitLocOpBuilder.h"
 #include "zkir/Dialect/Field/IR/FieldAttributes.h"
@@ -231,55 +233,76 @@ static std::pair<Value, Value> bflyGS(ImplicitLocOpBuilder &b, Value A, Value B,
   return {std::move(gsPlus), std::move(gsMinusRoot)};
 }
 
-static Value computeReverseBitOrder(ImplicitLocOpBuilder &b,
-                                    RankedTensorType tensorType, Value tensor) {
-  unsigned numCoeffs = tensorType.getShape()[0];
-  assert(llvm::has_single_bit(numCoeffs) &&
-         "expected the number of coefficients to be a power of 2");
+struct ConvertBitReverse : public OpConversionPattern<BitReverseOp> {
+  explicit ConvertBitReverse(mlir::MLIRContext *context)
+      : OpConversionPattern<BitReverseOp>(context) {}
 
-  unsigned indexBitWidth = llvm::countr_zero(numCoeffs);
+  using OpConversionPattern::OpConversionPattern;
 
-  auto indicesType = RankedTensorType::get(tensorType.getShape(),
-                                           IndexType::get(b.getContext()));
+  LogicalResult matchAndRewrite(
+      BitReverseOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-  auto coeffType = llvm::cast<IntegerType>(tensorType.getElementType());
+    auto tensorType = dyn_cast<RankedTensorType>(adaptor.getDest().getType());
+    MemRefType memrefType =
+        MemRefType::get(tensorType.getShape(), tensorType.getElementType());
+    unsigned numCoeffs = tensorType.getShape()[0];
+    assert(llvm::has_single_bit(numCoeffs) &&
+           "expected the number of coefficients to be a power of 2");
+    unsigned indexBitWidth = llvm::countr_zero(numCoeffs);
 
-  SmallVector<APInt> _indices;
-  _indices.reserve(numCoeffs);
+    // Precompute the indices for the bit-reversal.
+    // TODO(batzor): Create attribute for the indices to avoid recomputing.
+    SmallVector<APInt> _indices;
+    _indices.reserve((numCoeffs - (1 << (indexBitWidth / 2))) / 2);
 
-  for (unsigned index = 0; index < numCoeffs; index++) {
-    _indices.push_back(APInt(indexBitWidth, index).reverseBits());
+    for (unsigned index = 0; index < numCoeffs; index++) {
+      APInt idx = APInt(indexBitWidth, index);
+      APInt ridx = idx.reverseBits();
+      if (idx.ult(ridx)) {
+        _indices.push_back(idx);
+        _indices.push_back(ridx);
+      }
+    }
+
+    llvm::SmallVector<int64_t> indicesShape = {
+        static_cast<int64_t>(_indices.size())};
+    auto indicesType =
+        RankedTensorType::get(indicesShape, IndexType::get(b.getContext()));
+    auto indices = b.create<arith::ConstantOp>(
+        indicesType, DenseElementsAttr::get(indicesType, _indices));
+
+    auto numSwaps = b.create<arith::ConstantIndexOp>(_indices.size());
+    auto c0 = b.create<arith::ConstantIndexOp>(0);
+    auto c1 = b.create<arith::ConstantIndexOp>(1);
+    auto c2 = b.create<arith::ConstantIndexOp>(2);
+
+    auto memref =
+        b.create<bufferization::ToMemrefOp>(memrefType, adaptor.getDest());
+    b.create<scf::ParallelOp>(
+        /*lowerBound=*/ValueRange{c0},
+        /*lowerBound=*/ValueRange{numSwaps},
+        /*steps=*/ValueRange{c2},
+        /*bodyBuilder=*/
+        [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
+          ImplicitLocOpBuilder nb(nestedLoc, nestedBuilder);
+          auto fromIndex = args[0];
+          auto toIndex = nb.create<arith::AddIOp>(fromIndex, c1);
+          auto i1 =
+              nb.create<tensor::ExtractOp>(indices, ValueRange{fromIndex});
+          auto i2 = nb.create<tensor::ExtractOp>(indices, ValueRange{toIndex});
+          auto e1 = nb.create<memref::LoadOp>(memref, ValueRange{i1});
+          auto e2 = nb.create<memref::LoadOp>(memref, ValueRange{i2});
+          nb.create<memref::StoreOp>(e1, memref, ValueRange{i2});
+          nb.create<memref::StoreOp>(e2, memref, ValueRange{i1});
+        });
+    auto result = b.create<bufferization::ToTensorOp>(
+        tensorType, memref, /*restrict=*/true, /*writable=*/true);
+    rewriter.replaceOp(op, result);
+    return success();
   }
-  auto indices = b.create<arith::ConstantOp>(
-      indicesType, DenseElementsAttr::get(indicesType, _indices));
-
-  SmallVector<utils::IteratorType> iteratorTypes(1,
-                                                 utils::IteratorType::parallel);
-  AffineExpr d0;
-  bindDims(b.getContext(), d0);
-  SmallVector<AffineMap> indexingMaps = {AffineMap::get(1, 0, {d0}),
-                                         AffineMap::get(1, 0, {d0})};
-
-  // construct 0 tensor of field elements
-  auto out = b.create<arith::ConstantOp>(
-      tensorType,
-      DenseElementsAttr::get(tensorType, APInt(coeffType.getWidth(), 0)));
-  auto bfOut = b.create<field::EncapsulateOp>(tensor.getType(), out);
-  auto shuffleOp = b.create<linalg::GenericOp>(
-      /*resultTypes=*/TypeRange{tensor.getType()},
-      /*inputs=*/ValueRange{indices.getResult()},
-      /*outputs=*/ValueRange{bfOut.getResult()},
-      /*indexingMaps=*/indexingMaps,
-      /*iteratorTypes=*/iteratorTypes,
-      /*bodyBuilder=*/
-      [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
-        ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
-        auto idx = args[0];
-        auto elem = b.create<tensor::ExtractOp>(tensor, ValueRange{idx});
-        b.create<linalg::YieldOp>(elem.getResult());
-      });
-  return shuffleOp.getResult(0);
-}
+};
 
 template <bool kInverse>
 static Value fastNTT(ImplicitLocOpBuilder &b, PrimitiveRootAttr rootAttr,
@@ -483,27 +506,34 @@ static Value fastNTT(ImplicitLocOpBuilder &b, PrimitiveRootAttr rootAttr,
         b.create<affine::AffineYieldOp>(ValueRange{batchSize, rootExp});
       });
 
-  // The final result is the coefficient tensor after all stages.
-  UnitAttr restrictAttr = b.getUnitAttr();
-  Value result = b.create<bufferization::ToTensorOp>(
-      tensorType.cloneWith(std::nullopt, baseFieldType), inputMemref,
-      restrictAttr);
-
   // For the inverse NTT, we must scale the output by the multiplicative inverse
   // of the degree.
   if constexpr (kInverse) {
     // TODO(batzor): Use scalar multiplication directly when it's available.
-    auto invDegreeConst =
+    Value invDegree =
         b.create<arith::ConstantOp>(rootAttr.getInvDegree().getValue());
-    auto degreeInvTensor = b.create<tensor::SplatOp>(invDegreeConst, rootsType);
-    auto fieldTensor = b.create<field::EncapsulateOp>(modType, degreeInvTensor);
-    if (rootAttr.getMontgomery() != mod_arith::MontgomeryAttr()) {
-      result = b.create<field::MontMulOp>(result, fieldTensor,
-                                          rootAttr.getMontgomery());
-    } else {
-      result = b.create<field::MulOp>(result, fieldTensor);
-    }
+    invDegree = b.create<field::EncapsulateOp>(baseFieldType, invDegree);
+    b.create<linalg::MapOp>(
+        /*inputs=*/ValueRange{inputMemref},
+        /*outputs=*/inputMemref,
+        /*bodyBuilder=*/
+        [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
+          ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
+          Value mulResult;
+          if (rootAttr.getMontgomery() != mod_arith::MontgomeryAttr()) {
+            mulResult = b.create<field::MontMulOp>(args[0], invDegree,
+                                                   rootAttr.getMontgomery());
+          } else {
+            mulResult = b.create<field::MulOp>(args[0], invDegree);
+          }
+          b.create<linalg::YieldOp>(mulResult);
+        });
   }
+
+  // The final result is the coefficient tensor after all stages.
+  Value result = b.create<bufferization::ToTensorOp>(
+      tensorType.cloneWith(std::nullopt, baseFieldType), inputMemref,
+      /*restrict=*/true, /*writable=*/true);
 
   return result;
 }
@@ -519,24 +549,19 @@ struct ConvertNTT : public OpConversionPattern<NTTOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto polyTy = dyn_cast<PolyType>(op.getInput().getType());
-    if (!polyTy) {
-      op.emitError(
-          "Can't directly lower for a tensor of polynomials. "
-          "First run --convert-elementwise-to-affine.");
-      return failure();
-    }
+    auto tensorType = cast<RankedTensorType>(adaptor.getDest().getType());
+    auto coeffType = cast<field::PrimeFieldType>(tensorType.getElementType());
 
-    auto coeffType = cast<field::PrimeFieldType>(polyTy.getBaseField());
     auto coeffStorageType = coeffType.getModulus().getType();
-    auto inputType = dyn_cast<RankedTensorType>(adaptor.getInput().getType());
     auto intTensorType =
-        RankedTensorType::get(inputType.getShape(), coeffStorageType);
+        RankedTensorType::get(tensorType.getShape(), coeffStorageType);
+
+    // Transform the input tensor to bit-reversed order.
+    auto bitReversed = b.create<BitReverseOp>(adaptor.getDest());
 
     // Compute the ntt and extract the values
-    Value nttResult = fastNTT<false>(
-        b, op.getRoot(), intTensorType, inputType,
-        computeReverseBitOrder(b, intTensorType, adaptor.getInput()));
+    Value nttResult =
+        fastNTT<false>(b, op.getRoot(), intTensorType, tensorType, bitReversed);
 
     rewriter.replaceOp(op, nttResult);
     return success();
@@ -552,23 +577,18 @@ struct ConvertINTT : public OpConversionPattern<INTTOp> {
   LogicalResult matchAndRewrite(
       INTTOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    auto res = getCommonConversionInfo(op, typeConverter);
-    if (failed(res)) return failure();
-    auto typeInfo = res.value();
-
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto coeffType = cast<field::PrimeFieldType>(typeInfo.coefficientType);
-    auto coeffStorageType = coeffType.getModulus().getType();
-    auto inputType = cast<RankedTensorType>(adaptor.getInput().getType());
-    auto intTensorType =
-        RankedTensorType::get(inputType.getShape(), coeffStorageType);
+    auto tensorType = cast<RankedTensorType>(adaptor.getDest().getType());
+    auto coeffType = cast<field::PrimeFieldType>(tensorType.getElementType());
 
-    auto tensorType = typeConverter->convertType(op.getOutput().getType());
+    auto coeffStorageType = coeffType.getModulus().getType();
+    auto intTensorType =
+        RankedTensorType::get(tensorType.getShape(), coeffStorageType);
+
     auto inttResult = fastNTT<true>(b, op.getRoot(), intTensorType, tensorType,
-                                    adaptor.getInput());
-    auto reversedBitOrder =
-        computeReverseBitOrder(b, intTensorType, inttResult);
+                                    adaptor.getDest());
+    auto reversedBitOrder = b.create<BitReverseOp>(inttResult);
     rewriter.replaceOp(op, reversedBitOrder);
 
     return success();
@@ -594,8 +614,8 @@ void PolyToField::runOnOperation() {
 
   patterns.add<ConvertPolyBinOp<AddOp, field::AddOp>,
                ConvertPolyBinOp<SubOp, field::SubOp>, ConvertConstant,
-               ConvertFromTensor, ConvertToTensor, ConvertNTT, ConvertINTT>(
-      typeConverter, context);
+               ConvertFromTensor, ConvertToTensor, ConvertBitReverse,
+               ConvertNTT, ConvertINTT>(typeConverter, context);
   addStructuralConversionPatterns(typeConverter, patterns, target);
 
   if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
