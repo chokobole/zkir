@@ -38,7 +38,7 @@ static IntegerType convertModArithType(ModArithType type) {
 }
 
 static Type convertModArithLikeType(ShapedType type) {
-  if (auto modArithType = llvm::dyn_cast<ModArithType>(type.getElementType())) {
+  if (auto modArithType = dyn_cast<ModArithType>(type.getElementType())) {
     return type.cloneWith(type.getShape(), convertModArithType(modArithType));
   }
   return type;

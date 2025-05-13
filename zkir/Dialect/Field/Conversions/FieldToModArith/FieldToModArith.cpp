@@ -39,8 +39,7 @@ static mod_arith::ModArithType convertPrimeFieldType(PrimeFieldType type) {
 }
 
 static Type convertPrimeFieldLikeType(ShapedType type) {
-  if (auto primeFieldType =
-          llvm::dyn_cast<PrimeFieldType>(type.getElementType())) {
+  if (auto primeFieldType = dyn_cast<PrimeFieldType>(type.getElementType())) {
     return type.cloneWith(type.getShape(),
                           convertPrimeFieldType(primeFieldType));
   }
@@ -59,7 +58,7 @@ class PrimeFieldToModArithTypeConverter : public TypeConverter {
     });
     addConversion([](MemRefType type) -> Type {
       if (auto primeFieldType =
-              llvm::dyn_cast<PrimeFieldType>(type.getElementType())) {
+              dyn_cast<PrimeFieldType>(type.getElementType())) {
         return type.cloneWith(type.getShape(),
                               convertPrimeFieldType(primeFieldType));
       }
