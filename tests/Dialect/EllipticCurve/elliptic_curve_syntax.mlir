@@ -262,5 +262,11 @@ func.func @test_point_set() {
   %affine1 = elliptic_curve.point %var1, %var5 : !PF -> !affine
   // CHECK: %[[POINTS:.*]] = elliptic_curve.point_set.from_elements %[[AFFINE1]], %[[AFFINE1]], %[[AFFINE1]] : [[TAF:.*]]
   %points = elliptic_curve.point_set.from_elements %affine1, %affine1, %affine1 : tensor<3x!affine>
+  // CHECK: %[[IDX1:.*]] = arith.constant 1 : index
+  %idx1 = arith.constant 1 : index
+  // CHECK: %[[POINT1:.*]] = elliptic_curve.point_set.extract %[[POINTS]], %[[IDX1]] : [[TAF]] -> ![[AF]]
+  %point1 = elliptic_curve.point_set.extract %points, %idx1 : tensor<3x!affine> -> !affine
+  // CHECK: %[[AFFINE2:.*]] = elliptic_curve.double %[[POINT1]] : ![[AF]] -> ![[JA:.*]]
+  %doubled = elliptic_curve.double %point1 : !affine -> !jacobian
   return
 }

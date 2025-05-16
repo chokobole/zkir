@@ -71,6 +71,21 @@ def EllipticCurve_PointSetOp : EllipticCurve_Op<"point_set.from_elements",
   let assemblyFormat = "operands attr-dict `:` type($output)";
 }
 
+def EllipticCurve_PointSetExtractOp : EllipticCurve_Op<"point_set.extract"> {
+  let summary = "Extracts a point from a point set";
+  let description = [{
+   Extracts a point from a point set. Allows for Affine(x, y), Jacobian(x, y, z), or XYZZ(x, y, z², z³) points.
+
+    Example:
+    ```
+    %0 = elliptic_curve.point_set.extract %point_set, %idx : tensor<3x!affine> -> !affine
+    ```
+  }];
+  let arguments = (ins RankedTensorOf<[PointType]>:$point_set, Index:$index);
+  let results = (outs PointType:$output);
+  let assemblyFormat = "operands attr-dict `:` type($point_set) `->` type($output)";
+}
+
 /////////// POINT EXTRACTION //////////////
 
 def EllipticCurve_ExtractOp : EllipticCurve_Op<"extract"> {
