@@ -119,6 +119,57 @@ struct ConvertPoint : public OpConversionPattern<PointOp> {
   }
 };
 
+/// In lowered form, a point is a tensor of prime field values. Creating a
+/// set of lowered form points therefore requires a 2D tensor.
+struct ConvertPointSet : public OpConversionPattern<PointSetOp> {
+  explicit ConvertPointSet(MLIRContext *context)
+      : OpConversionPattern<PointSetOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      PointSetOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    // Lowered point (e.g. tensor<3x!PF> [Jacobian])
+    Value loweredPoint = adaptor.getOperands()[0];
+    RankedTensorType loweredPointType =
+        cast<RankedTensorType>(loweredPoint.getType());
+    field::PrimeFieldType baseFieldType =
+        cast<field::PrimeFieldType>(loweredPointType.getElementType());
+    unsigned numCoords =
+        cast<RankedTensorType>(adaptor.getPoints()[0].getType()).getShape()[0];
+
+    // Reshape point tensors to 2D (e.g. tensor<3x!PF> -> tensor<1x3x!PF>)
+    RankedTensorType outputType =
+        RankedTensorType::get({1, numCoords}, baseFieldType);
+    SmallVector<Value> _outputShape(2);
+
+    _outputShape[0] = b.create<arith::ConstantIndexOp>(1);
+    _outputShape[1] = b.create<arith::ConstantIndexOp>(numCoords);
+    auto outputShape = b.create<tensor::FromElementsOp>(_outputShape);
+
+    size_t numPoints = op.getNumOperands();
+    SmallVector<Value> expandedPoints(numPoints);
+    for (size_t i = 0; i < numPoints; ++i) {
+      expandedPoints[i] = b.create<tensor::ReshapeOp>(
+          outputType,                // Result type of the operation
+          adaptor.getOperands()[i],  // The input lowered point tensor
+          outputShape);              // The output 2D tensor shape
+    }
+
+    // Concat all 2D point tensors together for final 2D set of point tensors
+    RankedTensorType totalOutputType =
+        RankedTensorType::get({op.getNumOperands(), numCoords}, baseFieldType);
+
+    auto pointSet =
+        b.create<tensor::ConcatOp>(totalOutputType, 0, expandedPoints);
+    rewriter.replaceOp(op, pointSet);
+    return success();
+  }
+};
+
 struct ConvertExtract : public OpConversionPattern<ExtractOp> {
   explicit ConvertExtract(MLIRContext *context)
       : OpConversionPattern<ExtractOp>(context) {}
@@ -538,10 +589,10 @@ void EllipticCurveToField::runOnOperation() {
 
   RewritePatternSet patterns(context);
   rewrites::populateWithGenerated(patterns);
-  patterns
-      .add<ConvertPoint, ConvertExtract, ConvertConvertPointType, ConvertAdd,
-           ConvertDouble, ConvertNegate, ConvertSub, ConvertScalarMul>(
-          typeConverter, context);
+  patterns.add<ConvertPoint, ConvertPointSet, ConvertExtract,
+               ConvertConvertPointType, ConvertAdd, ConvertDouble,
+               ConvertNegate, ConvertSub, ConvertScalarMul>(typeConverter,
+                                                            context);
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
 

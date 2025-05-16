@@ -176,3 +176,16 @@ func.func @test_scalar_mul() {
   %xyzz3 = elliptic_curve.scalar_mul %var8, %xyzz1 : !PF, !xyzz -> !xyzz
   return
 }
+
+// CHECK-LABEL: @test_point_set
+func.func @test_point_set() {
+  %var1 = field.pf.constant 1 : !PF
+  %var2 = field.pf.constant 2 : !PF
+  %var4 = field.pf.constant 4 : !PF
+  %var5 = field.pf.constant 5 : !PF
+  %var8 = field.pf.constant 8 : !PF
+
+  %affine1 = elliptic_curve.point %var1, %var5 : !PF -> !affine
+  %points = elliptic_curve.point_set.from_elements %affine1, %affine1, %affine1 : tensor<3x!affine>
+  return
+}
