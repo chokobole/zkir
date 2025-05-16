@@ -51,6 +51,26 @@ def EllipticCurve_PointOp : EllipticCurve_Op<"point"> {
   let hasVerifier = 1;
 }
 
+def EllipticCurve_PointSetOp : EllipticCurve_Op<"point_set.from_elements",
+              [SameTypeOperands,
+               TypesMatchWith<"operand types match result element type",
+                   "output", "points", "SmallVector<Type, 2>("
+                   "::llvm::cast<RankedTensorType>($_self).getNumElements(), "
+                   "::llvm::cast<RankedTensorType>($_self).getElementType())">]> {
+  let summary = "A set of elliptic curve points";
+  let description = [{
+    Defines a set of elliptic curve points in Affine(x, y), Jacobian(x, y, z), or XYZZ(x, y, z², z³) form.
+
+    Example:
+    ```
+    %0 = elliptic_curve.point_set.from_elements %a, %b : tensor<2x!affine>
+    ```
+  }];
+  let arguments = (ins Variadic<PointType>:$points);
+  let results = (outs RankedTensorOf<[PointType]>:$output);
+  let assemblyFormat = "operands attr-dict `:` type($output)";
+}
+
 /////////// POINT EXTRACTION //////////////
 
 def EllipticCurve_ExtractOp : EllipticCurve_Op<"extract"> {
