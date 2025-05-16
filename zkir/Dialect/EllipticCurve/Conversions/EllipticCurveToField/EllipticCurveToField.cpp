@@ -29,18 +29,18 @@ namespace mlir::zkir::elliptic_curve {
 //////////////// TYPE CONVERSION ////////////////
 
 static RankedTensorType convertAffineType(AffineType type) {
-  field::PrimeFieldType baseField = type.getCurve().getA().getType();
-  return RankedTensorType::get({2}, baseField);
+  field::PrimeFieldType baseFieldType = type.getCurve().getA().getType();
+  return RankedTensorType::get({2}, baseFieldType);
 }
 
 static RankedTensorType convertJacobianType(JacobianType type) {
-  field::PrimeFieldType baseField = type.getCurve().getA().getType();
-  return RankedTensorType::get({3}, baseField);
+  field::PrimeFieldType baseFieldType = type.getCurve().getA().getType();
+  return RankedTensorType::get({3}, baseFieldType);
 }
 
 static RankedTensorType convertXYZZType(XYZZType type) {
-  field::PrimeFieldType baseField = type.getCurve().getA().getType();
-  return RankedTensorType::get({4}, baseField);
+  field::PrimeFieldType baseFieldType = type.getCurve().getA().getType();
+  return RankedTensorType::get({4}, baseFieldType);
 }
 
 static Type convertAffineLikeType(ShapedType type) {
@@ -130,12 +130,12 @@ static Value convertConvertPointTypeImpl(Value point, Type inputType,
   auto one = b.create<arith::ConstantIndexOp>(1);
   auto x = b.create<tensor::ExtractOp>(point, ValueRange{zero});
   auto y = b.create<tensor::ExtractOp>(point, ValueRange{one});
-  auto pfType = cast<field::PrimeFieldType>(x.getType());
+  auto baseFieldType = cast<field::PrimeFieldType>(x.getType());
 
   SmallVector<Value> outputCoords;
 
   if (isa<AffineType>(inputType)) {
-    auto onePF = b.create<field::ConstantOp>(pfType, 1);
+    auto onePF = b.create<field::ConstantOp>(baseFieldType, 1);
 
     // affine to jacobian
     // (x, y) -> (x, y, 1)
@@ -154,14 +154,15 @@ static Value convertConvertPointTypeImpl(Value point, Type inputType,
     if (isa<AffineType>(outputType)) {
       // jacobian to affine
       // (x, y, z) -> (x/z², y/z³)
-      auto zero = b.create<field::ConstantOp>(pfType, 0);
+      auto zero = b.create<field::ConstantOp>(baseFieldType, 0);
       auto cmpEq = b.create<field::CmpOp>(arith::CmpIPredicate::eq, z, zero);
       // if z == 0, then x/z² -> 1, y/z³ -> 1
       auto output = b.create<scf::IfOp>(
           cmpEq,
           /*thenBuilder=*/
           [&](OpBuilder &builder, Location loc) {
-            auto onePF = builder.create<field::ConstantOp>(loc, pfType, 1);
+            auto onePF =
+                builder.create<field::ConstantOp>(loc, baseFieldType, 1);
             builder.create<scf::YieldOp>(loc, ValueRange{onePF, onePF});
           },
           /*elseBuilder=*/
@@ -189,14 +190,15 @@ static Value convertConvertPointTypeImpl(Value point, Type inputType,
     if (isa<AffineType>(outputType)) {
       // xyzz to affine
       // (x, y, z², z³) -> (x/z², y/z³)
-      auto zero = b.create<field::ConstantOp>(pfType, 0);
+      auto zero = b.create<field::ConstantOp>(baseFieldType, 0);
       auto cmpEq = b.create<field::CmpOp>(arith::CmpIPredicate::eq, zz, zero);
       // if z == 0, then x/z² -> 1, y/z³ -> 1
       auto ifOp = b.create<scf::IfOp>(
           cmpEq,
           /*thenBuilder=*/
           [&](OpBuilder &builder, Location loc) {
-            auto onePF = builder.create<field::ConstantOp>(loc, pfType, 1);
+            auto onePF =
+                builder.create<field::ConstantOp>(loc, baseFieldType, 1);
             builder.create<scf::YieldOp>(loc, ValueRange{onePF, onePF});
           },
           /*elseBuilder=*/
@@ -214,13 +216,14 @@ static Value convertConvertPointTypeImpl(Value point, Type inputType,
       // (x, y, z², z³) -> (x, y, z)
       outputCoords = {x, y};
 
-      auto zero = b.create<field::ConstantOp>(pfType, 0);
+      auto zero = b.create<field::ConstantOp>(baseFieldType, 0);
       auto cmpEq = b.create<field::CmpOp>(arith::CmpIPredicate::eq, zz, zero);
       auto output = b.create<scf::IfOp>(
           cmpEq,
           /*thenBuilder=*/
           [&](OpBuilder &builder, Location loc) {
-            auto zeroPF = builder.create<field::ConstantOp>(loc, pfType, 0);
+            auto zeroPF =
+                builder.create<field::ConstantOp>(loc, baseFieldType, 0);
             builder.create<scf::YieldOp>(loc, ValueRange{zeroPF});
           },
           /*elseBuilder=*/
@@ -414,14 +417,15 @@ struct ConvertScalarMul : public OpConversionPattern<ScalarMulOp> {
     Type outputType = op.getOutput().getType();
 
     Value scalarPF = op.getScalar();
-    auto pfType = cast<field::PrimeFieldType>(scalarPF.getType());
-    unsigned outputBitWidth = pfType.getModulus().getValue().getBitWidth();
+    auto baseFieldType = cast<field::PrimeFieldType>(scalarPF.getType());
+    unsigned outputBitWidth =
+        baseFieldType.getModulus().getValue().getBitWidth();
     auto signlessIntType = IntegerType::get(op.getContext(), outputBitWidth,
                                             IntegerType::Signless);
     auto scalar = b.create<field::ExtractOp>(signlessIntType, scalarPF);
 
     Value point = adaptor.getPoint();
-    auto zeroPF = b.create<field::ConstantOp>(pfType, 0);
+    auto zeroPF = b.create<field::ConstantOp>(baseFieldType, 0);
     SmallVector<Value> zeroes{zeroPF, zeroPF, zeroPF};
     Value initalPoint;
 

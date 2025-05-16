@@ -157,7 +157,7 @@ LogicalResult PointOp::verify() {
   Type outputType = getOutput().getType();
   uint8_t numCoords = getNumOperands();
   auto operands = getOperands();
-  field::PrimeFieldType baseField =
+  field::PrimeFieldType baseFieldType =
       cast<field::PrimeFieldType>(operands[0].getType());
 
   if (isa<AffineType>(outputType) && numCoords != 2) {
@@ -169,7 +169,7 @@ LogicalResult PointOp::verify() {
   }
 
   for (int i = 1; i < operands.size(); ++i) {
-    if (baseField != cast<field::PrimeFieldType>(operands[i].getType())) {
+    if (baseFieldType != cast<field::PrimeFieldType>(operands[i].getType())) {
       return emitError() << "All coordinates are not of the same prime field";
     }
   }
