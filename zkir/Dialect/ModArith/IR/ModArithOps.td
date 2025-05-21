@@ -38,6 +38,20 @@ class ModArith_BinaryOp<string mnemonic, list<Trait> traits = []> :
   let hasVerifier = 1;
 }
 
+def ModArith_ConstantOp : Op<ModArith_Dialect, "constant", [Pure]> {
+  let summary = "Define a constant value via an attribute.";
+  let description = [{
+    Example:
+
+    ```
+    %0 = mod_arith.constant 123 : !mod_arith.int<65537:i32>
+    ```
+  }];
+  let arguments = (ins TypedAttrInterface:$value);
+  let results = (outs ModArithLike:$output);
+  let hasCustomAssemblyFormat = 1;
+}
+
 // type conversion operations
 def ModArith_EncapsulateOp : ModArith_Op<"encapsulate"> {
   let summary = "Encapsulate an integer into a modular type integer";
@@ -93,36 +107,6 @@ def ModArith_ModSwitchOp : ModArith_Op<"mod_switch"> {
   let arguments = (ins ModArith_ModArithType:$input);
   let results = (outs ModArith_ModArithType:$output);
   let assemblyFormat = "$input attr-dict `:` type($input) `to` type($output)";
-}
-
-def ModArith_ConstantOp : Op<ModArith_Dialect, "constant", [Pure]> {
-  let summary = "Define a constant value via an attribute.";
-  let description = [{
-    Example:
-
-    ```
-    %0 = mod_arith.constant 123 : !mod_arith.int<65537:i32>
-    ```
-  }];
-  let arguments = (ins TypedAttrInterface:$value);
-  let results = (outs ModArithLike:$output);
-  let hasCustomAssemblyFormat = 1;
-}
-
-def ModArith_NegateOp : ModArith_UnaryOp<"negate", [Involution]> {
-  let summary = "Modular negation";
-  let description = [{
-    Computes the negation of a modular type integer.
-
-    Example:
-    ```
-    %1 = mod_arith.negate %0 : mod_arith.int<65537: i32>
-    ```
-  }];
-  let arguments = (ins ModArithLike:$input);
-  let results = (outs ModArithLike:$output);
-  let hasVerifier = 1;
-  let assemblyFormat = "operands attr-dict `:` type($output)";
 }
 
 def ModArith_MontReduceOp : ModArith_Op<"mont_reduce", [SameTypeOperands]> {
@@ -188,63 +172,6 @@ def ModArith_FromMontOp : ModArith_Op<"from_mont", [SameOperandsAndResultType]> 
   let assemblyFormat = "operands attr-dict `:` type($output)";
 }
 
-def ModArith_InverseOp : ModArith_UnaryOp<"inverse"> {
-  let summary = "Modular inverse operation";
-  let description = [{
-    Computes the modular inverse of a given modular type integer.
-
-    Example:
-    ```
-    %0 = mod_arith.constant 5 : !mod_arith.int<7:i4>
-    %c0 = mod_arith.inverse %0 : !mod_arith.int<7:i4>
-    ```
-  }];
-  let arguments = (ins ModArithLike:$input);
-  let results = (outs ModArithLike:$output);
-  let assemblyFormat = "operands attr-dict `:` type($output)";
-}
-
-def ModArith_AddOp : ModArith_BinaryOp<"add", [Commutative]> {
-  let summary = "Modular addition operation";
-  let description = [{
-    Performs modular addition on the given two modular type integers.
-  }];
-}
-
-def ModArith_SubOp : ModArith_BinaryOp<"sub"> {
-  let summary = "Modular subtraction operation";
-  let description = [{
-    Performs modular subtraction on the given two modular type integers.
-  }];
-}
-
-def ModArith_MulOp : ModArith_BinaryOp<"mul", [Commutative]> {
-  let summary = "Modular multiplication operation";
-  let description = [{
-    Performs modular multiplication on the given two modular type integers.
-    WARNING: This operation assumes that both operands are in the standard form.
-  }];
-}
-
-def ModArith_MontMulOp : ModArith_BinaryOp<"mont_mul", [Commutative]> {
-  let summary = "Montgomery multiplication operation";
-  let description = [{
-    Performs Montgomery multiplication in the Montgomery domain.
-    In other words, it computes a * b * R⁻¹ mod q, where `R` is the Montgomery factor.
-
-    Example:
-    ```
-    %m0 = mod_arith.mont_mul %a, %b : mod_arith.int<65537 : i256>
-    ```
-  }];
-  let arguments = (ins
-    ModArithLike:$lhs,
-    ModArithLike:$rhs,
-    ModArith_MontgomeryAttr:$montgomery
-  );
-  let results = (outs ModArithLike:$output);
-}
-
 def ModArith_CmpOp : ModArith_Op<"cmp", [SameTypeOperands, TypesMatchWith<
   "result type has i1 element type and same shape as operands",
   "lhs", "result", "getI1SameShape($_self)">]> {
@@ -301,6 +228,79 @@ def ModArith_SubIfGEOp : ModArith_ArithOp<"subifge"> {
   );
   let results = (outs SignlessIntegerLike:$output);
   let assemblyFormat = "operands attr-dict `:` qualified(type($output))";
+}
+
+def ModArith_NegateOp : ModArith_UnaryOp<"negate", [Involution]> {
+  let summary = "Modular negation";
+  let description = [{
+    Computes the negation of a modular type integer.
+
+    Example:
+    ```
+    %1 = mod_arith.negate %0 : mod_arith.int<65537: i32>
+    ```
+  }];
+  let arguments = (ins ModArithLike:$input);
+  let results = (outs ModArithLike:$output);
+  let hasVerifier = 1;
+  let assemblyFormat = "operands attr-dict `:` type($output)";
+}
+
+def ModArith_InverseOp : ModArith_UnaryOp<"inverse"> {
+  let summary = "Modular inverse operation";
+  let description = [{
+    Computes the modular inverse of a given modular type integer.
+
+    Example:
+    ```
+    %0 = mod_arith.constant 5 : !mod_arith.int<7:i4>
+    %c0 = mod_arith.inverse %0 : !mod_arith.int<7:i4>
+    ```
+  }];
+  let arguments = (ins ModArithLike:$input);
+  let results = (outs ModArithLike:$output);
+  let assemblyFormat = "operands attr-dict `:` type($output)";
+}
+
+def ModArith_AddOp : ModArith_BinaryOp<"add", [Commutative]> {
+  let summary = "Modular addition operation";
+  let description = [{
+    Performs modular addition on the given two modular type integers.
+  }];
+}
+
+def ModArith_SubOp : ModArith_BinaryOp<"sub"> {
+  let summary = "Modular subtraction operation";
+  let description = [{
+    Performs modular subtraction on the given two modular type integers.
+  }];
+}
+
+def ModArith_MulOp : ModArith_BinaryOp<"mul", [Commutative]> {
+  let summary = "Modular multiplication operation";
+  let description = [{
+    Performs modular multiplication on the given two modular type integers.
+    WARNING: This operation assumes that both operands are in the standard form.
+  }];
+}
+
+def ModArith_MontMulOp : ModArith_BinaryOp<"mont_mul", [Commutative]> {
+  let summary = "Montgomery multiplication operation";
+  let description = [{
+    Performs Montgomery multiplication in the Montgomery domain.
+    In other words, it computes a * b * R⁻¹ mod q, where `R` is the Montgomery factor.
+
+    Example:
+    ```
+    %m0 = mod_arith.mont_mul %a, %b : mod_arith.int<65537 : i256>
+    ```
+  }];
+  let arguments = (ins
+    ModArithLike:$lhs,
+    ModArithLike:$rhs,
+    ModArith_MontgomeryAttr:$montgomery
+  );
+  let results = (outs ModArithLike:$output);
 }
 
 #endif  // ZKIR_DIALECT_MODARITH_IR_MODARITHOPS_TD_
