@@ -105,26 +105,6 @@ def ModArith_NegateOp : ModArith_Op<"negate", [Pure, ElementwiseMappable, SameOp
   let assemblyFormat = "operands attr-dict `:` type($output)";
 }
 
-def ModArith_ReduceOp : ModArith_Op<"reduce", [Pure, ElementwiseMappable, SameOperandsAndResultType]> {
-  let summary = "Modular reduction";
-  let description = [{
-    Computes the modulo of a given integer.
-
-    Example:
-    ```
-    %c0 = arith.constant 65538 : i32
-    %m0 = mod_arith.encapsulate %c0 : i32 -> mod_arith.int<65537 : i32>
-    // mod_arith.extract %m0 produces 65538
-    %m1 = mod_arith.reduce %m0 : mod_arith.int<65537: i32>
-    // mod_arith.extract %m1 produces 1
-    ```
-  }];
-  let arguments = (ins ModArithLike:$input);
-  let results = (outs ModArithLike:$output);
-  let hasVerifier = 1;
-  let assemblyFormat = "operands attr-dict `:` type($output)";
-}
-
 def ModArith_MontReduceOp : ModArith_Op<"mont_reduce", [Pure, ElementwiseMappable, SameTypeOperands]> {
   let summary = "Montgomery reduction";
   let description = [{
