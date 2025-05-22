@@ -1,4 +1,4 @@
-// RUN: zkir-opt -prime-field-to-mod-arith --split-input-file %s | FileCheck %s --enable-var-scope
+// RUN: zkir-opt -field-to-mod-arith --split-input-file %s | FileCheck %s --enable-var-scope
 !PF1 = !field.pf<3:i32>
 !PFv = tensor<4x!PF1>
 #root_elem = #field.pf_elem<2:i32> : !PF1

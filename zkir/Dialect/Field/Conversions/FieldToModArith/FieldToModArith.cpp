@@ -31,7 +31,7 @@
 
 namespace mlir::zkir::field {
 
-#define GEN_PASS_DEF_PRIMEFIELDTOMODARITH
+#define GEN_PASS_DEF_FIELDTOMODARITH
 #include "zkir/Dialect/Field/Conversions/FieldToModArith/FieldToModArith.h.inc"
 
 static mod_arith::ModArithType convertPrimeFieldType(PrimeFieldType type) {
@@ -47,9 +47,9 @@ static Type convertPrimeFieldLikeType(ShapedType type) {
   return type;
 }
 
-class PrimeFieldToModArithTypeConverter : public TypeConverter {
+class FieldToModArithTypeConverter : public TypeConverter {
  public:
-  explicit PrimeFieldToModArithTypeConverter(MLIRContext *ctx) {
+  explicit FieldToModArithTypeConverter(MLIRContext *ctx) {
     addConversion([](Type type) { return type; });
     addConversion([](PrimeFieldType type) -> Type {
       return convertPrimeFieldType(type);
@@ -327,17 +327,16 @@ namespace rewrites {
 #include "zkir/Dialect/Field/Conversions/FieldToModArith/FieldToModArith.cpp.inc"
 }  // namespace rewrites
 
-struct PrimeFieldToModArith
-    : impl::PrimeFieldToModArithBase<PrimeFieldToModArith> {
-  using PrimeFieldToModArithBase::PrimeFieldToModArithBase;
+struct FieldToModArith : impl::FieldToModArithBase<FieldToModArith> {
+  using FieldToModArithBase::FieldToModArithBase;
 
   void runOnOperation() override;
 };
 
-void PrimeFieldToModArith::runOnOperation() {
+void FieldToModArith::runOnOperation() {
   MLIRContext *context = &getContext();
   ModuleOp module = getOperation();
-  PrimeFieldToModArithTypeConverter typeConverter(context);
+  FieldToModArithTypeConverter typeConverter(context);
 
   ConversionTarget target(*context);
   target.addIllegalDialect<FieldDialect>();
