@@ -12,29 +12,29 @@ include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
-// Base class for prime field operations.
+// Base class for field operations.
 class Field_Op<string mnemonic, list<Trait> traits = []> :
   Op<Field_Dialect, mnemonic, traits #
    [NoMemoryEffect, Pure] # ElementwiseMappable.traits>;
 
-// Base class for prime field arithmetic ops. All ops have one result,
+// Base class for field arithmetic ops. All ops have one result,
 // and the result type is the same as the operand type.
 class Field_ArithOp<string mnemonic, list<Trait> traits = []> :
     Field_Op<mnemonic, traits # [SameOperandsAndResultType]>;
 
-// Base class for unary prime field arithmetic.
+// Base class for unary field arithmetic.
 class Field_UnaryOp<string mnemonic, list<Trait> traits = []> :
     Field_ArithOp<mnemonic, traits>,
-  Arguments<(ins PrimeFieldLike:$input)>,
-  Results<(outs PrimeFieldLike:$output)> {
+  Arguments<(ins FieldLike:$input)>,
+  Results<(outs FieldLike:$output)> {
   let assemblyFormat = "operands attr-dict `:` type($output)";
 }
 
-// Base class for binary prime field arithmetic.
+// Base class for binary field arithmetic.
 class Field_BinaryOp<string mnemonic, list<Trait> traits = []> :
   Field_ArithOp<mnemonic, traits>,
-  Arguments<(ins PrimeFieldLike:$lhs, PrimeFieldLike:$rhs)>,
-  Results<(outs PrimeFieldLike:$output)> {
+  Arguments<(ins FieldLike:$lhs, FieldLike:$rhs)>,
+  Results<(outs FieldLike:$output)> {
   let assemblyFormat = "operands attr-dict `:` type($output)";
 }
 

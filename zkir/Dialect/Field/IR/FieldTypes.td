@@ -32,5 +32,6 @@ def Field_PrimeFieldType : Field_Type<"PrimeField", "pf", [MemRefElementTypeInte
 }
 
 def PrimeFieldLike: TypeOrValueSemanticsContainer<Field_PrimeFieldType, "prime-field-like">;
+def FieldLike : TypeConstraint<Or<[PrimeFieldLike.predicate]>, "field-like">;
 
 #endif  // ZKIR_DIALECT_FIELD_IR_FIELDTYPES_TD_
