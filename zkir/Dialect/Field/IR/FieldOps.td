@@ -12,6 +12,21 @@ include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
+// Base class for Prime Field operations.
+class PrimeField_Op<string mnemonic, list<Trait> traits = [Pure]> :
+  Op<Field_Dialect, mnemonic, traits> {
+  let cppNamespace = "::mlir::zkir::field";
+  let assemblyFormat = "$operand attr-dict `:` type($result)";
+}
+
+// A helper class for binary prime field operations.
+class PrimeField_BinaryOp<string mnemonic, list<Trait> traits = []> :
+  PrimeField_Op<mnemonic, traits # [SameOperandsAndResultType, Pure, ElementwiseMappable]>,
+  Arguments<(ins PrimeFieldLike:$lhs, PrimeFieldLike:$rhs)>,
+  Results<(outs PrimeFieldLike:$output)> {
+  let assemblyFormat = "operands attr-dict `:` type($output)";
+}
+
 def PrimeField_ConstantOp : Op<Field_Dialect, "pf.constant", [Pure]> {
   let summary = "Define a constant prime field element via an attribute";
   let description = [{
@@ -31,13 +46,6 @@ def PrimeField_ConstantOp : Op<Field_Dialect, "pf.constant", [Pure]> {
       return build($_builder, $_state, ty, IntegerAttr::get(ty.getModulus().getType(), value));
     }]>
   ];
-}
-
-// Base class for Prime Field operations.
-class PrimeField_Op<string mnemonic, list<Trait> traits = [Pure]> :
-  Op<Field_Dialect, mnemonic, traits> {
-  let cppNamespace = "::mlir::zkir::field";
-  let assemblyFormat = "$operand attr-dict `:` type($result)";
 }
 
 def PrimeField_EncapsulateOp : PrimeField_Op<"pf.encapsulate", [Pure, ElementwiseMappable]> {
@@ -133,14 +141,6 @@ def PrimeField_NegateOp : PrimeField_Op<"pf.negate", [Pure, ElementwiseMappable,
   }];
   let arguments = (ins PrimeFieldLike:$input);
   let results = (outs PrimeFieldLike:$output);
-  let assemblyFormat = "operands attr-dict `:` type($output)";
-}
-
-// A helper class for binary prime field operations.
-class PrimeField_BinaryOp<string mnemonic, list<Trait> traits = []> :
-  PrimeField_Op<mnemonic, traits # [SameOperandsAndResultType, Pure, ElementwiseMappable]>,
-  Arguments<(ins PrimeFieldLike:$lhs, PrimeFieldLike:$rhs)>,
-  Results<(outs PrimeFieldLike:$output)> {
   let assemblyFormat = "operands attr-dict `:` type($output)";
 }
 
