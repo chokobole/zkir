@@ -182,3 +182,13 @@ func.func @test_msm() {
   %msm_result = elliptic_curve.msm %scalars, %points : tensor<3x!PF>, tensor<3x!affine> -> !jacobian
   return
 }
+
+func.func @test_memref(%arg0: memref<3x!affine>, %arg1: memref<3x!affine>) {
+  %c0 = arith.constant 0 : index
+  %p0 = memref.load %arg0[%c0] : memref<3x!affine>
+  %p1 = memref.load %arg1[%c0] : memref<3x!affine>
+  %sum = elliptic_curve.add %p0, %p1 : !affine, !affine -> !jacobian
+  %affine = elliptic_curve.convert_point_type %sum : !jacobian -> !affine
+  memref.store %affine, %arg0[%c0] : memref<3x!affine>
+  return
+}
