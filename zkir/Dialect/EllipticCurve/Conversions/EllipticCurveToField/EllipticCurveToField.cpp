@@ -635,14 +635,31 @@ void EllipticCurveToField::runOnOperation() {
   RewritePatternSet patterns(context);
   rewrites::populateWithGenerated(patterns);
   patterns.add<
-      ConvertPoint, ConvertIsZero, ConvertExtract, ConvertConvertPointType,
-      ConvertAdd, ConvertDouble, ConvertNegate, ConvertSub, ConvertScalarMul,
-      ConvertMSM, ConvertAny<memref::LoadOp>, ConvertAny<memref::StoreOp>,
-      ConvertAny<tensor::FromElementsOp>, ConvertAny<tensor::ExtractOp>>(
-      typeConverter, context);
-  target.addDynamicallyLegalOp<memref::LoadOp, memref::StoreOp,
-                               tensor::FromElementsOp, tensor::ExtractOp>(
-      [&](auto op) { return typeConverter.isLegal(op); });
+      // clang-format off
+      ConvertAdd,
+      ConvertConvertPointType,
+      ConvertDouble,
+      ConvertExtract,
+      ConvertIsZero,
+      ConvertMSM,
+      ConvertNegate,
+      ConvertPoint,
+      ConvertScalarMul,
+      ConvertSub,
+      ConvertAny<memref::LoadOp>,
+      ConvertAny<memref::StoreOp>,
+      ConvertAny<tensor::ExtractOp>,
+      ConvertAny<tensor::FromElementsOp>
+      // clang-format on
+      >(typeConverter, context);
+  target.addDynamicallyLegalOp<
+      // clang-format off
+      memref::LoadOp,
+      memref::StoreOp,
+      tensor::ExtractOp,
+      tensor::FromElementsOp
+      // clang-format on
+      >([&](auto op) { return typeConverter.isLegal(op); });
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
 

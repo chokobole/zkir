@@ -599,35 +599,76 @@ void ModArithToArith::runOnOperation() {
   RewritePatternSet patterns(context);
   rewrites::populateWithGenerated(patterns);
   patterns.add<
-      ConvertNegate, ConvertEncapsulate, ConvertExtract, ConvertMontReduce,
-      ConvertToMont, ConvertFromMont, ConvertAdd, ConvertSub, ConvertMul,
-      ConvertMontMul, ConvertMac, ConvertCmp, ConvertConstant, ConvertInverse,
-      ConvertAny<affine::AffineForOp>, ConvertAny<affine::AffineParallelOp>,
-      ConvertAny<affine::AffineLoadOp>, ConvertAny<affine::AffineApplyOp>,
-      ConvertAny<affine::AffineStoreOp>, ConvertAny<affine::AffineYieldOp>,
+      // clang-format off
+      ConvertAdd,
+      ConvertCmp,
+      ConvertConstant,
+      ConvertEncapsulate,
+      ConvertExtract,
+      ConvertFromMont,
+      ConvertInverse,
+      ConvertMac,
+      ConvertMontMul,
+      ConvertMontReduce,
+      ConvertMul,
+      ConvertNegate,
+      ConvertSub,
+      ConvertToMont,
+      ConvertAny<affine::AffineApplyOp>,
+      ConvertAny<affine::AffineForOp>,
+      ConvertAny<affine::AffineLoadOp>,
+      ConvertAny<affine::AffineParallelOp>,
+      ConvertAny<affine::AffineStoreOp>,
+      ConvertAny<affine::AffineYieldOp>,
       ConvertAny<bufferization::MaterializeInDestinationOp>,
       ConvertAny<bufferization::ToMemrefOp>,
-      ConvertAny<bufferization::ToTensorOp>, ConvertAny<linalg::GenericOp>,
-      ConvertAny<linalg::MapOp>, ConvertAny<linalg::YieldOp>,
-      ConvertAny<memref::LoadOp>, ConvertAny<memref::StoreOp>,
-      ConvertAny<tensor::CastOp>, ConvertAny<tensor::ExtractOp>,
-      ConvertAny<tensor::ExtractSliceOp>, ConvertAny<tensor::InsertSliceOp>,
-      ConvertAny<tensor::EmptyOp>, ConvertAny<tensor::FromElementsOp>,
-      ConvertAny<tensor::ConcatOp>, ConvertAny<tensor::ReshapeOp>,
-      ConvertAny<tensor::InsertOp>>(typeConverter, context);
+      ConvertAny<bufferization::ToTensorOp>,
+      ConvertAny<linalg::GenericOp>,
+      ConvertAny<linalg::MapOp>,
+      ConvertAny<linalg::YieldOp>,
+      ConvertAny<memref::LoadOp>,
+      ConvertAny<memref::StoreOp>,
+      ConvertAny<tensor::CastOp>,
+      ConvertAny<tensor::ConcatOp>,
+      ConvertAny<tensor::EmptyOp>,
+      ConvertAny<tensor::ExtractOp>,
+      ConvertAny<tensor::ExtractSliceOp>,
+      ConvertAny<tensor::FromElementsOp>,
+      ConvertAny<tensor::InsertOp>,
+      ConvertAny<tensor::InsertSliceOp>,
+      ConvertAny<tensor::ReshapeOp>
+      // clang-format on
+      >(typeConverter, context);
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
 
   target.addDynamicallyLegalOp<
-      affine::AffineForOp, affine::AffineParallelOp, affine::AffineLoadOp,
-      affine::AffineApplyOp, affine::AffineStoreOp, affine::AffineYieldOp,
-      bufferization::MaterializeInDestinationOp, bufferization::ToMemrefOp,
-      bufferization::ToTensorOp, linalg::GenericOp, linalg::MapOp,
-      linalg::YieldOp, memref::LoadOp, memref::StoreOp, tensor::CastOp,
-      tensor::ExtractOp, tensor::ExtractSliceOp, tensor::InsertSliceOp,
-      tensor::EmptyOp, tensor::FromElementsOp, tensor::ConcatOp,
-      tensor::ReshapeOp, tensor::InsertOp>(
-      [&](auto op) { return typeConverter.isLegal(op); });
+      // clang-format off
+      affine::AffineApplyOp,
+      affine::AffineForOp,
+      affine::AffineLoadOp,
+      affine::AffineParallelOp,
+      affine::AffineStoreOp,
+      affine::AffineYieldOp,
+      bufferization::MaterializeInDestinationOp,
+      bufferization::ToMemrefOp,
+      bufferization::ToTensorOp,
+      linalg::GenericOp,
+      linalg::MapOp,
+      linalg::YieldOp,
+      memref::LoadOp,
+      memref::StoreOp,
+      tensor::CastOp,
+      tensor::ConcatOp,
+      tensor::EmptyOp,
+      tensor::ExtractOp,
+      tensor::ExtractSliceOp,
+      tensor::FromElementsOp,
+      tensor::InsertOp,
+      tensor::InsertSliceOp,
+      tensor::ReshapeOp
+      // clang-format on
+      >([&](auto op) { return typeConverter.isLegal(op); });
 
   if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
     signalPassFailure();
