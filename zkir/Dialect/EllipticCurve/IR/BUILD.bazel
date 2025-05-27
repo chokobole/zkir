@@ -23,6 +23,7 @@ cc_library(
         ":types_inc_gen",
         "//zkir/Dialect/Field/IR:Field",
         "//zkir/Dialect/Poly/IR:Poly",
+        "//zkir/Utils:OpUtils",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",

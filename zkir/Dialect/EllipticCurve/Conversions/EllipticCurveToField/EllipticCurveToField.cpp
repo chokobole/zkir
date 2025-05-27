@@ -147,6 +147,37 @@ struct ConvertPoint : public OpConversionPattern<PointOp> {
   }
 };
 
+struct ConvertIsZero : public OpConversionPattern<IsZeroOp> {
+  explicit ConvertIsZero(MLIRContext *context)
+      : OpConversionPattern<IsZeroOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      IsZeroOp op, OneToNOpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    ValueRange coords = adaptor.getInput();
+    field::PrimeFieldType baseField =
+        cast<field::PrimeFieldType>(coords[0].getType());
+    Value zeroPF = b.create<field::ConstantOp>(baseField, 0);
+
+    Value cmp;
+    if (isa<AffineType>(op.getInput().getType())) {
+      Value xIsZero =
+          b.create<field::CmpOp>(arith::CmpIPredicate::eq, coords[0], zeroPF);
+      Value yIsZero =
+          b.create<field::CmpOp>(arith::CmpIPredicate::eq, coords[1], zeroPF);
+      cmp = b.create<arith::AndIOp>(xIsZero, yIsZero);
+    } else {
+      cmp = b.create<field::CmpOp>(arith::CmpIPredicate::eq, coords[2], zeroPF);
+    }
+    rewriter.replaceOp(op, cmp);
+    return success();
+  }
+};
+
 struct ConvertExtract : public OpConversionPattern<ExtractOp> {
   explicit ConvertExtract(MLIRContext *context)
       : OpConversionPattern<ExtractOp>(context) {}
@@ -554,10 +585,11 @@ void EllipticCurveToField::runOnOperation() {
 
   RewritePatternSet patterns(context);
   rewrites::populateWithGenerated(patterns);
-  patterns.add<ConvertPoint, ConvertExtract, ConvertConvertPointType,
-               ConvertAdd, ConvertDouble, ConvertNegate, ConvertSub,
-               ConvertScalarMul, ConvertMSM, ConvertAny<tensor::FromElementsOp>,
-               ConvertAny<tensor::ExtractOp>>(typeConverter, context);
+  patterns
+      .add<ConvertPoint, ConvertIsZero, ConvertExtract, ConvertConvertPointType,
+           ConvertAdd, ConvertDouble, ConvertNegate, ConvertSub,
+           ConvertScalarMul, ConvertMSM, ConvertAny<tensor::FromElementsOp>,
+           ConvertAny<tensor::ExtractOp>>(typeConverter, context);
   target.addDynamicallyLegalOp<tensor::FromElementsOp, tensor::ExtractOp>(
       [&](auto op) { return typeConverter.isLegal(op); });
 

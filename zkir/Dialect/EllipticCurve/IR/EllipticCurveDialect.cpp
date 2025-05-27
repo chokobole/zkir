@@ -179,6 +179,15 @@ LogicalResult PointOp::verify() {
 
 /////////////// VERIFY OPS /////////////////
 
+LogicalResult IsZeroOp::verify() {
+  Type inputType = getInput().getType();
+  if (isa<AffineType>(getElementTypeOrSelf(inputType)) ||
+      isa<JacobianType>(getElementTypeOrSelf(inputType)) ||
+      isa<XYZZType>(getElementTypeOrSelf(inputType)))
+    return success();
+  return emitError() << "invalid input type";
+}
+
 template <typename OpType>
 LogicalResult verifyBinaryOp(OpType op) {
   Type lhsType = op.getLhs().getType();

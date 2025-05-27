@@ -51,6 +51,26 @@ def EllipticCurve_PointOp : EllipticCurve_Op<"point"> {
   let hasVerifier = 1;
 }
 
+////////////// POINT CHECKS //////////////
+
+def EllipticCurve_IsZeroOp : EllipticCurve_Op<"is_zero", [TypesMatchWith<
+  "result type has i1 element type and same shape as operands",
+  "input", "output", "getI1SameShape($_self)">]> {
+  let summary = "Checks whether an elliptic curve point is zero";
+  let description = [{
+    Outputs a bool true (1) if the elliptic curve point input is zero, and a bool false (0) otherwise.
+
+    Example:
+    ```
+    %0 = elliptic_curve.is_zero %point : !jacobian
+    ```
+  }];
+  let arguments = (ins PointLike:$input);
+  let results = (outs BoolLike:$output);
+  let hasVerifier = 1;
+  let assemblyFormat = "operands attr-dict `:` type($input)";
+}
+
 /////////// POINT EXTRACTION //////////////
 
 def EllipticCurve_ExtractOp : EllipticCurve_Op<"extract"> {
