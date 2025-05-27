@@ -3,6 +3,7 @@
 #include <utility>
 
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/ImplicitLocOpBuilder.h"
@@ -633,13 +634,32 @@ void EllipticCurveToField::runOnOperation() {
 
   RewritePatternSet patterns(context);
   rewrites::populateWithGenerated(patterns);
-  patterns
-      .add<ConvertPoint, ConvertIsZero, ConvertExtract, ConvertConvertPointType,
-           ConvertAdd, ConvertDouble, ConvertNegate, ConvertSub,
-           ConvertScalarMul, ConvertMSM, ConvertAny<tensor::FromElementsOp>,
-           ConvertAny<tensor::ExtractOp>>(typeConverter, context);
-  target.addDynamicallyLegalOp<tensor::FromElementsOp, tensor::ExtractOp>(
-      [&](auto op) { return typeConverter.isLegal(op); });
+  patterns.add<
+      // clang-format off
+      ConvertAdd,
+      ConvertConvertPointType,
+      ConvertDouble,
+      ConvertExtract,
+      ConvertIsZero,
+      ConvertMSM,
+      ConvertNegate,
+      ConvertPoint,
+      ConvertScalarMul,
+      ConvertSub,
+      ConvertAny<memref::LoadOp>,
+      ConvertAny<memref::StoreOp>,
+      ConvertAny<tensor::ExtractOp>,
+      ConvertAny<tensor::FromElementsOp>
+      // clang-format on
+      >(typeConverter, context);
+  target.addDynamicallyLegalOp<
+      // clang-format off
+      memref::LoadOp,
+      memref::StoreOp,
+      tensor::ExtractOp,
+      tensor::FromElementsOp
+      // clang-format on
+      >([&](auto op) { return typeConverter.isLegal(op); });
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
 

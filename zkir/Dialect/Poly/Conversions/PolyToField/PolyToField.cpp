@@ -611,10 +611,19 @@ void PolyToField::runOnOperation() {
   target.addLegalDialect<field::FieldDialect>();
   RewritePatternSet patterns(context);
 
-  patterns.add<ConvertPolyBinOp<AddOp, field::AddOp>,
-               ConvertPolyBinOp<SubOp, field::SubOp>, ConvertConstant,
-               ConvertFromTensor, ConvertToTensor, ConvertBitReverse,
-               ConvertNTT, ConvertINTT>(typeConverter, context);
+  patterns.add<
+      // clang-format off
+      ConvertBitReverse,
+      ConvertConstant,
+      ConvertFromTensor,
+      ConvertINTT,
+      ConvertNTT,
+      ConvertToTensor,
+      ConvertPolyBinOp<AddOp, field::AddOp>,
+      ConvertPolyBinOp<SubOp, field::SubOp>
+      // clang-format on
+      >(typeConverter, context);
+
   addStructuralConversionPatterns(typeConverter, patterns, target);
 
   if (failed(applyPartialConversion(module, target, std::move(patterns)))) {

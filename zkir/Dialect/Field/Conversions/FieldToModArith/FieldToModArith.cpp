@@ -628,36 +628,75 @@ void FieldToModArith::runOnOperation() {
   // the OneShotBufferize pass, we must decompose them with this pattern.
   tensor::populateDecomposeTensorConcatPatterns(patterns);
   patterns.add<
-      ConvertConstant, ConvertEncapsulate, ConvertExtract, ConvertToMont,
-      ConvertFromMont, ConvertInverse, ConvertNegate, ConvertAdd, ConvertDouble,
-      ConvertSub, ConvertMul, ConvertSquare, ConvertMontMul, ConvertCmp,
-      ConvertF2Constant, ConvertAny<affine::AffineForOp>,
-      ConvertAny<affine::AffineParallelOp>, ConvertAny<affine::AffineLoadOp>,
-      ConvertAny<affine::AffineStoreOp>, ConvertAny<affine::AffineYieldOp>,
-      ConvertAny<linalg::GenericOp>, ConvertAny<linalg::MapOp>,
-      ConvertAny<memref::LoadOp>, ConvertAny<memref::StoreOp>,
-      ConvertAny<linalg::YieldOp>, ConvertAny<tensor::CastOp>,
-      ConvertAny<tensor::ExtractOp>, ConvertAny<tensor::ExtractSliceOp>,
-      ConvertAny<tensor::InsertSliceOp>, ConvertAny<tensor::EmptyOp>,
-      ConvertAny<tensor::FromElementsOp>, ConvertAny<tensor::ConcatOp>,
-      ConvertAny<tensor::ReshapeOp>,
+      // clang-format off
+      ConvertAdd,
+      ConvertConstant,
+      ConvertCmp,
+      ConvertDouble,
+      ConvertEncapsulate,
+      ConvertExtract,
+      ConvertF2Constant,
+      ConvertFromMont,
+      ConvertInverse,
+      ConvertNegate,
+      ConvertMontMul,
+      ConvertMul,
+      ConvertSquare,
+      ConvertSub,
+      ConvertToMont,
+      ConvertAny<affine::AffineForOp>,
+      ConvertAny<affine::AffineLoadOp>,
+      ConvertAny<affine::AffineParallelOp>,
+      ConvertAny<affine::AffineStoreOp>,
+      ConvertAny<affine::AffineYieldOp>,
       ConvertAny<bufferization::MaterializeInDestinationOp>,
       ConvertAny<bufferization::ToMemrefOp>,
-      ConvertAny<bufferization::ToTensorOp>, ConvertAny<tensor::InsertOp>>(
-      typeConverter, context);
+      ConvertAny<bufferization::ToTensorOp>,
+      ConvertAny<linalg::GenericOp>,
+      ConvertAny<linalg::MapOp>,
+      ConvertAny<linalg::YieldOp>,
+      ConvertAny<memref::LoadOp>,
+      ConvertAny<memref::StoreOp>,
+      ConvertAny<tensor::CastOp>,
+      ConvertAny<tensor::ConcatOp>,
+      ConvertAny<tensor::EmptyOp>,
+      ConvertAny<tensor::ExtractOp>,
+      ConvertAny<tensor::ExtractSliceOp>,
+      ConvertAny<tensor::FromElementsOp>,
+      ConvertAny<tensor::InsertOp>,
+      ConvertAny<tensor::InsertSliceOp>,
+      ConvertAny<tensor::ReshapeOp>
+      // clang-format on
+      >(typeConverter, context);
 
   addStructuralConversionPatterns(typeConverter, patterns, target);
 
   target.addDynamicallyLegalOp<
-      affine::AffineForOp, affine::AffineParallelOp, affine::AffineLoadOp,
-      affine::AffineStoreOp, affine::AffineYieldOp,
-      bufferization::MaterializeInDestinationOp, bufferization::ToMemrefOp,
-      bufferization::ToTensorOp, linalg::GenericOp, linalg::MapOp,
-      linalg::YieldOp, memref::LoadOp, memref::StoreOp, tensor::CastOp,
-      tensor::ExtractOp, tensor::ExtractSliceOp, tensor::InsertSliceOp,
-      tensor::EmptyOp, tensor::FromElementsOp, tensor::InsertOp,
-      tensor::ConcatOp, tensor::ReshapeOp>(
-      [&](auto op) { return typeConverter.isLegal(op); });
+      // clang-format off
+      affine::AffineForOp,
+      affine::AffineLoadOp,
+      affine::AffineParallelOp,
+      affine::AffineStoreOp,
+      affine::AffineYieldOp,
+      bufferization::MaterializeInDestinationOp,
+      bufferization::ToMemrefOp,
+      bufferization::ToTensorOp,
+      linalg::GenericOp,
+      linalg::MapOp,
+      linalg::YieldOp,
+      memref::LoadOp,
+      memref::StoreOp,
+      tensor::CastOp,
+      tensor::ConcatOp,
+      tensor::EmptyOp,
+      tensor::ExtractOp,
+      tensor::ExtractSliceOp,
+      tensor::FromElementsOp,
+      tensor::InsertOp,
+      tensor::InsertSliceOp,
+      tensor::ReshapeOp
+      // clang-format on
+      >([&](auto op) { return typeConverter.isLegal(op); });
 
   if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
     signalPassFailure();
