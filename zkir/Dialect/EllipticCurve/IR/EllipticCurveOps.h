@@ -7,6 +7,7 @@
 #include "zkir/Dialect/EllipticCurve/IR/EllipticCurveTypes.h"
 #include "zkir/Dialect/Field/IR/FieldAttributes.h"
 #include "zkir/Dialect/Field/IR/FieldTypes.h"
+#include "zkir/Utils/OpUtils.h"
 
 #define GET_OP_CLASSES
 #include "zkir/Dialect/EllipticCurve/IR/EllipticCurveOps.h.inc"

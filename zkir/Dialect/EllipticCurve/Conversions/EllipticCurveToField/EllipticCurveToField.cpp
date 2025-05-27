@@ -147,6 +147,37 @@ struct ConvertPoint : public OpConversionPattern<PointOp> {
   }
 };
 
+struct ConvertIsZero : public OpConversionPattern<IsZeroOp> {
+  explicit ConvertIsZero(MLIRContext *context)
+      : OpConversionPattern<IsZeroOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      IsZeroOp op, OneToNOpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    ValueRange coords = adaptor.getInput();
+    field::PrimeFieldType baseField =
+        cast<field::PrimeFieldType>(coords[0].getType());
+    Value zeroPF = b.create<field::ConstantOp>(baseField, 0);
+
+    Value cmp;
+    if (isa<AffineType>(op.getInput().getType())) {
+      Value xIsZero =
+          b.create<field::CmpOp>(arith::CmpIPredicate::eq, coords[0], zeroPF);
+      Value yIsZero =
+          b.create<field::CmpOp>(arith::CmpIPredicate::eq, coords[1], zeroPF);
+      cmp = b.create<arith::AndIOp>(xIsZero, yIsZero);
+    } else {
+      cmp = b.create<field::CmpOp>(arith::CmpIPredicate::eq, coords[2], zeroPF);
+    }
+    rewriter.replaceOp(op, cmp);
+    return success();
+  }
+};
+
 struct ConvertExtract : public OpConversionPattern<ExtractOp> {
   explicit ConvertExtract(MLIRContext *context)
       : OpConversionPattern<ExtractOp>(context) {}
@@ -313,20 +344,67 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
+    Value p1 = op.getLhs();
+    Value p2 = op.getRhs();
+    ValueRange p1Coords = adaptor.getLhs();
+    ValueRange p2Coords = adaptor.getRhs();
+    Type p1Type = p1.getType();
+    Type p2Type = p2.getType();
     Type outputType = op.getOutput().getType();
-    ValueRange p1 = adaptor.getLhs();
-    ValueRange p2 = adaptor.getRhs();
-    SmallVector<Value> sum;
 
-    if (auto xyzzType = dyn_cast<XYZZType>(outputType)) {
-      sum = xyzzAdd(p1, p2, xyzzType.getCurve(), b);
-    } else if (auto jacobianType = dyn_cast<JacobianType>(outputType)) {
-      sum = jacobianAdd(p1, p2, jacobianType.getCurve(), b);
-    } else {
-      assert(false && "Unsupported point types for addition");
-    }
+    // check p1 == zero point
+    Value p1isZeroCmp = b.create<elliptic_curve::IsZeroOp>(p1);
+    auto p1IsZeroOp = b.create<scf::IfOp>(
+        p1isZeroCmp,
+        /*thenBuilder=*/
+        [&](OpBuilder &builder, Location loc) {
+          ImplicitLocOpBuilder b(loc, builder);
+          ValueRange retP2 = p2Coords;
+          if (isa<AffineType>(p2Type)) {
+            retP2 = {
+                b.create<elliptic_curve::ConvertPointTypeOp>(outputType, p2)};
+          }
 
-    rewriter.replaceOpWithMultiple(op, {sum});
+          b.create<scf::YieldOp>(retP2);
+        },
+        /*elseBuilder=*/
+        [&](OpBuilder &builder, Location loc) {
+          ImplicitLocOpBuilder b(loc, builder);
+
+          // check p2 == zero point
+          Value p2isZeroCmp = b.create<elliptic_curve::IsZeroOp>(p2);
+          auto p2IsZeroOp = b.create<scf::IfOp>(
+              p2isZeroCmp,
+              /*thenBuilder=*/
+              [&](OpBuilder &builder, Location loc) {
+                ImplicitLocOpBuilder b(loc, builder);
+                ValueRange retP1 = p1Coords;
+                if (isa<AffineType>(p1Type)) {
+                  retP1 = {b.create<elliptic_curve::ConvertPointTypeOp>(
+                      outputType, p1)};
+                }
+
+                b.create<scf::YieldOp>(retP1);
+              },
+              /*elseBuilder=*/
+              [&](OpBuilder &builder, Location loc) {
+                ImplicitLocOpBuilder b(loc, builder);
+                // run default add
+                SmallVector<Value> sum;
+                if (auto xyzzType = dyn_cast<XYZZType>(outputType)) {
+                  sum = xyzzAdd(p1Coords, p2Coords, xyzzType.getCurve(), b);
+                } else if (auto jacobianType =
+                               dyn_cast<JacobianType>(outputType)) {
+                  sum = jacobianAdd(p1Coords, p2Coords, jacobianType.getCurve(),
+                                    b);
+                } else {
+                  assert(false && "Unsupported point types for addition");
+                }
+                b.create<scf::YieldOp>(loc, sum);
+              });
+          b.create<scf::YieldOp>(p2IsZeroOp.getResults());
+        });
+    rewriter.replaceOpWithMultiple(op, {p1IsZeroOp.getResults()});
     return success();
   }
 };
@@ -428,12 +506,13 @@ struct ConvertScalarMul : public OpConversionPattern<ScalarMulOp> {
     auto scalar = b.create<field::ExtractOp>(signlessIntType, scalarPF);
 
     auto zeroPF = b.create<field::ConstantOp>(baseFieldType, 0);
+    auto onePF = b.create<field::ConstantOp>(baseFieldType, 1);
     Value zeroPoint =
         isa<XYZZType>(outputType)
             ? b.create<elliptic_curve::PointOp>(
-                  outputType, ValueRange{zeroPF, zeroPF, zeroPF, zeroPF})
+                  outputType, ValueRange{onePF, onePF, zeroPF, zeroPF})
             : b.create<elliptic_curve::PointOp>(
-                  outputType, ValueRange{zeroPF, zeroPF, zeroPF});
+                  outputType, ValueRange{onePF, onePF, zeroPF});
 
     Value intialPoint =
         isa<AffineType>(pointType)
@@ -554,10 +633,11 @@ void EllipticCurveToField::runOnOperation() {
 
   RewritePatternSet patterns(context);
   rewrites::populateWithGenerated(patterns);
-  patterns.add<ConvertPoint, ConvertExtract, ConvertConvertPointType,
-               ConvertAdd, ConvertDouble, ConvertNegate, ConvertSub,
-               ConvertScalarMul, ConvertMSM, ConvertAny<tensor::FromElementsOp>,
-               ConvertAny<tensor::ExtractOp>>(typeConverter, context);
+  patterns
+      .add<ConvertPoint, ConvertIsZero, ConvertExtract, ConvertConvertPointType,
+           ConvertAdd, ConvertDouble, ConvertNegate, ConvertSub,
+           ConvertScalarMul, ConvertMSM, ConvertAny<tensor::FromElementsOp>,
+           ConvertAny<tensor::ExtractOp>>(typeConverter, context);
   target.addDynamicallyLegalOp<tensor::FromElementsOp, tensor::ExtractOp>(
       [&](auto op) { return typeConverter.isLegal(op); });
 
