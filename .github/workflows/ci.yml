@@ -31,6 +31,13 @@ jobs:
           repository-cache: true
           external-cache: true
 
+      - name: Clean up disk space
+        run: |
+          df -h
+          rm -rf /usr/share/dotnet/
+          rm -rf /opt/hostedtoolcache
+          df -h
+
       - name: Run `bazel build`
         run: |
           bazel build --test_output=errors //...
