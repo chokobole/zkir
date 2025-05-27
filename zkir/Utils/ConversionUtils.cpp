@@ -1,5 +1,6 @@
 #include "zkir/Utils/ConversionUtils.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -69,14 +70,15 @@ LogicalResult convertAnyOperand(const TypeConverter *typeConverter,
   // If the op is tensor.extract, and the type conversion is 1:N, the return
   // type is multiple. In this case, we need to split it into multiple extracts.
   // TODO(batzor): Handle other cases (such as tensor.insert).
-  if (op->getName().getStringRef() == "tensor.extract" &&
+  if ((op->getName().getStringRef() == "tensor.extract" ||
+       op->getName().getStringRef() == "memref.load") &&
       newResultTypes.size() > 1) {
     // NOTE: We can assume the 1:N conversion are all of the same type.
-    // Otherwise, the tensor is ill-formed anyways.
+    // Otherwise, the tensor/memref is ill-formed anyways.
 
     unsigned numResults = newResultTypes.size();
     newResultTypes.resize(1);
-    // The tensor rank should be increased by 1 in the type conversion.
+    // The rank should be increased by 1 in the type conversion.
     // i.e. tensor<1x2x!QF> -> tensor<1x2x2x!F>
     // This dimension should be used to extract the result.
     flatOperands.resize(flatOperands.size() + 1);
@@ -89,8 +91,8 @@ LogicalResult convertAnyOperand(const TypeConverter *typeConverter,
       Value valueAtIndex =
           rewriter
               .create(OperationState(
-                  op->getLoc(), "tensor.extract", flatOperands, newResultTypes,
-                  op->getAttrs(), op->getSuccessors(), regions))
+                  op->getLoc(), op->getName().getStringRef(), flatOperands,
+                  newResultTypes, op->getAttrs(), op->getSuccessors(), regions))
               ->getResult(0);
       entryValues.push_back(valueAtIndex);
     }
@@ -98,6 +100,38 @@ LogicalResult convertAnyOperand(const TypeConverter *typeConverter,
     SmallVector<ValueRange> newOpResults;
     newOpResults.push_back(entryValues);
     rewriter.replaceOpWithMultiple(op, newOpResults);
+    return success();
+  } else if (op->getName().getStringRef() == "memref.store" &&
+             operands[0].size() > 1) {
+    // In this case, the value to be inserted is 1:N converted and should be
+    // inserted into the container at multiple indices.
+    ValueRange valueToInsert = operands[0];
+    assert(operands[1].size() == 1 &&
+           "memref.store should have a single container operand");
+    Value container = operands[1][0];
+
+    // The rest of the operands are indices.
+    SmallVector<Value> indices;
+    for (size_t i = 2; i < operands.size(); ++i) {
+      indices.append(operands[i].begin(), operands[i].end());
+    }
+
+    // The rank should be increased by 1 in the type conversion.
+    // i.e. memref<1x2x!QF> -> memref<1x2x2x!F>
+    // This dimension should be used to extract the result.
+    Operation *newOp;
+    for (size_t i = 0; i < valueToInsert.size(); ++i) {
+      SmallVector<Value> newOperands(indices.size() + 3);
+      newOperands[0] = valueToInsert[i];
+      newOperands[1] = container;
+      std::copy(indices.begin(), indices.end(), newOperands.begin() + 2);
+      newOperands.back() =
+          rewriter.create<arith::ConstantIndexOp>(op->getLoc(), i);
+      newOp = rewriter.create(OperationState(
+          op->getLoc(), op->getName().getStringRef(), newOperands,
+          newResultTypes, op->getAttrs(), op->getSuccessors(), regions));
+    }
+    rewriter.replaceOp(op, newOp);
     return success();
   } else {
     Operation *newOp = rewriter.create(OperationState(
