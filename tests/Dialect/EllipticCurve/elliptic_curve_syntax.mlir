@@ -2,10 +2,10 @@
 
 !PF = !field.pf<35:i32>
 
-#1 = #field.pf_elem<1:i32> : !PF
-#2 = #field.pf_elem<2:i32> : !PF
-#3 = #field.pf_elem<3:i32> : !PF
-#4 = #field.pf_elem<4:i32> : !PF
+#1 = #field.pf.elem<1:i32> : !PF
+#2 = #field.pf.elem<2:i32> : !PF
+#3 = #field.pf.elem<3:i32> : !PF
+#4 = #field.pf.elem<4:i32> : !PF
 
 #curve = #elliptic_curve.sw<#1, #2, (#3, #4)>
 !affine = !elliptic_curve.affine<#curve>

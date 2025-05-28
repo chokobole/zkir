@@ -11,7 +11,7 @@ class Field_Attr<string name, string attrMnemonic, list<Trait> traits = []>
   let mnemonic = attrMnemonic;
 }
 
-def Field_PrimeFieldAttr : Field_Attr<"PrimeField", "pf_elem", [TypedAttrInterface]> {
+def Field_PrimeFieldAttr : Field_Attr<"PrimeField", "pf.elem", [TypedAttrInterface]> {
   let summary = "An attribute representing a prime field element";
   let parameters = (ins "PrimeFieldType":$type, "IntegerAttr":$value);
   let assemblyFormat = "`<` $value `>` `:` $type";
