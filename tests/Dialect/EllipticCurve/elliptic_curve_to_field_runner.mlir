@@ -157,7 +157,7 @@ func.func @test_msm() {
 
   %extract_point1x, %extract_point1y, %extract_point1z = elliptic_curve.extract %msm_test : !jacobian -> !PF, !PF, !PF
   %extract_point1 = tensor.from_elements %extract_point1x, %extract_point1y, %extract_point1z : tensor<3x!PF>
-  %extract1 = field.pf.extract %extract_point : tensor<3x!PF> -> tensor<3xi32>
+  %extract1 = field.pf.extract %extract_point1 : tensor<3x!PF> -> tensor<3xi32>
   %mem1 = bufferization.to_memref %extract1 : tensor<3xi32> to memref<3xi32>
   %U1 = memref.cast %mem1 : memref<3xi32> to memref<*xi32>
   func.call @printMemrefI32(%U1) : (memref<*xi32>) -> ()
