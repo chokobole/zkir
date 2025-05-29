@@ -131,7 +131,7 @@ def Field_ExtractOp : Field_Op<"pf.extract"> {
   let assemblyFormat = "operands attr-dict `:` type($input) `->` type($output)";
 }
 
-def Field_CmpOp : Field_Op<"pf.cmp", [SameTypeOperands, TypesMatchWith<
+def Field_CmpOp : Field_Op<"cmp", [SameTypeOperands, TypesMatchWith<
   "result type has i1 element type and same shape as operands",
   "lhs", "result", "getI1SameShape($_self)">]> {
   let summary = "Prime field comparison operation";
@@ -154,12 +154,12 @@ def Field_CmpOp : Field_Op<"pf.cmp", [SameTypeOperands, TypesMatchWith<
 
     Example:
     ```
-    %res = field.pf.cmp slt, %a, %b : !PF
+    %res = field.cmp slt, %a, %b : !PF
     ```
   }];
   let arguments = (ins Arith_CmpIPredicateAttr:$predicate,
-                       PrimeFieldLike:$lhs,
-                       PrimeFieldLike:$rhs);
+                       FieldLike:$lhs,
+                       FieldLike:$rhs);
   let results = (outs BoolLike:$result);
   let assemblyFormat = "$predicate `,` $lhs `,` $rhs attr-dict `:` type($lhs)";
 }

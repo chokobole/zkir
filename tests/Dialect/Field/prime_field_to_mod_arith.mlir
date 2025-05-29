@@ -277,18 +277,18 @@ func.func @test_lower_constant_tensor() -> !PFv {
 func.func @test_lower_cmp(%lhs : !PF1) {
   // CHECK: %[[RHS:.*]] = mod_arith.constant 5 : [[T]]
   %rhs = field.constant 5:  !PF1
-  // CHECK-NOT: field.pf.cmp
+  // CHECK-NOT: field.cmp
   // %[[EQUAL:.*]] = arith.cmpi [[eq:.*]], %[[LHS]], %[[RHS]] : [[i32]]
   // %[[NOTEQUAL:.*]] = arith.cmpi [[ne:.*]], %[[LHS]], %[[RHS]] : [[i32]]
   // %[[LESSTHAN:.*]] = arith.cmpi [[ult:.*]], %[[LHS]], %[[RHS]] : [[i32]]
   // %[[LESSTHANOREQUALS:.*]] = arith.cmpi [[ule:.*]], %[[LHS]], %[[RHS]] : [[i32]]
   // %[[GREATERTHAN:.*]] = arith.cmpi [[ugt:.*]], %[[LHS]], %[[RHS]] : [[i32]]
   // %[[GREATERTHANOREQUALS:.*]] = arith.cmpi [[uge:.*]], %[[LHS]], %[[RHS]] : [[i32]]
-  %equal = field.pf.cmp eq, %lhs, %rhs : !PF1
-  %notEqual = field.pf.cmp ne, %lhs, %rhs : !PF1
-  %lessThan = field.pf.cmp ult, %lhs, %rhs : !PF1
-  %lessThanOrEquals = field.pf.cmp ule, %lhs, %rhs : !PF1
-  %greaterThan = field.pf.cmp ugt, %lhs, %rhs : !PF1
-  %greaterThanOrEquals = field.pf.cmp uge, %lhs, %rhs : !PF1
+  %equal = field.cmp eq, %lhs, %rhs : !PF1
+  %notEqual = field.cmp ne, %lhs, %rhs : !PF1
+  %lessThan = field.cmp ult, %lhs, %rhs : !PF1
+  %lessThanOrEquals = field.cmp ule, %lhs, %rhs : !PF1
+  %greaterThan = field.cmp ugt, %lhs, %rhs : !PF1
+  %greaterThanOrEquals = field.cmp uge, %lhs, %rhs : !PF1
   return
 }

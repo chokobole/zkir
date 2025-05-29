@@ -591,14 +591,28 @@ struct ConvertCmp : public OpConversionPattern<CmpOp> {
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
-      CmpOp op, OpAdaptor adaptor,
+      CmpOp op, OneToNOpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto cmpOp = b.create<mod_arith::CmpOp>(op.getPredicate(), adaptor.getLhs(),
-                                            adaptor.getRhs());
-    rewriter.replaceOp(op, cmpOp);
-    return success();
+    Type fieldType = getElementTypeOrSelf(op.getLhs());
+    if (isa<PrimeFieldType>(fieldType)) {
+      auto cmpOp = b.create<mod_arith::CmpOp>(
+          op.getPredicate(), adaptor.getLhs()[0], adaptor.getRhs()[0]);
+      rewriter.replaceOp(op, cmpOp);
+      return success();
+    } else if (isa<QuadraticExtFieldType>(fieldType)) {
+      // For quadratic extension fields, we compare the low and high parts
+      // separately.
+      auto cmpLow = b.create<mod_arith::CmpOp>(
+          op.getPredicate(), adaptor.getLhs()[0], adaptor.getRhs()[0]);
+      auto cmpHigh = b.create<mod_arith::CmpOp>(
+          op.getPredicate(), adaptor.getLhs()[1], adaptor.getRhs()[1]);
+      auto result = b.create<arith::AndIOp>(cmpLow, cmpHigh);
+      rewriter.replaceOp(op, result);
+      return success();
+    }
+    return failure();
   }
 };
 
