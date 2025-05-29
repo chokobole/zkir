@@ -86,7 +86,7 @@ def EllipticCurve_ExtractOp : EllipticCurve_Op<"extract"> {
   }];
 
   let arguments = (ins PointLike:$input);
-  let results = (outs Variadic<Field_PrimeFieldType>:$output);
+  let results = (outs Variadic<Field_AnyFieldType>:$output);
   let assemblyFormat = "operands attr-dict `:` type($input) `->` type($output)";
 }
 

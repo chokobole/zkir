@@ -159,19 +159,19 @@ struct ConvertIsZero : public OpConversionPattern<IsZeroOp> {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     ValueRange coords = adaptor.getInput();
-    field::PrimeFieldType baseField =
-        cast<field::PrimeFieldType>(coords[0].getType());
-    Value zeroPF = b.create<field::ConstantOp>(baseField, 0);
+    Type baseField =
+        getCurveFromPointLike(op.getInput().getType()).getBaseField();
+    Value zeroBF = b.create<field::ConstantOp>(baseField, 0);
 
     Value cmp;
     if (isa<AffineType>(op.getInput().getType())) {
       Value xIsZero =
-          b.create<field::CmpOp>(arith::CmpIPredicate::eq, coords[0], zeroPF);
+          b.create<field::CmpOp>(arith::CmpIPredicate::eq, coords[0], zeroBF);
       Value yIsZero =
-          b.create<field::CmpOp>(arith::CmpIPredicate::eq, coords[1], zeroPF);
+          b.create<field::CmpOp>(arith::CmpIPredicate::eq, coords[1], zeroBF);
       cmp = b.create<arith::AndIOp>(xIsZero, yIsZero);
     } else {
-      cmp = b.create<field::CmpOp>(arith::CmpIPredicate::eq, coords[2], zeroPF);
+      cmp = b.create<field::CmpOp>(arith::CmpIPredicate::eq, coords[2], zeroBF);
     }
     rewriter.replaceOp(op, cmp);
     return success();
