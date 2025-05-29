@@ -217,19 +217,20 @@ struct ConvertConvertPointType
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     ValueRange coords = adaptor.getInput();
-    auto baseFieldType = cast<field::PrimeFieldType>(coords[0].getType());
     Type inputType = op.getInput().getType();
     Type outputType = op.getOutput().getType();
+    Type baseFieldType = getCurveFromPointLike(inputType).getBaseField();
+    Value zeroBF = b.create<field::ConstantOp>(baseFieldType, 0);
+    Value oneBF = b.create<field::ConstantOp>(baseFieldType, 1);
 
     SmallVector<Value> outputCoords;
 
     if (isa<AffineType>(inputType)) {
-      auto onePF = b.create<field::ConstantOp>(baseFieldType, 1);
       // affine to jacobian
       // (x, y) -> (x, y, 1)
-      outputCoords = {/* x */ coords[0], /* y */ coords[1], onePF};
+      outputCoords = {/* x */ coords[0], /* y */ coords[1], oneBF};
       if (isa<XYZZType>(outputType)) {
-        outputCoords.push_back(onePF);
+        outputCoords.push_back(oneBF);
         // affine to xyzz
         // (x, y) -> (x, y, 1, 1)
       }
@@ -240,17 +241,14 @@ struct ConvertConvertPointType
       if (isa<AffineType>(outputType)) {
         // jacobian to affine
         // (x, y, z) -> (x/z², y/z³)
-        auto zero = b.create<field::ConstantOp>(baseFieldType, 0);
         auto cmpEq = b.create<field::CmpOp>(arith::CmpIPredicate::eq,
-                                            /* z */ coords[2], zero);
+                                            /* z */ coords[2], zeroBF);
         // if z == 0, then x/z² -> 1, y/z³ -> 1
         auto output = b.create<scf::IfOp>(
             cmpEq,
             /*thenBuilder=*/
             [&](OpBuilder &builder, Location loc) {
-              auto onePF =
-                  builder.create<field::ConstantOp>(loc, baseFieldType, 1);
-              builder.create<scf::YieldOp>(loc, ValueRange{onePF, onePF});
+              builder.create<scf::YieldOp>(loc, ValueRange{oneBF, oneBF});
             },
             /*elseBuilder=*/
             [&](OpBuilder &builder, Location loc) {
@@ -274,17 +272,14 @@ struct ConvertConvertPointType
       if (isa<AffineType>(outputType)) {
         // xyzz to affine
         // (x, y, z², z³) -> (x/z², y/z³)
-        auto zero = b.create<field::ConstantOp>(baseFieldType, 0);
         auto cmpEq = b.create<field::CmpOp>(arith::CmpIPredicate::eq,
-                                            /* zz */ coords[2], zero);
+                                            /* zz */ coords[2], zeroBF);
         // if z == 0, then x/z² -> 1, y/z³ -> 1
         auto ifOp = b.create<scf::IfOp>(
             cmpEq,
             /*thenBuilder=*/
             [&](OpBuilder &builder, Location loc) {
-              auto onePF =
-                  builder.create<field::ConstantOp>(loc, baseFieldType, 1);
-              builder.create<scf::YieldOp>(loc, ValueRange{onePF, onePF});
+              builder.create<scf::YieldOp>(loc, ValueRange{oneBF, oneBF});
             },
             /*elseBuilder=*/
             [&](OpBuilder &builder, Location loc) {
@@ -305,16 +300,13 @@ struct ConvertConvertPointType
         // (x, y, z², z³) -> (x, y, z)
         outputCoords = {/* x */ coords[0], /* y */ coords[1]};
 
-        auto zero = b.create<field::ConstantOp>(baseFieldType, 0);
         auto cmpEq = b.create<field::CmpOp>(arith::CmpIPredicate::eq,
-                                            /* zz */ coords[2], zero);
+                                            /* zz */ coords[2], zeroBF);
         auto output = b.create<scf::IfOp>(
             cmpEq,
             /*thenBuilder=*/
             [&](OpBuilder &builder, Location loc) {
-              auto zeroPF =
-                  builder.create<field::ConstantOp>(loc, baseFieldType, 0);
-              builder.create<scf::YieldOp>(loc, ValueRange{zeroPF});
+              builder.create<scf::YieldOp>(loc, ValueRange{zeroBF});
             },
             /*elseBuilder=*/
             [&](OpBuilder &builder, Location loc) {

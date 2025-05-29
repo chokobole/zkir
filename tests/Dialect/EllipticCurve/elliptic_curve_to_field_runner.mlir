@@ -31,8 +31,8 @@ func.func @test_ops_in_order() {
   %var5 = field.constant 5 : !PF
   %var7 = field.constant 7 : !PF
 
-  %affine1 = elliptic_curve.point %var1, %var2 : !PF -> !affine
-  %jacobian1 = elliptic_curve.point %var5, %var3, %var2 : !PF -> !jacobian
+  %affine1 = elliptic_curve.point %var1, %var2 : !affine
+  %jacobian1 = elliptic_curve.point %var5, %var3, %var2 : !jacobian
 
   %jacobian2 = elliptic_curve.add %affine1, %jacobian1 : !affine, !jacobian -> !jacobian
   %extract_point1x, %extract_point1y, %extract_point1z = elliptic_curve.extract %jacobian2 : !jacobian -> !PF, !PF, !PF
@@ -128,10 +128,10 @@ func.func @test_msm() {
   %var5 = field.constant 5 : !PF
   %var7 = field.constant 7 : !PF
 
-  %jacobian1 = elliptic_curve.point %var5, %var3, %var2 : !PF -> !jacobian
-  %jacobian2 = elliptic_curve.point %var1, %var2, %var2 : !PF -> !jacobian
-  %jacobian3 = elliptic_curve.point %var7, %var5, %var1 : !PF -> !jacobian
-  %jacobian4 = elliptic_curve.point %var3, %var2, %var7 : !PF -> !jacobian
+  %jacobian1 = elliptic_curve.point %var5, %var3, %var2 : !jacobian
+  %jacobian2 = elliptic_curve.point %var1, %var2, %var2 : !jacobian
+  %jacobian3 = elliptic_curve.point %var7, %var5, %var1 : !jacobian
+  %jacobian4 = elliptic_curve.point %var3, %var2, %var7 : !jacobian
 
   // CALCULATING TRUE VALUE OF MSM
   %scalar_mul1 = elliptic_curve.scalar_mul %var5, %jacobian1 : !PF, !jacobian -> !jacobian

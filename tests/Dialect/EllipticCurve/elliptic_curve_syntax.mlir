@@ -25,12 +25,12 @@ func.func @test_intialization_and_conversion() {
   // CHECK: %[[VAR8:.*]] = field.constant #[[ATTR8:.*]] : ![[PF]]
   %var8 = field.constant 8 : !PF
 
-  // CHECK: %[[AFFINE1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]] : ![[PF]] -> ![[AF:.*]]
-  %affine1 = elliptic_curve.point %var1, %var5 : !PF -> !affine
-  // CHECK: %[[JACOBIAN1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]], %[[VAR2]] : ![[PF]] -> ![[JA:.*]]
-  %jacobian1 = elliptic_curve.point %var1, %var5, %var2 : !PF -> !jacobian
-  // CHECK: %[[XYZZ1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]], %[[VAR4]], %[[VAR8]] : ![[PF]] -> ![[XY:.*]]
-  %xyzz1 = elliptic_curve.point %var1, %var5, %var4, %var8 : !PF -> !xyzz
+  // CHECK: %[[AFFINE1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]] : ![[AF:.*]]
+  %affine1 = elliptic_curve.point %var1, %var5 : !affine
+  // CHECK: %[[JACOBIAN1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]], %[[VAR2]] : ![[JA:.*]]
+  %jacobian1 = elliptic_curve.point %var1, %var5, %var2 : !jacobian
+  // CHECK: %[[XYZZ1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]], %[[VAR4]], %[[VAR8]] : ![[XY:.*]]
+  %xyzz1 = elliptic_curve.point %var1, %var5, %var4, %var8 : !xyzz
 
   // CHECK: %[[JACOBIAN2:.*]] = elliptic_curve.convert_point_type %[[AFFINE1]] : ![[AF]] -> ![[JA]]
   %jacobian2 = elliptic_curve.convert_point_type %affine1 : !affine -> !jacobian
@@ -64,20 +64,20 @@ func.func @test_add() {
   // CHECK: %[[VAR8:.*]] = field.constant #[[ATTR8:.*]] : ![[PF]]
   %var8 = field.constant 8 : !PF
 
-  // CHECK: %[[AFFINE1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]] : ![[PF]] -> ![[AF:.*]]
-  %affine1 = elliptic_curve.point %var1, %var5 : !PF -> !affine
-  // CHECK: %[[AFFINE2:.*]] = elliptic_curve.point %[[VAR3]], %[[VAR6]] : ![[PF]] -> ![[AF]]
-  %affine2 = elliptic_curve.point %var3, %var6 : !PF -> !affine
+  // CHECK: %[[AFFINE1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]] : ![[AF:.*]]
+  %affine1 = elliptic_curve.point %var1, %var5 : !affine
+  // CHECK: %[[AFFINE2:.*]] = elliptic_curve.point %[[VAR3]], %[[VAR6]] : ![[AF]]
+  %affine2 = elliptic_curve.point %var3, %var6 : !affine
 
-  // CHECK: %[[JACOBIAN1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]], %[[VAR2]] : ![[PF]] -> ![[JA:.*]]
-  %jacobian1 = elliptic_curve.point %var1, %var5, %var2 : !PF -> !jacobian
-  // CHECK: %[[JACOBIAN2:.*]] = elliptic_curve.point %[[VAR3]], %[[VAR6]], %[[VAR1]] : ![[PF]] -> ![[JA]]
-  %jacobian2 = elliptic_curve.point %var3, %var6, %var1 : !PF -> !jacobian
+  // CHECK: %[[JACOBIAN1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]], %[[VAR2]] : ![[JA:.*]]
+  %jacobian1 = elliptic_curve.point %var1, %var5, %var2 : !jacobian
+  // CHECK: %[[JACOBIAN2:.*]] = elliptic_curve.point %[[VAR3]], %[[VAR6]], %[[VAR1]] : ![[JA]]
+  %jacobian2 = elliptic_curve.point %var3, %var6, %var1 : !jacobian
 
-  // CHECK: %[[XYZZ1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]], %[[VAR4]], %[[VAR8]] : ![[PF]] -> ![[XY:.*]]
-  %xyzz1 = elliptic_curve.point %var1, %var5, %var4, %var8 : !PF -> !xyzz
-  // CHECK: %[[XYZZ2:.*]] = elliptic_curve.point %[[VAR3]], %[[VAR6]], %[[VAR1]], %[[VAR1]] : ![[PF]] -> ![[XY]]
-  %xyzz2 = elliptic_curve.point %var3, %var6, %var1, %var1 : !PF -> !xyzz
+  // CHECK: %[[XYZZ1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]], %[[VAR4]], %[[VAR8]] : ![[XY:.*]]
+  %xyzz1 = elliptic_curve.point %var1, %var5, %var4, %var8 : !xyzz
+  // CHECK: %[[XYZZ2:.*]] = elliptic_curve.point %[[VAR3]], %[[VAR6]], %[[VAR1]], %[[VAR1]] : ![[XY]]
+  %xyzz2 = elliptic_curve.point %var3, %var6, %var1, %var1 : !xyzz
 
   // affine, affine -> jacobian
   // CHECK: %[[AFFINE3:.*]] = elliptic_curve.add %[[AFFINE1]], %[[AFFINE2]] : ![[AF]], ![[AF]] -> ![[JA]]
@@ -118,20 +118,20 @@ func.func @test_sub() {
   // CHECK: %[[VAR8:.*]] = field.constant #[[ATTR8:.*]] : ![[PF]]
   %var8 = field.constant 8 : !PF
 
-  // CHECK: %[[AFFINE1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]] : ![[PF]] -> ![[AF:.*]]
-  %affine1 = elliptic_curve.point %var1, %var5 : !PF -> !affine
-  // CHECK: %[[AFFINE2:.*]] = elliptic_curve.point %[[VAR3]], %[[VAR6]] : ![[PF]] -> ![[AF]]
-  %affine2 = elliptic_curve.point %var3, %var6 : !PF -> !affine
+  // CHECK: %[[AFFINE1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]] : ![[AF:.*]]
+  %affine1 = elliptic_curve.point %var1, %var5 : !affine
+  // CHECK: %[[AFFINE2:.*]] = elliptic_curve.point %[[VAR3]], %[[VAR6]] : ![[AF]]
+  %affine2 = elliptic_curve.point %var3, %var6 : !affine
 
-  // CHECK: %[[JACOBIAN1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]], %[[VAR2]] : ![[PF]] -> ![[JA:.*]]
-  %jacobian1 = elliptic_curve.point %var1, %var5, %var2 : !PF -> !jacobian
-  // CHECK: %[[JACOBIAN2:.*]] = elliptic_curve.point %[[VAR3]], %[[VAR6]], %[[VAR1]] : ![[PF]] -> ![[JA]]
-  %jacobian2 = elliptic_curve.point %var3, %var6, %var1 : !PF -> !jacobian
+  // CHECK: %[[JACOBIAN1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]], %[[VAR2]] : ![[JA:.*]]
+  %jacobian1 = elliptic_curve.point %var1, %var5, %var2 : !jacobian
+  // CHECK: %[[JACOBIAN2:.*]] = elliptic_curve.point %[[VAR3]], %[[VAR6]], %[[VAR1]] : ![[JA]]
+  %jacobian2 = elliptic_curve.point %var3, %var6, %var1 : !jacobian
 
-  // CHECK: %[[XYZZ1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]], %[[VAR4]], %[[VAR8]] : ![[PF]] -> ![[XY:.*]]
-  %xyzz1 = elliptic_curve.point %var1, %var5, %var4, %var8 : !PF -> !xyzz
-  // CHECK: %[[XYZZ2:.*]] = elliptic_curve.point %[[VAR3]], %[[VAR6]], %[[VAR1]], %[[VAR1]] : ![[PF]] -> ![[XY]]
-  %xyzz2 = elliptic_curve.point %var3, %var6, %var1, %var1 : !PF -> !xyzz
+  // CHECK: %[[XYZZ1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]], %[[VAR4]], %[[VAR8]] : ![[XY:.*]]
+  %xyzz1 = elliptic_curve.point %var1, %var5, %var4, %var8 : !xyzz
+  // CHECK: %[[XYZZ2:.*]] = elliptic_curve.point %[[VAR3]], %[[VAR6]], %[[VAR1]], %[[VAR1]] : ![[XY]]
+  %xyzz2 = elliptic_curve.point %var3, %var6, %var1, %var1 : !xyzz
 
   // affine, affine -> jacobian
   // CHECK: %[[AFFINE3:.*]] = elliptic_curve.sub %[[AFFINE1]], %[[AFFINE2]] : ![[AF]], ![[AF]] -> ![[JA]]
@@ -168,18 +168,18 @@ func.func @test_negation() {
   // CHECK: %[[VAR8:.*]] = field.constant #[[ATTR8:.*]] : ![[PF]]
   %var8 = field.constant 8 : !PF
 
-  // CHECK: %[[AFFINE1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]] : ![[PF]] -> ![[AF:.*]]
-  %affine1 = elliptic_curve.point %var1, %var5 : !PF -> !affine
+  // CHECK: %[[AFFINE1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]] : ![[AF:.*]]
+  %affine1 = elliptic_curve.point %var1, %var5 : !affine
   // CHECK: %[[AFFINE2:.*]] = elliptic_curve.negate %[[AFFINE1]] : ![[AF]]
   %affine2 = elliptic_curve.negate %affine1 : !affine
 
-  // CHECK: %[[JACOBIAN1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]], %[[VAR2]] : ![[PF]] -> ![[JA:.*]]
-  %jacobian1 = elliptic_curve.point %var1, %var5, %var2 : !PF -> !jacobian
+  // CHECK: %[[JACOBIAN1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]], %[[VAR2]] : ![[JA:.*]]
+  %jacobian1 = elliptic_curve.point %var1, %var5, %var2 : !jacobian
   // CHECK: %[[JACOBIAN2:.*]] = elliptic_curve.negate %[[JACOBIAN1]] : ![[JA]]
   %jacobian2 = elliptic_curve.negate %jacobian1 : !jacobian
 
-  // CHECK: %[[XYZZ1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]], %[[VAR4]], %[[VAR8]] : ![[PF]] -> ![[XY:.*]]
-  %xyzz1 = elliptic_curve.point %var1, %var5, %var4, %var8 : !PF -> !xyzz
+  // CHECK: %[[XYZZ1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]], %[[VAR4]], %[[VAR8]] : ![[XY:.*]]
+  %xyzz1 = elliptic_curve.point %var1, %var5, %var4, %var8 : !xyzz
   // CHECK: %[[XYZZ2:.*]] = elliptic_curve.negate %[[XYZZ1]] : ![[XY]]
   %xyzz2 = elliptic_curve.negate %xyzz1 : !xyzz
   return
@@ -198,18 +198,18 @@ func.func @test_double() {
   // CHECK: %[[VAR8:.*]] = field.constant #[[ATTR8:.*]] : ![[PF]]
   %var8 = field.constant 8 : !PF
 
-  // CHECK: %[[AFFINE1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]] : ![[PF]] -> ![[AF:.*]]
-  %affine1 = elliptic_curve.point %var1, %var5 : !PF -> !affine
+  // CHECK: %[[AFFINE1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]] : ![[AF:.*]]
+  %affine1 = elliptic_curve.point %var1, %var5 : !affine
   // CHECK: %[[AFFINE2:.*]] = elliptic_curve.double %[[AFFINE1]] : ![[AF]] -> ![[JA:.*]]
   %affine2 = elliptic_curve.double %affine1 : !affine -> !jacobian
 
-  // CHECK: %[[JACOBIAN1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]], %[[VAR2]] : ![[PF]] -> ![[JA:.*]]
-  %jacobian1 = elliptic_curve.point %var1, %var5, %var2 : !PF -> !jacobian
+  // CHECK: %[[JACOBIAN1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]], %[[VAR2]] : ![[JA:.*]]
+  %jacobian1 = elliptic_curve.point %var1, %var5, %var2 : !jacobian
   // CHECK: %[[JACOBIAN2:.*]] = elliptic_curve.double %[[JACOBIAN1]] : ![[JA]] -> ![[JA]]
   %jacobian2 = elliptic_curve.double %jacobian1 : !jacobian -> !jacobian
 
-  // CHECK: %[[XYZZ1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]], %[[VAR4]], %[[VAR8]] : ![[PF]] -> ![[XY:.*]]
-  %xyzz1 = elliptic_curve.point %var1, %var5, %var4, %var8 : !PF -> !xyzz
+  // CHECK: %[[XYZZ1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]], %[[VAR4]], %[[VAR8]] : ![[XY:.*]]
+  %xyzz1 = elliptic_curve.point %var1, %var5, %var4, %var8 : !xyzz
   // CHECK: %[[XYZZ2:.*]] = elliptic_curve.double %[[XYZZ1]] : ![[XY]] -> ![[XY]]
   %xyzz2 = elliptic_curve.double %xyzz1 : !xyzz -> !xyzz
   return
@@ -228,22 +228,22 @@ func.func @test_scalar_mul() {
   // CHECK: %[[VAR8:.*]] = field.constant #[[ATTR8:.*]] : ![[PF]]
   %var8 = field.constant 8 : !PF
 
-  // CHECK: %[[AFFINE1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]] : ![[PF]] -> ![[AF:.*]]
-  %affine1 = elliptic_curve.point %var1, %var5 : !PF -> !affine
+  // CHECK: %[[AFFINE1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]] : ![[AF:.*]]
+  %affine1 = elliptic_curve.point %var1, %var5 : !affine
   // CHECK: %[[AFFINE2:.*]] = elliptic_curve.scalar_mul %[[VAR1]], %[[AFFINE1]] : ![[PF]], ![[AF]] -> ![[JA:.*]]
   %affine2 = elliptic_curve.scalar_mul %var1, %affine1 : !PF, !affine -> !jacobian
   // CHECK: %[[JACOBIAN4:.*]] = elliptic_curve.scalar_mul %[[VAR8]], %[[AFFINE1]] : ![[PF]], ![[AF]] -> ![[JA]]
   %jacobian4 = elliptic_curve.scalar_mul %var8, %affine1 : !PF, !affine -> !jacobian
 
-  // CHECK: %[[JACOBIAN1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]], %[[VAR2]] : ![[PF]] -> ![[JA:.*]]
-  %jacobian1 = elliptic_curve.point %var1, %var5, %var2 : !PF -> !jacobian
+  // CHECK: %[[JACOBIAN1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]], %[[VAR2]] : ![[JA:.*]]
+  %jacobian1 = elliptic_curve.point %var1, %var5, %var2 : !jacobian
   // CHECK: %[[JACOBIAN2:.*]] = elliptic_curve.scalar_mul %[[VAR1]], %[[JACOBIAN1]] : ![[PF]], ![[JA]] -> ![[JA]]
   %jacobian2 = elliptic_curve.scalar_mul %var1, %jacobian1 : !PF, !jacobian -> !jacobian
   // CHECK: %[[JACOBIAN3:.*]] = elliptic_curve.scalar_mul %[[VAR8]], %[[JACOBIAN1]] : ![[PF]], ![[JA]] -> ![[JA]]
   %jacobian3 = elliptic_curve.scalar_mul %var8, %jacobian1 : !PF, !jacobian -> !jacobian
 
-  // CHECK: %[[XYZZ1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]], %[[VAR4]], %[[VAR8]] : ![[PF]] -> ![[XY:.*]]
-  %xyzz1 = elliptic_curve.point %var1, %var5, %var4, %var8 : !PF -> !xyzz
+  // CHECK: %[[XYZZ1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]], %[[VAR4]], %[[VAR8]] : ![[XY:.*]]
+  %xyzz1 = elliptic_curve.point %var1, %var5, %var4, %var8 : !xyzz
   // CHECK: %[[XYZZ2:.*]] = elliptic_curve.scalar_mul %[[VAR1]], %[[XYZZ1]] : ![[PF]], ![[XY]] -> ![[XY]]
   %xyzz2 = elliptic_curve.scalar_mul %var1, %xyzz1 : !PF, !xyzz -> !xyzz
   // CHECK: %[[XYZZ3:.*]] = elliptic_curve.scalar_mul %[[VAR8]], %[[XYZZ1]] : ![[PF]], ![[XY]] -> ![[XY]]
@@ -260,8 +260,8 @@ func.func @test_msm() {
 
   // CHECK: %[[SCALARS:.*]] = tensor.from_elements %[[VAR1]], %[[VAR5]], %[[VAR5]] : [[TPF:.*]]
   %scalars = tensor.from_elements %var1, %var5, %var5 : tensor<3x!PF>
-  // CHECK: %[[AFFINE1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]] : ![[PF]] -> ![[AF:.*]]
-  %affine1 = elliptic_curve.point %var1, %var5 : !PF -> !affine
+  // CHECK: %[[AFFINE1:.*]] = elliptic_curve.point %[[VAR1]], %[[VAR5]] : ![[AF:.*]]
+  %affine1 = elliptic_curve.point %var1, %var5 : !affine
   // CHECK: %[[POINTS:.*]] = tensor.from_elements %[[AFFINE1]], %[[AFFINE1]], %[[AFFINE1]] : [[TAF:.*]]
   %points = tensor.from_elements %affine1, %affine1, %affine1 : tensor<3x!affine>
   // CHECK: %[[MSM_RESULT:.*]] = elliptic_curve.msm %[[SCALARS]], %[[POINTS]] : [[TPF]], [[TAF]] -> ![[JA:.*]]

@@ -33,10 +33,13 @@ func.func @test_intialization_and_conversion() {
   // CHECK: %[[VAR8:.*]] = field.constant #[[ATTR8:.*]] : ![[PF]]
   %var8 = field.constant 8 : !PF
 
+  %g2_var1 = field.constant 1, 1 : !QF
+  %affine_g2 = elliptic_curve.point %g2_var1, %g2_var1 : !g2affine
+
   // CHECK-NOT: elliptic_curve.point
-  %affine1 = elliptic_curve.point %var1, %var5 : !PF -> !affine
-  %jacobian1 = elliptic_curve.point %var1, %var5, %var2 : !PF -> !jacobian
-  %xyzz1 = elliptic_curve.point %var1, %var5, %var4, %var8 : !PF -> !xyzz
+  %affine1 = elliptic_curve.point %var1, %var5 : !affine
+  %jacobian1 = elliptic_curve.point %var1, %var5, %var2 : !jacobian
+  %xyzz1 = elliptic_curve.point %var1, %var5, %var4, %var8 : !xyzz
 
   // CHECK-NOT: elliptic_curve.convert_point_type
   %jacobian2 = elliptic_curve.convert_point_type %affine1 : !affine -> !jacobian
@@ -58,14 +61,14 @@ func.func @test_addition() {
   %var6 = field.constant 6 : !PF
   %var8 = field.constant 8 : !PF
 
-  %affine1 = elliptic_curve.point %var1, %var5 : !PF -> !affine
-  %affine2 = elliptic_curve.point %var3, %var6 : !PF -> !affine
+  %affine1 = elliptic_curve.point %var1, %var5 : !affine
+  %affine2 = elliptic_curve.point %var3, %var6 : !affine
 
-  %jacobian1 = elliptic_curve.point %var1, %var5, %var2 : !PF -> !jacobian
-  %jacobian2 = elliptic_curve.point %var3, %var6, %var1 : !PF -> !jacobian
+  %jacobian1 = elliptic_curve.point %var1, %var5, %var2 : !jacobian
+  %jacobian2 = elliptic_curve.point %var3, %var6, %var1 : !jacobian
 
-  %xyzz1 = elliptic_curve.point %var1, %var5, %var4, %var8 : !PF -> !xyzz
-  %xyzz2 = elliptic_curve.point %var3, %var6, %var1, %var1 : !PF -> !xyzz
+  %xyzz1 = elliptic_curve.point %var1, %var5, %var4, %var8 : !xyzz
+  %xyzz2 = elliptic_curve.point %var3, %var6, %var1, %var1 : !xyzz
 
   // CHECK-NOT: elliptic_curve.add
   // affine, affine -> jacobian
@@ -91,9 +94,9 @@ func.func @test_double() {
   %var5 = field.constant 5 : !PF
   %var8 = field.constant 8 : !PF
 
-  %affine1 = elliptic_curve.point %var1, %var5 : !PF -> !affine
-  %jacobian1 = elliptic_curve.point %var1, %var5, %var2 : !PF -> !jacobian
-  %xyzz1 = elliptic_curve.point %var1, %var5, %var4, %var8 : !PF -> !xyzz
+  %affine1 = elliptic_curve.point %var1, %var5 : !affine
+  %jacobian1 = elliptic_curve.point %var1, %var5, %var2 : !jacobian
+  %xyzz1 = elliptic_curve.point %var1, %var5, %var4, %var8 : !xyzz
 
   // CHECK-NOT: elliptic_curve.double
   %affine2 = elliptic_curve.double %affine1 : !affine -> !jacobian
@@ -110,9 +113,9 @@ func.func @test_negation() {
   %var5 = field.constant 5 : !PF
   %var8 = field.constant 8 : !PF
 
-  %affine1 = elliptic_curve.point %var1, %var5 : !PF -> !affine
-  %jacobian1 = elliptic_curve.point %var1, %var5, %var2 : !PF -> !jacobian
-  %xyzz1 = elliptic_curve.point %var1, %var5, %var4, %var8 : !PF -> !xyzz
+  %affine1 = elliptic_curve.point %var1, %var5 : !affine
+  %jacobian1 = elliptic_curve.point %var1, %var5, %var2 : !jacobian
+  %xyzz1 = elliptic_curve.point %var1, %var5, %var4, %var8 : !xyzz
 
   // CHECK-NOT: elliptic_curve.negate
   %affine2 = elliptic_curve.negate %affine1 : !affine
@@ -131,14 +134,14 @@ func.func @test_subtraction() {
   %var6 = field.constant 6 : !PF
   %var8 = field.constant 8 : !PF
 
-  %affine1 = elliptic_curve.point %var1, %var5 : !PF -> !affine
-  %affine2 = elliptic_curve.point %var3, %var6 : !PF -> !affine
+  %affine1 = elliptic_curve.point %var1, %var5 : !affine
+  %affine2 = elliptic_curve.point %var3, %var6 : !affine
 
-  %jacobian1 = elliptic_curve.point %var1, %var5, %var2 : !PF -> !jacobian
-  %jacobian2 = elliptic_curve.point %var3, %var6, %var1 : !PF -> !jacobian
+  %jacobian1 = elliptic_curve.point %var1, %var5, %var2 : !jacobian
+  %jacobian2 = elliptic_curve.point %var3, %var6, %var1 : !jacobian
 
-  %xyzz1 = elliptic_curve.point %var1, %var5, %var4, %var8 : !PF -> !xyzz
-  %xyzz2 = elliptic_curve.point %var3, %var6, %var1, %var1 : !PF -> !xyzz
+  %xyzz1 = elliptic_curve.point %var1, %var5, %var4, %var8 : !xyzz
+  %xyzz2 = elliptic_curve.point %var3, %var6, %var1, %var1 : !xyzz
 
   // CHECK-NOT: elliptic_curve.sub
   // affine, affine -> jacobian
@@ -164,9 +167,9 @@ func.func @test_scalar_mul() {
   %var5 = field.constant 5 : !PF
   %var8 = field.constant 8 : !PF
 
-  %affine1 = elliptic_curve.point %var1, %var5 : !PF -> !affine
-  %jacobian1 = elliptic_curve.point %var1, %var5, %var2 : !PF -> !jacobian
-  %xyzz1 = elliptic_curve.point %var1, %var5, %var4, %var8 : !PF -> !xyzz
+  %affine1 = elliptic_curve.point %var1, %var5 : !affine
+  %jacobian1 = elliptic_curve.point %var1, %var5, %var2 : !jacobian
+  %xyzz1 = elliptic_curve.point %var1, %var5, %var4, %var8 : !xyzz
 
   // CHECK-NOT: elliptic_curve.scalar_mul
   %jacobian2 = elliptic_curve.scalar_mul %var1, %affine1 : !PF, !affine -> !jacobian
@@ -185,7 +188,7 @@ func.func @test_msm() {
   %var5 = field.constant 5 : !PF
 
   %scalars = tensor.from_elements %var1, %var5, %var5 : tensor<3x!PF>
-  %affine1 = elliptic_curve.point %var1, %var5 : !PF -> !affine
+  %affine1 = elliptic_curve.point %var1, %var5 : !affine
   %points = tensor.from_elements %affine1, %affine1, %affine1 : tensor<3x!affine>
   %msm_result = elliptic_curve.msm %scalars, %points : tensor<3x!PF>, tensor<3x!affine> -> !jacobian
   return

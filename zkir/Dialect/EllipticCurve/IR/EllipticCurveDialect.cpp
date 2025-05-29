@@ -21,6 +21,38 @@
 #include "zkir/Dialect/Field/IR/FieldAttributes.h"
 #include "zkir/Dialect/Field/IR/FieldTypes.h"
 
+namespace mlir::zkir::elliptic_curve {
+
+size_t getNumCoordsFromPointLike(Type pointLike) {
+  Type pointType = getElementTypeOrSelf(pointLike);
+  if (isa<AffineType>(pointType)) {
+    return 2;
+  } else if (isa<JacobianType>(pointType)) {
+    return 3;
+  } else if (isa<XYZZType>(pointType)) {
+    return 4;
+  } else {
+    llvm_unreachable("Unsupported point-like type for curve extraction");
+    return 0;
+  }
+}
+
+ShortWeierstrassAttr getCurveFromPointLike(Type pointLike) {
+  Type pointType = getElementTypeOrSelf(pointLike);
+  if (auto affineType = dyn_cast<AffineType>(pointType)) {
+    return affineType.getCurve();
+  } else if (auto jacobianType = dyn_cast<JacobianType>(pointType)) {
+    return jacobianType.getCurve();
+  } else if (auto xyzzType = dyn_cast<XYZZType>(pointType)) {
+    return xyzzType.getCurve();
+  } else {
+    llvm_unreachable("Unsupported point-like type for curve extraction");
+    return ShortWeierstrassAttr();
+  }
+}
+
+}  // namespace mlir::zkir::elliptic_curve
+
 // Generated definitions
 #include "zkir/Dialect/EllipticCurve/IR/EllipticCurveDialect.cpp.inc"
 
@@ -74,88 +106,6 @@ void EllipticCurveDialect::initialize() {
       >();
 
   addInterface<EllipticCurveOpAsmDialectInterface>();
-}
-
-//////////// POINT INITIALIZATION ////////////
-
-ParseResult PointOp::parse(OpAsmParser &parser, OperationState &result) {
-  SmallVector<OpAsmParser::UnresolvedOperand> opInfo;
-  SmallVector<Type> types;
-  SMLoc loc = parser.getCurrentLocation();
-  OpAsmParser::UnresolvedOperand x, y, z;
-  Type inputType, outputType;
-  SmallVector<int32_t, 5> segmentSizes = {/*x=*/0, /*y=*/0, /*z=*/0, /*zz=*/0,
-                                          /*zzz=*/0};
-
-  if (failed(parser.parseOperand(x)) || failed(parser.parseComma()) ||
-      failed(parser.parseOperand(y)))
-    return failure();
-  // affine
-  opInfo = {x, y};
-  segmentSizes[0] = 1;  // x
-  segmentSizes[1] = 1;  // y
-  if (succeeded(parser.parseOptionalComma()) &&
-      succeeded(parser.parseOptionalOperand(z).value())) {
-    opInfo.push_back(z);
-    OpAsmParser::UnresolvedOperand zzz;
-    if (succeeded(parser.parseOptionalComma()) &&
-        succeeded(parser.parseOptionalOperand(zzz).value())) {
-      // xyzz
-      opInfo.push_back(zzz);
-      segmentSizes[3] = 1;  // zz
-      segmentSizes[4] = 1;  // zzz
-    } else {
-      // jacobian
-      segmentSizes[2] = 1;  // z
-    }
-  }
-
-  if (failed(parser.parseColonType(inputType)) || failed(parser.parseArrow()) ||
-      failed(parser.parseType(outputType)))
-    return failure();
-  for (int i = 0; i < opInfo.size(); ++i) {
-    types.push_back(inputType);
-  }
-
-  auto segmentSizesAttr = DenseIntElementsAttr::get(
-      VectorType::get({static_cast<int64_t>(segmentSizes.size())},
-                      parser.getBuilder().getI32Type()),
-      segmentSizes);
-  result.addAttribute("operand_segment_sizes", segmentSizesAttr);
-  result.addTypes(outputType);
-  return parser.resolveOperands(opInfo, types, loc, result.operands);
-}
-
-void PointOp::print(OpAsmPrinter &p) {
-  p << ' ' << getOperands();
-  p << " : ";
-  p.printType(getCoords()[0].getType());
-  p << " -> ";
-  p.printType(getOutput().getType());
-}
-
-LogicalResult PointOp::verify() {
-  Type outputType = getOutput().getType();
-  uint8_t numCoords = getNumOperands();
-  auto operands = getOperands();
-  field::PrimeFieldType baseFieldType =
-      cast<field::PrimeFieldType>(operands[0].getType());
-
-  if (isa<AffineType>(outputType) && numCoords != 2) {
-    return emitError() << "Wrong number of coordinates for affine type";
-  } else if (isa<JacobianType>(outputType) && numCoords != 3) {
-    return emitError() << "Wrong number of coordinates for jacobian type";
-  } else if (isa<XYZZType>(outputType) && numCoords != 4) {
-    return emitError() << "Wrong number of coordinates for xyzz type";
-  }
-
-  for (int i = 1; i < operands.size(); ++i) {
-    if (baseFieldType != cast<field::PrimeFieldType>(operands[i].getType())) {
-      return emitError() << "All coordinates are not of the same prime field";
-    }
-  }
-  // TODO(ashjeong): check curve base field and coords types are the same
-  return success();
 }
 
 /////////////// VERIFY OPS /////////////////
