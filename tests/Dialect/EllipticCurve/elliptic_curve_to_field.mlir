@@ -12,6 +12,14 @@
 !jacobian = !elliptic_curve.jacobian<#curve>
 !xyzz = !elliptic_curve.xyzz<#curve>
 
+#beta = #field.pf.elem<96:i32> : !PF
+!QF = !field.f2<!PF, #beta>
+#f2_elem = #field.f2.elem<#1, #2> : !QF
+#g2curve = #elliptic_curve.sw<#f2_elem, #f2_elem, (#f2_elem, #f2_elem)>
+!g2affine = !elliptic_curve.affine<#g2curve>
+!g2jacobian = !elliptic_curve.jacobian<#g2curve>
+!g2xyzz = !elliptic_curve.xyzz<#g2curve>
+
 // CHECK-LABEL: @test_intialization_and_conversion
 func.func @test_intialization_and_conversion() {
   // CHECK: %[[VAR1:.*]] = field.constant #[[ATTR1:.*]] : ![[PF:.*]]

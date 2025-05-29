@@ -41,39 +41,20 @@ class EllipticCurveOpAsmDialectInterface : public OpAsmDialectInterface {
 
   // ex. !affine_curve-a3-b2-gx4-gy5_pf7_
   AliasResult getAlias(Type type, raw_ostream &os) const override {
-    auto res =
-        llvm::TypeSwitch<Type, AliasResult>(type)
-            .Case<AffineType>([&](auto &point) {
-              os << "affine_curve";
-              os << "-a" << point.getCurve().getA().getValue().getValue();
-              os << "-b" << point.getCurve().getB().getValue().getValue();
-              os << "-gx" << point.getCurve().getGx().getValue().getValue();
-              os << "-gy" << point.getCurve().getGy().getValue().getValue();
-              os << "_pf"
-                 << point.getCurve().getA().getType().getModulus().getValue();
-              return AliasResult::FinalAlias;
-            })
-            .Case<JacobianType>([&](auto &point) {
-              os << "jacobian_curve";
-              os << "-a" << point.getCurve().getA().getValue().getValue();
-              os << "-b" << point.getCurve().getB().getValue().getValue();
-              os << "-gx" << point.getCurve().getGx().getValue().getValue();
-              os << "-gy" << point.getCurve().getGy().getValue().getValue();
-              os << "_pf"
-                 << point.getCurve().getA().getType().getModulus().getValue();
-              return AliasResult::FinalAlias;
-            })
-            .Case<XYZZType>([&](auto &point) {
-              os << "xyzz_curve";
-              os << "-a" << point.getCurve().getA().getValue().getValue();
-              os << "-b" << point.getCurve().getB().getValue().getValue();
-              os << "-gx" << point.getCurve().getGx().getValue().getValue();
-              os << "-gy" << point.getCurve().getGy().getValue().getValue();
-              os << "_pf"
-                 << point.getCurve().getA().getType().getModulus().getValue();
-              return AliasResult::FinalAlias;
-            })
-            .Default([&](Type) { return AliasResult::NoAlias; });
+    auto res = llvm::TypeSwitch<Type, AliasResult>(type)
+                   .Case<AffineType>([&](auto &point) {
+                     os << "affine_curve";
+                     return AliasResult::FinalAlias;
+                   })
+                   .Case<JacobianType>([&](auto &point) {
+                     os << "jacobian_curve";
+                     return AliasResult::FinalAlias;
+                   })
+                   .Case<XYZZType>([&](auto &point) {
+                     os << "xyzz_curve";
+                     return AliasResult::FinalAlias;
+                   })
+                   .Default([&](Type) { return AliasResult::NoAlias; });
     return res;
   }
 };

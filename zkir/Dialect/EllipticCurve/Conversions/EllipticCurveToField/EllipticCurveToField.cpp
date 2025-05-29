@@ -31,7 +31,7 @@ namespace mlir::zkir::elliptic_curve {
 
 static LogicalResult convertAffineType(AffineType type,
                                        SmallVectorImpl<Type> &converted) {
-  field::PrimeFieldType baseFieldType = type.getCurve().getA().getType();
+  Type baseFieldType = type.getCurve().getBaseField();
   converted.push_back(baseFieldType);
   converted.push_back(baseFieldType);
   return success();
@@ -39,7 +39,7 @@ static LogicalResult convertAffineType(AffineType type,
 
 static LogicalResult convertJacobianType(JacobianType type,
                                          SmallVectorImpl<Type> &converted) {
-  field::PrimeFieldType baseFieldType = type.getCurve().getA().getType();
+  Type baseFieldType = type.getCurve().getBaseField();
   converted.push_back(baseFieldType);
   converted.push_back(baseFieldType);
   converted.push_back(baseFieldType);
@@ -48,7 +48,7 @@ static LogicalResult convertJacobianType(JacobianType type,
 
 static LogicalResult convertXYZZType(XYZZType type,
                                      SmallVectorImpl<Type> &converted) {
-  field::PrimeFieldType baseFieldType = type.getCurve().getA().getType();
+  Type baseFieldType = type.getCurve().getBaseField();
   converted.push_back(baseFieldType);
   converted.push_back(baseFieldType);
   converted.push_back(baseFieldType);
@@ -59,7 +59,7 @@ static LogicalResult convertXYZZType(XYZZType type,
 template <typename T>
 static T convertAffineLikeType(T type) {
   auto affineType = cast<AffineType>(type.getElementType());
-  field::PrimeFieldType baseFieldType = affineType.getCurve().getA().getType();
+  Type baseFieldType = affineType.getCurve().getBaseField();
   SmallVector<int64_t> newShape(type.getShape());
   newShape.push_back(2);
   if constexpr (std::is_same_v<T, MemRefType>) {
@@ -72,8 +72,7 @@ static T convertAffineLikeType(T type) {
 template <typename T>
 static T convertJacobianLikeType(T type) {
   auto jacobianType = cast<JacobianType>(type.getElementType());
-  field::PrimeFieldType baseFieldType =
-      jacobianType.getCurve().getA().getType();
+  Type baseFieldType = jacobianType.getCurve().getBaseField();
   SmallVector<int64_t> newShape(type.getShape());
   newShape.push_back(3);
   if constexpr (std::is_same_v<T, MemRefType>) {
@@ -86,7 +85,7 @@ static T convertJacobianLikeType(T type) {
 template <typename T>
 static T convertXYZZLikeType(T type) {
   auto xyzzType = cast<XYZZType>(type.getElementType());
-  field::PrimeFieldType baseFieldType = xyzzType.getCurve().getA().getType();
+  Type baseFieldType = xyzzType.getCurve().getBaseField();
   SmallVector<int64_t> newShape(type.getShape());
   newShape.push_back(4);
   if constexpr (std::is_same_v<T, MemRefType>) {
