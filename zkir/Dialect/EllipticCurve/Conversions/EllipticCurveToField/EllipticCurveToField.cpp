@@ -592,21 +592,35 @@ struct ConvertMSM : public OpConversionPattern<MSMOp> {
     unsigned numScalarMuls = pointSetType.getShape()[0];
     Type outputPointType = op.getOutput().getType();
 
-    auto idx = b.create<arith::ConstantIndexOp>(0);
-    auto scalar = b.create<tensor::ExtractOp>(scalars, ValueRange{idx});
-    auto point = b.create<tensor::ExtractOp>(pointSet, ValueRange{idx});
-    Value accumulator =
-        b.create<elliptic_curve::ScalarMulOp>(outputPointType, scalar, point);
-    for (size_t i = 1; i < numScalarMuls; ++i) {
-      idx = b.create<arith::ConstantIndexOp>(i);
-      scalar = b.create<tensor::ExtractOp>(scalars, ValueRange{idx});
-      point = b.create<tensor::ExtractOp>(pointSet, ValueRange{idx});
-      auto adder =
-          b.create<elliptic_curve::ScalarMulOp>(outputPointType, scalar, point);
-      accumulator =
-          b.create<elliptic_curve::AddOp>(outputPointType, accumulator, adder);
-    }
-    rewriter.replaceOp(op, accumulator);
+    auto zero = b.create<arith::ConstantIndexOp>(0);
+    auto one = b.create<arith::ConstantIndexOp>(1);
+    auto count = b.create<arith::ConstantIndexOp>(numScalarMuls);
+
+    auto scalar0 = b.create<tensor::ExtractOp>(scalars, ValueRange{zero});
+    auto point0 = b.create<tensor::ExtractOp>(pointSet, ValueRange{zero});
+    Value initial =
+        b.create<elliptic_curve::ScalarMulOp>(outputPointType, scalar0, point0);
+
+    auto forOp = b.create<scf::ForOp>(
+        one, count, one,  // induction variable: 1 to numScalarMuls
+        ValueRange{initial},
+        [&](OpBuilder &nestedBuilder, Location nestedLoc, Value iv,
+            ValueRange args) {
+          ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
+          Value acc = args.front();
+
+          auto scalar = b.create<tensor::ExtractOp>(scalars, ValueRange{iv});
+          auto point = b.create<tensor::ExtractOp>(pointSet, ValueRange{iv});
+
+          auto mul = b.create<elliptic_curve::ScalarMulOp>(outputPointType,
+                                                           scalar, point);
+
+          auto sum = b.create<elliptic_curve::AddOp>(outputPointType, acc, mul);
+
+          b.create<scf::YieldOp>(ValueRange{sum});
+        });
+
+    rewriter.replaceOp(op, forOp.getResult(0));
     return success();
   }
 };
