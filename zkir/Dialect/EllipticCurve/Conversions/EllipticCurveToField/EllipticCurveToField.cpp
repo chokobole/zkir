@@ -229,15 +229,40 @@ struct ConvertConvertPointType
 
     SmallVector<Value> outputCoords;
 
+    auto isZero = b.create<IsZeroOp>(op.getInput());
     if (isa<AffineType>(inputType)) {
-      // affine to jacobian
-      // (x, y) -> (x, y, 1)
-      outputCoords = {/* x */ coords[0], /* y */ coords[1], oneBF};
-      if (isa<XYZZType>(outputType)) {
-        outputCoords.push_back(oneBF);
-        // affine to xyzz
-        // (x, y) -> (x, y, 1, 1)
-      }
+      auto output = b.create<scf::IfOp>(
+          isZero,
+          /*thenBuilder=*/
+          [&](OpBuilder &builder, Location loc) {
+            if (isa<JacobianType>(outputType)) {
+              // affine to jacobian
+              // (0, 0) -> (1, 1, 0)
+              builder.create<scf::YieldOp>(loc,
+                                           ValueRange{oneBF, oneBF, zeroBF});
+            } else {
+              // affine to xyzz
+              // (0, 0) -> (1, 1, 0, 0)
+              builder.create<scf::YieldOp>(
+                  loc, ValueRange{oneBF, oneBF, zeroBF, zeroBF});
+            }
+          },
+          /*elseBuilder=*/
+          [&](OpBuilder &builder, Location loc) {
+            if (isa<JacobianType>(outputType)) {
+              // affine to jacobian
+              // (x, y) -> (x, y, 1)
+              builder.create<scf::YieldOp>(
+                  loc, ValueRange{/* x */ coords[0], /* y */ coords[1], oneBF});
+            } else {
+              // affine to xyzz
+              // (x, y) -> (x, y, 1, 1)
+              builder.create<scf::YieldOp>(
+                  loc, ValueRange{/* x */ coords[0], /* y */ coords[1], oneBF,
+                                  oneBF});
+            }
+          });
+      outputCoords = output.getResults();
     } else if (isa<JacobianType>(inputType)) {
       auto zz = b.create<field::SquareOp>(/* z */ coords[2]);
       auto zzz = b.create<field::MulOp>(zz, /* z */ coords[2]);
