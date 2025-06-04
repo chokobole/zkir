@@ -169,11 +169,12 @@ struct ConvertMontReduce : public OpConversionPattern<MontReduceOp> {
     TypedAttr modAttr = modulusAttr(op);
 
     // Retrieve the modulus bitwidth.
-    unsigned modBitWidth = cast<IntegerType>(modAttr.getType()).getWidth();
+    const unsigned modBitWidth =
+        cast<IntegerType>(modAttr.getType()).getWidth();
 
     // Compute number of limbs.
-    const unsigned limbWidth = APInt::APINT_BITS_PER_WORD;
-    unsigned numLimbs = (modBitWidth + limbWidth - 1) / limbWidth;
+    const unsigned limbWidth = nPrimeAttr.getType().getIntOrFloatBitWidth();
+    const unsigned numLimbs = (modBitWidth + limbWidth - 1) / limbWidth;
 
     // Prepare constants for limb operations.
     Type limbType = nPrimeAttr.getType();
@@ -212,11 +213,17 @@ struct ConvertMontReduce : public OpConversionPattern<MontReduceOp> {
     // unroll the loop as a straight-line chain of operations.
     for (unsigned i = 0; i < numLimbs; ++i) {
       // Extract the current lowest limb: `tLow` (mod `base`)
-      auto lowerLimb = b.create<arith::TruncIOp>(limbType, tLow);
+      Value lowerLimb = tLow;
+      if (numLimbs > 1) {
+        lowerLimb = b.create<arith::TruncIOp>(limbType, tLow);
+      }
       // Compute `m` = `lowerLimb` * `nPrime` (mod `base`)
       auto m = b.create<arith::MulIOp>(lowerLimb, nPrimeConst);
       // Compute `m` * `N` , where `N` is modulus
-      auto mExt = b.create<arith::ExtUIOp>(tLow.getType(), m);
+      Value mExt = m;
+      if (numLimbs > 1) {
+        mExt = b.create<arith::ExtUIOp>(tLow.getType(), m);
+      }
       auto mN = b.create<arith::MulUIExtendedOp>(modConst, mExt);
       // Add the product to `T`.
       auto sum = b.create<arith::AddUIExtendedOp>(tLow, mN.getLow());
@@ -226,6 +233,11 @@ struct ConvertMontReduce : public OpConversionPattern<MontReduceOp> {
       auto carryExt =
           b.create<arith::ExtUIOp>(tHigh.getType(), sum.getOverflow());
       tHigh = b.create<arith::AddIOp>(tHigh, carryExt, noOverflow);
+      if (numLimbs == 1) {
+        // For a single-precision case, skip shifting and break.
+        tLow = tHigh;
+        break;
+      }
       // Shift right by `limbWidth` to discard the zeroed limb.
       tLow = b.create<arith::ShRUIOp>(tLow, limbWidthConst);
       // copy the lowest limb of `tHigh` to the highest limb of `tLow`
