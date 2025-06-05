@@ -39,7 +39,7 @@ def Field_QuadraticExtFieldType : Field_Type<"QuadraticExtField", "f2", [
   let summary = "Quadratic extension field element type";
   let description = [{
     Represents an element in a quadratic extension field defined by the given
-    prime field `base_field` and the irreducible binomial `beta`.
+    prime field `baseField` and the irreducible binomial `beta`.
 
     Example:
     ```
@@ -49,10 +49,10 @@ def Field_QuadraticExtFieldType : Field_Type<"QuadraticExtField", "f2", [
     ```
   }];
   let parameters = (ins
-   Field_PrimeFieldType: $base_field,
+   Field_PrimeFieldType: $baseField,
    "PrimeFieldAttr": $beta
   );
-  let assemblyFormat = "`<` $base_field `,` $beta `>`";
+  let assemblyFormat = "`<` $baseField `,` $beta `>`";
 }
 
 def Field_AnyFieldType : AnyTypeOf<[Field_PrimeFieldType, Field_QuadraticExtFieldType], "any-field-type">;

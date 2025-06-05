@@ -56,7 +56,7 @@ def Poly_PrimitiveRootAttr: Poly_Attr<"PrimitiveRoot", "primitive_root"> {
     DenseElementsAttr getRoots() const;
     DenseElementsAttr getInvRoots() const;
   }];
-  let parameters = (ins Field_RootOfUnityAttr:$root_of_unity, OptionalParameter<"mod_arith::MontgomeryAttr">:$montgomery);
+  let parameters = (ins Field_RootOfUnityAttr:$rootOfUnity, OptionalParameter<"mod_arith::MontgomeryAttr">:$montgomery);
   let assemblyFormat = "`<` params `>`";
   let genStorageClass = 0;
 }
