@@ -337,8 +337,13 @@ struct ConvertInverse : public OpConversionPattern<InverseOp> {
 
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto operand = adaptor.getInput();
     auto modArithType = getResultModArithType(op);
+    if (modArithType.isMontgomery()) {
+      auto result = b.create<MontInverseOp>(modArithType, op.getInput());
+      rewriter.replaceOp(op, result);
+      return success();
+    }
+    auto operand = adaptor.getInput();
     auto modulus = modArithType.getModulus();
     auto resultType = modulus.getType();
 
@@ -451,13 +456,20 @@ struct ConvertMontInverse : public OpConversionPattern<MontInverseOp> {
 
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto inversed = b.create<InverseOp>(op.getInput());
+    ModArithType resultType = getResultModArithType(op);
+    if (!resultType.isMontgomery()) {
+      return op->emitError(
+          "MontInverseOp with non-Montgomery type is not supported in "
+          "ModArithToArith conversion");
+    }
+
+    Type standardType = getStandardFormType(op.getOutput().getType());
+    auto inversed = b.create<InverseOp>(standardType, op.getInput());
 
     MontgomeryAttr montAttr = MontgomeryAttr::get(
         op.getContext(), cast<ModArithType>(op.getOutput().getType()));
-    auto rSquared =
-        b.create<ConstantOp>(op.getOutput().getType(), montAttr.getRSquared());
-    auto result = b.create<MulOp>(inversed, rSquared);
+    auto rSquared = b.create<ConstantOp>(standardType, montAttr.getRSquared());
+    auto result = b.create<MulOp>(rSquared, inversed);
 
     rewriter.replaceOp(op, result);
     return success();
@@ -533,6 +545,12 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
+    ModArithType resultType = getResultModArithType(op);
+    if (resultType.isMontgomery()) {
+      auto result = b.create<MontMulOp>(resultType, op.getLhs(), op.getRhs());
+      rewriter.replaceOp(op, result);
+      return success();
+    }
     auto cmod = b.create<arith::ConstantOp>(modulusAttr(op, true));
     auto lhs =
         b.create<arith::ExtUIOp>(modulusType(op, true), adaptor.getLhs());
@@ -588,6 +606,12 @@ struct ConvertMontMul : public OpConversionPattern<MontMulOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
+    ModArithType resultType = getResultModArithType(op);
+    if (!resultType.isMontgomery()) {
+      return op->emitError(
+          "MontMulOp with non-Montgomery type is not supported in "
+          "ModArithToArith conversion");
+    }
     auto mul =
         b.create<arith::MulUIExtendedOp>(adaptor.getLhs(), adaptor.getRhs());
     auto reduced = b.create<mod_arith::MontReduceOp>(
