@@ -268,19 +268,20 @@ struct ConvertConvertPointType
       auto zzz = b.create<field::MulOp>(zz, /* z */ coords[2]);
 
       if (isa<AffineType>(outputType)) {
-        // jacobian to affine
-        // (x, y, z) -> (x/z², y/z³)
         auto cmpEq = b.create<field::CmpOp>(arith::CmpIPredicate::eq,
                                             /* z */ coords[2], zeroBF);
-        // if z == 0, then x/z² -> 1, y/z³ -> 1
         auto output = b.create<scf::IfOp>(
             cmpEq,
             /*thenBuilder=*/
             [&](OpBuilder &builder, Location loc) {
-              builder.create<scf::YieldOp>(loc, ValueRange{oneBF, oneBF});
+              // jacobian to affine
+              // (x, y, 0) -> (0, 0)
+              builder.create<scf::YieldOp>(loc, ValueRange{zeroBF, zeroBF});
             },
             /*elseBuilder=*/
             [&](OpBuilder &builder, Location loc) {
+              // jacobian to affine
+              // (x, y, z) -> (x/z², y/z³)
               // TODO(ashjeong): use Batch Inverse
               auto zzInv = builder.create<field::InverseOp>(loc, zz);
               auto zzzInv = builder.create<field::InverseOp>(loc, zzz);
@@ -299,19 +300,20 @@ struct ConvertConvertPointType
       }
     } else {
       if (isa<AffineType>(outputType)) {
-        // xyzz to affine
-        // (x, y, z², z³) -> (x/z², y/z³)
         auto cmpEq = b.create<field::CmpOp>(arith::CmpIPredicate::eq,
                                             /* zz */ coords[2], zeroBF);
-        // if z == 0, then x/z² -> 1, y/z³ -> 1
         auto ifOp = b.create<scf::IfOp>(
             cmpEq,
             /*thenBuilder=*/
             [&](OpBuilder &builder, Location loc) {
-              builder.create<scf::YieldOp>(loc, ValueRange{oneBF, oneBF});
+              // xyzz to affine
+              // (x, y, 0, 0) -> (0, 0)
+              builder.create<scf::YieldOp>(loc, ValueRange{zeroBF, zeroBF});
             },
             /*elseBuilder=*/
             [&](OpBuilder &builder, Location loc) {
+              // xyzz to affine
+              // (x, y, z², z³) -> (x/z², y/z³)
               // TODO(ashjeong): use Batch Inverse
               auto zzInv =
                   builder.create<field::InverseOp>(loc, /* zz */ coords[2]);
