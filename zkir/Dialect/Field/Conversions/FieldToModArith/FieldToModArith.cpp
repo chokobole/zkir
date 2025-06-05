@@ -136,8 +136,10 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
       return success();
     } else if (auto f2Attr =
                    dyn_cast<QuadraticExtFieldAttr>(op.getValueAttr())) {
-      auto low = b.create<mod_arith::ConstantOp>(modType, f2Attr.getLow());
-      auto high = b.create<mod_arith::ConstantOp>(modType, f2Attr.getHigh());
+      auto low =
+          b.create<mod_arith::ConstantOp>(modType, f2Attr.getLow().getValue());
+      auto high =
+          b.create<mod_arith::ConstantOp>(modType, f2Attr.getHigh().getValue());
       rewriter.replaceOpWithMultiple(op, {{low, high}});
       return success();
     } else {
