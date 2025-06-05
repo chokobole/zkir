@@ -24,7 +24,7 @@ class ModArith_ArithOp<string mnemonic, list<Trait> traits = []> :
 // Base class for unary modular arithmetic.
 class ModArith_UnaryOp<string mnemonic, list<Trait> traits = []> :
     ModArith_ArithOp<mnemonic, traits>,
-  Arguments<(ins ModArithLike:$operand)>,
+  Arguments<(ins ModArithLike:$input)>,
   Results<(outs ModArithLike:$output)> {
   let assemblyFormat = "operands attr-dict `:` type($output)";
 }
