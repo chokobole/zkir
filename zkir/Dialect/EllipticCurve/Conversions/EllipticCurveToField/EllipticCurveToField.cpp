@@ -164,17 +164,18 @@ struct ConvertIsZero : public OpConversionPattern<IsZeroOp> {
         getCurveFromPointLike(op.getInput().getType()).getBaseField();
     Value zeroBF = b.create<field::ConstantOp>(baseField, 0);
 
-    Value cmp;
+    Value isZero;
     if (isa<AffineType>(op.getInput().getType())) {
       Value xIsZero =
           b.create<field::CmpOp>(arith::CmpIPredicate::eq, coords[0], zeroBF);
       Value yIsZero =
           b.create<field::CmpOp>(arith::CmpIPredicate::eq, coords[1], zeroBF);
-      cmp = b.create<arith::AndIOp>(xIsZero, yIsZero);
+      isZero = b.create<arith::AndIOp>(xIsZero, yIsZero);
     } else {
-      cmp = b.create<field::CmpOp>(arith::CmpIPredicate::eq, coords[2], zeroBF);
+      isZero =
+          b.create<field::CmpOp>(arith::CmpIPredicate::eq, coords[2], zeroBF);
     }
-    rewriter.replaceOp(op, cmp);
+    rewriter.replaceOp(op, isZero);
     return success();
   }
 };
