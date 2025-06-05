@@ -10,7 +10,7 @@
 
 !mod = !mod_arith.int<7681:i32>
 #mont = #mod_arith.montgomery<!mod>
-#root = #poly.primitive_root<root_of_unity=#root_of_unity, montgomery=#mont>
+#root = #poly.primitive_root<#root_of_unity, #mont>
 !poly_ty = !poly.polynomial<!coeff_ty, 3>
 
 func.func private @printMemrefI32(memref<*xi32>) attributes { llvm.emit_c_interface }

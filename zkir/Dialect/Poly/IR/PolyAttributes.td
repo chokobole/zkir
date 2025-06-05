@@ -45,7 +45,7 @@ def Poly_PrimitiveRootAttr: Poly_Attr<"PrimitiveRoot", "primitive_root"> {
     !PF1 = !field.pf<7:i32>
     #elem = #field.elem<2> : !PF1
     #root_of_unity = #field.root_of_unity<root=#elem, degree=3>
-    #root = #poly.primitive_root<root_of_unity=#root_of_unity>
+    #root = #poly.primitive_root<#root_of_unity>
     ```
   }];
   let extraClassDeclaration = [{
@@ -57,7 +57,7 @@ def Poly_PrimitiveRootAttr: Poly_Attr<"PrimitiveRoot", "primitive_root"> {
     DenseElementsAttr getInvRoots() const;
   }];
   let parameters = (ins Field_RootOfUnityAttr:$root_of_unity, OptionalParameter<"mod_arith::MontgomeryAttr">:$montgomery);
-  let assemblyFormat = "`<` struct(params) `>`";
+  let assemblyFormat = "`<` params `>`";
   let genStorageClass = 0;
 }
 
