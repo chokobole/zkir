@@ -298,7 +298,7 @@ struct ConvertConvertPointType
       }
     } else {
       if (isa<AffineType>(outputType)) {
-        auto ifOp = b.create<scf::IfOp>(
+        auto output = b.create<scf::IfOp>(
             isZero,
             /*thenBuilder=*/
             [&](OpBuilder &builder, Location loc) {
@@ -321,7 +321,7 @@ struct ConvertConvertPointType
                   builder.create<field::MulOp>(loc, /*y=*/coords[1], zzzInv);
               builder.create<scf::YieldOp>(loc, ValueRange{newX, newY});
             });
-        outputCoords = {ifOp.getResult(0), ifOp.getResult(1)};
+        outputCoords = {output.getResult(0), output.getResult(1)};
       } else {
         outputCoords = {/*x=*/coords[0], /*y=*/coords[1]};
 
