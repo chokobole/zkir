@@ -373,9 +373,9 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
     Type outputType = op.getOutput().getType();
 
     // check p1 == zero point
-    Value p1isZeroCmp = b.create<elliptic_curve::IsZeroOp>(p1);
-    auto p1IsZeroOp = b.create<scf::IfOp>(
-        p1isZeroCmp,
+    Value p1IsZero = b.create<elliptic_curve::IsZeroOp>(p1);
+    auto output = b.create<scf::IfOp>(
+        p1IsZero,
         /*thenBuilder=*/
         [&](OpBuilder &builder, Location loc) {
           ImplicitLocOpBuilder b(loc, builder);
@@ -392,9 +392,9 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
           ImplicitLocOpBuilder b(loc, builder);
 
           // check p2 == zero point
-          Value p2isZeroCmp = b.create<elliptic_curve::IsZeroOp>(p2);
-          auto p2IsZeroOp = b.create<scf::IfOp>(
-              p2isZeroCmp,
+          Value p2isZero = b.create<elliptic_curve::IsZeroOp>(p2);
+          auto output = b.create<scf::IfOp>(
+              p2isZero,
               /*thenBuilder=*/
               [&](OpBuilder &builder, Location loc) {
                 ImplicitLocOpBuilder b(loc, builder);
@@ -422,9 +422,9 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
                 }
                 b.create<scf::YieldOp>(loc, sum);
               });
-          b.create<scf::YieldOp>(p2IsZeroOp.getResults());
+          b.create<scf::YieldOp>(output.getResults());
         });
-    rewriter.replaceOpWithMultiple(op, {p1IsZeroOp.getResults()});
+    rewriter.replaceOpWithMultiple(op, {output.getResults()});
     return success();
   }
 };
@@ -442,17 +442,17 @@ struct ConvertDouble : public OpConversionPattern<DoubleOp> {
 
     Type outputType = op.getOutput().getType();
     ValueRange coords = adaptor.getInput();
-    SmallVector<Value> sum;
+    SmallVector<Value> doubled;
 
     if (auto xyzzType = dyn_cast<XYZZType>(outputType)) {
-      sum = xyzzDouble(coords, xyzzType.getCurve(), b);
+      doubled = xyzzDouble(coords, xyzzType.getCurve(), b);
     } else if (auto jacobianType = dyn_cast<JacobianType>(outputType)) {
-      sum = jacobianDouble(coords, jacobianType.getCurve(), b);
+      doubled = jacobianDouble(coords, jacobianType.getCurve(), b);
     } else {
       assert(false && "Unsupported point type for doubling");
     }
 
-    rewriter.replaceOpWithMultiple(op, {sum});
+    rewriter.replaceOpWithMultiple(op, {doubled});
     return success();
   }
 };
