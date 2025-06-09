@@ -327,8 +327,6 @@ struct ConvertConvertPointType
             });
         outputCoords = {ifOp.getResult(0), ifOp.getResult(1)};
       } else {
-        // xyzz to jacobian
-        // (x, y, z², z³) -> (x, y, z)
         outputCoords = {/* x */ coords[0], /* y */ coords[1]};
 
         auto cmpEq = b.create<field::CmpOp>(arith::CmpIPredicate::eq,
@@ -337,10 +335,14 @@ struct ConvertConvertPointType
             cmpEq,
             /*thenBuilder=*/
             [&](OpBuilder &builder, Location loc) {
+              // xyzz to jacobian
+              // (x, y, 0, 0) -> (x, y, 0)
               builder.create<scf::YieldOp>(loc, ValueRange{zeroBF});
             },
             /*elseBuilder=*/
             [&](OpBuilder &builder, Location loc) {
+              // xyzz to jacobian
+              // (x, y, z², z³) -> (x, y, z)
               auto zzInv = builder.create<field::InverseOp>(loc, coords[2]);
               auto z =
                   builder.create<field::MulOp>(loc, /* zzz */ coords[3], zzInv);
