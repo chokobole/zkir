@@ -506,6 +506,33 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
   }
 };
 
+struct ConvertDouble : public OpConversionPattern<DoubleOp> {
+  explicit ConvertDouble(mlir::MLIRContext *context)
+      : OpConversionPattern<DoubleOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      DoubleOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    ModArithType modType = getResultModArithType(op);
+    auto intType = modType.getModulus().getType();
+
+    Value cmod = b.create<arith::ConstantOp>(modulusAttr(op));
+    Value one = b.create<arith::ConstantOp>(IntegerAttr::get(intType, 1));
+    auto shifted = b.create<arith::ShLIOp>(adaptor.getInput(), one);
+    auto ifge =
+        b.create<arith::CmpIOp>(arith::CmpIPredicate::uge, shifted, cmod);
+    auto sub = b.create<arith::SubIOp>(shifted, cmod);
+    auto select = b.create<arith::SelectOp>(ifge, sub, shifted);
+
+    rewriter.replaceOp(op, select);
+    return success();
+  }
+};
+
 struct ConvertSub : public OpConversionPattern<SubOp> {
   explicit ConvertSub(MLIRContext *context)
       : OpConversionPattern<SubOp>(context) {}
@@ -622,6 +649,199 @@ struct ConvertMontMul : public OpConversionPattern<MontMulOp> {
   }
 };
 
+namespace {
+
+struct MulExtendedResult {
+  Value lo;
+  Value hi;
+};
+
+template <typename Op>
+MulExtendedResult squareExtended(ImplicitLocOpBuilder &b, Op op, Value input) {
+  arith::IntegerOverflowFlags overflowFlag(arith::IntegerOverflowFlags::nuw &
+                                           arith::IntegerOverflowFlags::nsw);
+  auto noOverflow =
+      arith::IntegerOverflowFlagsAttr::get(b.getContext(), overflowFlag);
+
+  const unsigned limbWidth = APInt::APINT_BITS_PER_WORD;
+
+  Type intType = modulusType(op, /*mul=*/false);
+  Type resultType = modulusType(op, /*mul=*/true);
+  Type limbType = IntegerType::get(b.getContext(), limbWidth);
+
+  const unsigned modBitWidth = cast<IntegerType>(intType).getWidth();
+  const unsigned numLimbs = (modBitWidth + limbWidth - 1) / limbWidth;
+
+  Value zeroLimb = b.create<arith::ConstantOp>(IntegerAttr::get(limbType, 0));
+
+  auto decomposeToLimbs = [&b, limbType](SmallVector<Value> &limbs, Value input,
+                                         Type type) {
+    limbs[0] = b.create<arith::TruncIOp>(limbType, input);
+    Value remaining = input;
+    Value shift =
+        b.create<arith::ConstantOp>(IntegerAttr::get(type, limbWidth));
+    for (unsigned i = 1; i < limbs.size(); ++i) {
+      remaining = b.create<arith::ShRUIOp>(remaining, shift);
+      limbs[i] = b.create<arith::TruncIOp>(limbType, remaining);
+    }
+    return limbs;
+  };
+  SmallVector<Value> limbs(numLimbs);
+  decomposeToLimbs(limbs, input, intType);
+  SmallVector<Value> resultVec(2 * numLimbs, zeroLimb);
+  Value carry = zeroLimb;
+
+  // Calculate x + y * z + carry
+  auto mulAddWithCarry = [&b, limbType](mlir::Value x, mlir::Value y,
+                                        mlir::Value z, mlir::Value carry) {
+    auto yz = b.create<arith::MulUIExtendedOp>(y, z);
+    Value hi = yz.getHigh();
+    Value lo = yz.getLow();
+    auto addResult = b.create<arith::AddUIExtendedOp>(x, lo);
+    Value carry1 = addResult.getOverflow();
+    auto addResult2 =
+        b.create<arith::AddUIExtendedOp>(addResult.getSum(), carry);
+    Value carry2 = addResult2.getOverflow();
+    MulExtendedResult mulResult;
+    mulResult.lo = addResult2.getSum();
+    mulResult.hi =
+        b.create<arith::AddIOp>(hi, b.create<arith::ExtUIOp>(limbType, carry1));
+    mulResult.hi = b.create<arith::AddIOp>(
+        mulResult.hi, b.create<arith::ExtUIOp>(limbType, carry2));
+    return mulResult;
+  };
+
+  // Add off-diagonal entries to result buffer
+  for (unsigned i = 0; i < numLimbs; ++i) {
+    for (unsigned j = i + 1; j < numLimbs; ++j) {
+      // (carry, sum) = r[i+j] + a[i] * a[j] + carry
+      MulExtendedResult mulResult =
+          mulAddWithCarry(resultVec[i + j], limbs[i], limbs[j], carry);
+      resultVec[i + j] = mulResult.lo;
+      carry = mulResult.hi;
+    }
+    resultVec[i + numLimbs] = carry;
+    carry = zeroLimb;
+  }
+
+  // Reconstruct a single integer value by combining all limbs
+  Value result = b.create<arith::ConstantOp>(IntegerAttr::get(resultType, 0));
+  for (unsigned i = 0; i < 2 * numLimbs; ++i) {
+    Value rAtI = b.create<arith::ExtUIOp>(resultType, resultVec[i]);
+    Value shifted = b.create<arith::ShLIOp>(
+        rAtI, b.create<arith::ConstantOp>(
+                  IntegerAttr::get(resultType, i * limbWidth)));
+    result = b.create<arith::OrIOp>(result, shifted);
+  }
+
+  // Multiply result by 2. It's safe to assume no overflow
+  result = b.create<arith::ShLIOp>(
+      result, b.create<arith::ConstantOp>(IntegerAttr::get(resultType, 1)),
+      noOverflow);
+
+  decomposeToLimbs(resultVec, result, resultType);
+
+  // Add diagonal entries to result buffer
+  for (unsigned i = 0; i < numLimbs; ++i) {
+    // (carry, r[2*i]) = r[2*i] + a[i] * a[i] + carry
+    MulExtendedResult mulResult =
+        mulAddWithCarry(resultVec[2 * i], limbs[i], limbs[i], carry);
+    resultVec[2 * i] = mulResult.lo;
+    carry = mulResult.hi;
+
+    // (carry, r[2*i+1]) = r[2*i+1] + carry
+    auto addResult =
+        b.create<arith::AddUIExtendedOp>(resultVec[2 * i + 1], carry);
+    resultVec[2 * i + 1] = addResult.getSum();
+    carry = b.create<arith::ExtUIOp>(limbType, addResult.getOverflow());
+  }
+
+  // Reconstruct `lo` and `hi` values by composing individual limbs
+  Value zero = b.create<arith::ConstantOp>(IntegerAttr::get(intType, 0));
+  Value resultLow = zero;
+  Value resultHigh = zero;
+  for (unsigned i = 0; i < 2 * numLimbs; ++i) {
+    Value rAtI = b.create<arith::ExtUIOp>(intType, resultVec[i]);
+    if (i < numLimbs) {
+      auto shifted = b.create<arith::ShLIOp>(
+          rAtI, b.create<arith::ConstantOp>(
+                    IntegerAttr::get(intType, i * limbWidth)));
+      resultLow = b.create<arith::OrIOp>(resultLow, shifted);
+    } else {
+      auto shifted = b.create<arith::ShLIOp>(
+          rAtI, b.create<arith::ConstantOp>(
+                    IntegerAttr::get(intType, (i - numLimbs) * limbWidth)));
+      resultHigh = b.create<arith::OrIOp>(resultHigh, shifted);
+    }
+  }
+  return MulExtendedResult{resultLow, resultHigh};
+}
+
+}  // namespace
+
+struct ConvertSquare : public OpConversionPattern<SquareOp> {
+  explicit ConvertSquare(mlir::MLIRContext *context)
+      : OpConversionPattern<SquareOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      SquareOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    ModArithType resultType = getResultModArithType(op);
+    if (resultType.isMontgomery()) {
+      auto result =
+          b.create<mod_arith::MontSquareOp>(resultType, op.getInput());
+      rewriter.replaceOp(op, result);
+      return success();
+    }
+
+    Type mulResultType = modulusType(op, /*mul=*/true);
+    MulExtendedResult result = squareExtended(b, op, adaptor.getInput());
+    Value lowExt = b.create<arith::ExtUIOp>(mulResultType, result.lo);
+    Value highExt = b.create<arith::ExtUIOp>(mulResultType, result.hi);
+    Value shift = b.create<arith::ConstantOp>(IntegerAttr::get(
+        mulResultType, resultType.getModulus().getValue().getBitWidth()));
+    highExt = b.create<arith::ShLIOp>(highExt, shift);
+    Value squared = b.create<arith::OrIOp>(lowExt, highExt);
+
+    Value cmod = b.create<arith::ConstantOp>(modulusAttr(op, /*mul=*/true));
+    Value remu = b.create<arith::RemUIOp>(squared, cmod);
+    Value trunc =
+        b.create<arith::TruncIOp>(modulusType(op, /*mul=*/false), remu);
+    rewriter.replaceOp(op, trunc);
+    return success();
+  };
+};
+
+struct ConvertMontSquare : public OpConversionPattern<MontSquareOp> {
+  explicit ConvertMontSquare(MLIRContext *context)
+      : OpConversionPattern<MontSquareOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      MontSquareOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    ModArithType resultType = getResultModArithType(op);
+    if (!resultType.isMontgomery()) {
+      return op->emitError(
+          "MontSquareOp with non-Montgomery type is not supported in "
+          "ModArithToArith conversion");
+    }
+    auto result = squareExtended(b, op, adaptor.getInput());
+    auto reduced = b.create<mod_arith::MontReduceOp>(getResultModArithType(op),
+                                                     result.lo, result.hi);
+
+    rewriter.replaceOp(op, reduced);
+    return success();
+  }
+};
+
 // TODO(ashjeong): Account for Montgomery domain inputs. Currently only accounts
 // for base domain inputs.
 struct ConvertCmp : public OpConversionPattern<CmpOp> {
@@ -680,6 +900,7 @@ void ModArithToArith::runOnOperation() {
       ConvertAdd,
       ConvertCmp,
       ConvertConstant,
+      ConvertDouble,
       ConvertEncapsulate,
       ConvertExtract,
       ConvertFromMont,
@@ -688,8 +909,10 @@ void ModArithToArith::runOnOperation() {
       ConvertMontInverse,
       ConvertMontMul,
       ConvertMontReduce,
+      ConvertMontSquare,
       ConvertMul,
       ConvertNegate,
+      ConvertSquare,
       ConvertSub,
       ConvertToMont,
       ConvertAny<affine::AffineApplyOp>,

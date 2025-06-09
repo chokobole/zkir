@@ -279,11 +279,8 @@ struct ConvertInverse : public OpConversionPattern<InverseOp> {
           extFieldType.getBeta().getValue());
 
       // denominator = a₀² - a₁²β
-      // TODO(batzor): Use square op instead of mul
-      auto lowSquared = b.create<mod_arith::MulOp>(adaptor.getInput()[0],
-                                                   adaptor.getInput()[0]);
-      auto highSquared = b.create<mod_arith::MulOp>(adaptor.getInput()[1],
-                                                    adaptor.getInput()[1]);
+      auto lowSquared = b.create<mod_arith::SquareOp>(adaptor.getInput()[0]);
+      auto highSquared = b.create<mod_arith::SquareOp>(adaptor.getInput()[1]);
       auto betaTimesHighSquared = b.create<mod_arith::MulOp>(beta, highSquared);
       auto denominator =
           b.create<mod_arith::SubOp>(lowSquared, betaTimesHighSquared);
@@ -374,19 +371,15 @@ struct ConvertDouble : public OpConversionPattern<DoubleOp> {
 
     Type fieldType = getElementTypeOrSelf(op.getOutput());
     if (isa<PrimeFieldType>(fieldType)) {
-      auto doubled = b.create<mod_arith::AddOp>(adaptor.getInput()[0],
-                                                adaptor.getInput()[0]);
+      auto doubled = b.create<mod_arith::DoubleOp>(adaptor.getInput()[0]);
       rewriter.replaceOp(op, doubled);
       return success();
     }
     if (isa<QuadraticExtFieldType>(fieldType)) {
       // c₀ = a₀ + a₀
       // c₁ = a₁ + a₁
-      // TODO(batzor): Use double op instead of add
-      auto c0 = b.create<mod_arith::AddOp>(adaptor.getInput()[0],
-                                           adaptor.getInput()[0]);
-      auto c1 = b.create<mod_arith::AddOp>(adaptor.getInput()[1],
-                                           adaptor.getInput()[1]);
+      auto c0 = b.create<mod_arith::DoubleOp>(adaptor.getInput()[0]);
+      auto c1 = b.create<mod_arith::DoubleOp>(adaptor.getInput()[1]);
       rewriter.replaceOpWithMultiple(op, {{c0, c1}});
       return success();
     }
@@ -489,9 +482,7 @@ struct ConvertSquare : public OpConversionPattern<SquareOp> {
 
     Type fieldType = getElementTypeOrSelf(op.getOutput());
     if (isa<PrimeFieldType>(fieldType)) {
-      auto square = b.create<mod_arith::MulOp>(adaptor.getInput()[0],
-                                               adaptor.getInput()[0]);
-
+      auto square = b.create<mod_arith::SquareOp>(adaptor.getInput()[0]);
       rewriter.replaceOp(op, square);
       return success();
     }
@@ -519,8 +510,7 @@ struct ConvertSquare : public OpConversionPattern<SquareOp> {
       v0 = b.create<mod_arith::AddOp>(v0TimesV1, v2);
 
       // c₁ = v₂ + v₂
-      // TODO(batzor): Use double op instead of add
-      auto c1 = b.create<mod_arith::AddOp>(v2, v2);
+      auto c1 = b.create<mod_arith::DoubleOp>(v2);
       // c₀ = v₀ + βv₂
       auto betaV2 = b.create<mod_arith::MulOp>(beta, v2);
       auto c0 = b.create<mod_arith::AddOp>(v0, betaV2);
