@@ -279,11 +279,8 @@ struct ConvertInverse : public OpConversionPattern<InverseOp> {
           extFieldType.getBeta().getValue());
 
       // denominator = a₀² - a₁²β
-      // TODO(batzor): Use square op instead of mul
-      auto lowSquared = b.create<mod_arith::MulOp>(adaptor.getInput()[0],
-                                                   adaptor.getInput()[0]);
-      auto highSquared = b.create<mod_arith::MulOp>(adaptor.getInput()[1],
-                                                    adaptor.getInput()[1]);
+      auto lowSquared = b.create<mod_arith::SquareOp>(adaptor.getInput()[0]);
+      auto highSquared = b.create<mod_arith::SquareOp>(adaptor.getInput()[1]);
       auto betaTimesHighSquared = b.create<mod_arith::MulOp>(beta, highSquared);
       auto denominator =
           b.create<mod_arith::SubOp>(lowSquared, betaTimesHighSquared);
@@ -485,9 +482,7 @@ struct ConvertSquare : public OpConversionPattern<SquareOp> {
 
     Type fieldType = getElementTypeOrSelf(op.getOutput());
     if (isa<PrimeFieldType>(fieldType)) {
-      auto square = b.create<mod_arith::MulOp>(adaptor.getInput()[0],
-                                               adaptor.getInput()[0]);
-
+      auto square = b.create<mod_arith::SquareOp>(adaptor.getInput()[0]);
       rewriter.replaceOp(op, square);
       return success();
     }

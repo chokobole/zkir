@@ -155,6 +155,14 @@ LogicalResult MulOp::verify() {
   return verifyModArithType(*this, getResultModArithType(*this));
 }
 
+LogicalResult SquareOp::verify() {
+  return verifyModArithType(*this, getResultModArithType(*this));
+}
+
+LogicalResult MontSquareOp::verify() {
+  return verifyModArithType(*this, getResultModArithType(*this));
+}
+
 LogicalResult MacOp::verify() {
   return verifyModArithType(*this, getResultModArithType(*this));
 }

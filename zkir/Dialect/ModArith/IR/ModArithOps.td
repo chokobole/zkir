@@ -241,6 +241,32 @@ def ModArith_NegateOp : ModArith_UnaryOp<"negate", [Involution]> {
   let assemblyFormat = "operands attr-dict `:` type($output)";
 }
 
+def ModArith_SquareOp : ModArith_UnaryOp<"square"> {
+  let summary = "Modular squaring operation";
+  let description = [{
+    Computes the square of a modular type integer.
+
+    Example:
+    ```
+    %c0 = mod_arith.square %0 : !mod_arith.int<7:i4>
+    ```
+  }];
+  let hasVerifier = 1;
+}
+
+def ModArith_MontSquareOp : ModArith_UnaryOp<"mont_square"> {
+  let summary = "Montgomery squaring operation";
+  let description = [{
+    Computes the Montgomery squaring of a modular type integer.
+
+    Example:
+    ```
+    %m0 = mod_arith.mont_square %a : mod_arith.int<65537 : i256>
+    ```
+  }];
+  let hasVerifier = 1;
+}
+
 def ModArith_InverseOp : ModArith_UnaryOp<"inverse"> {
   let summary = "Modular inverse operation";
   let description = [{
