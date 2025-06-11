@@ -333,11 +333,6 @@ struct ConvertInverse : public OpConversionPattern<InverseOp> {
   LogicalResult matchAndRewrite(
       InverseOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    // TODO(batzor): Support tensor input.
-    if (isa<ShapedType>(op.getInput().getType())) {
-      return op->emitError("tensor input not supported");
-    }
-
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     ModArithType resultType = getResultModArithType(op);
@@ -348,6 +343,12 @@ struct ConvertInverse : public OpConversionPattern<InverseOp> {
     }
 
     BYInverter inverter(b, op.getInput().getType());
+    if (auto shapedType = dyn_cast<ShapedType>(op.getInput().getType())) {
+      Value result =
+          inverter.BatchGenerate(adaptor.getInput(), false, shapedType);
+      rewriter.replaceOp(op, result);
+      return success();
+    }
     Value result = inverter.Generate(adaptor.getInput(), false);
     rewriter.replaceOp(op, result);
     return success();
@@ -363,11 +364,6 @@ struct ConvertMontInverse : public OpConversionPattern<MontInverseOp> {
   LogicalResult matchAndRewrite(
       MontInverseOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    // TODO(batzor): Support tensor input.
-    if (isa<ShapedType>(op.getInput().getType())) {
-      return op->emitError("tensor input not supported");
-    }
-
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     ModArithType resultType = getResultModArithType(op);
@@ -377,7 +373,13 @@ struct ConvertMontInverse : public OpConversionPattern<MontInverseOp> {
           "ModArithToArith conversion");
     }
 
-    BYInverter inverter(b, resultType);
+    BYInverter inverter(b, op.getInput().getType());
+    if (auto shapedType = dyn_cast<ShapedType>(op.getInput().getType())) {
+      Value result =
+          inverter.BatchGenerate(adaptor.getInput(), true, shapedType);
+      rewriter.replaceOp(op, result);
+      return success();
+    }
     Value result = inverter.Generate(adaptor.getInput(), true);
     rewriter.replaceOp(op, result);
     return success();

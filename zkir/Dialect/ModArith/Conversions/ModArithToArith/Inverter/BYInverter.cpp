@@ -3,9 +3,11 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/ImplicitLocOpBuilder.h"
 #include "mlir/IR/TypeUtilities.h"
 #include "zkir/Dialect/ModArith/IR/ModArithAttributes.h"
+#include "zkir/Dialect/ModArith/IR/ModArithOps.h"
 
 // This implements the Bernstein-Yang modular inverse algorithm, which is a
 // variant of the binary GCD algorithm optimized for constant-time
@@ -16,7 +18,8 @@
 namespace mlir::zkir::mod_arith {
 
 BYInverter::BYInverter(ImplicitLocOpBuilder &b, Type inputType)
-    : b_(b), modArithType_(cast<ModArithType>(inputType)) {
+    : b_(b),
+      modArithType_(cast<ModArithType>(getElementTypeOrSelf(inputType))) {
   IntegerAttr modulus = modArithType_.getModulus();
   BYAttr byAttr = BYAttr::get(b.getContext(), modArithType_);
   unsigned extModBitWidth = byAttr.getNewBitWidth().getValue().getZExtValue();
@@ -287,6 +290,120 @@ Value BYInverter::Generate(Value input, bool isMont) {
   Value result = b_.create<arith::SelectOp>(invertible, d, extIntTypeZero_);
   result = b_.create<arith::TruncIOp>(intType_, result);
   return result;
+}
+
+Value BYInverter::BatchGenerate(Value input, bool isMont,
+                                ShapedType shapedType) {
+  Value oneIndex = b_.create<arith::ConstantIndexOp>(1);
+  Value zeroIndex = b_.create<arith::ConstantIndexOp>(0);
+  Value sizeIndex =
+      b_.create<arith::ConstantIndexOp>(shapedType.getNumElements());
+
+  Value one =
+      b_.create<ConstantOp>(modArithType_, IntegerAttr::get(intType_, 1));
+  if (isMont) {
+    one = b_.create<ToMontOp>(modArithType_, one);
+  }
+  Value zero =
+      b_.create<ConstantOp>(modArithType_, IntegerAttr::get(intType_, 0));
+  Value productions =
+      b_.create<tensor::EmptyOp>(shapedType.getShape(), modArithType_);
+  productions = b_.create<tensor::InsertOp>(one, productions, zeroIndex);
+  Value product = one;
+
+  // calculate [a₁, a₁*a₂, ..., a₁*a₂*...*aₙ]
+  // TODO(quanxi1): try parallelizing the reduction
+  auto forOp = b_.create<scf::ForOp>(
+      /*lb=*/zeroIndex,
+      /*ub=*/sizeIndex,
+      /*step=*/oneIndex,
+      /*iterArgs=*/ValueRange{productions, product},
+      [&](OpBuilder &builder, Location loc, Value iv, ValueRange iterArgs) {
+        ImplicitLocOpBuilder b(loc, builder);
+        Value element = b.create<tensor::ExtractOp>(modArithType_, input, iv);
+        Value productions = iterArgs[0];
+        Value product = iterArgs[1];
+
+        Value isNotZero =
+            b.create<CmpOp>(arith::CmpIPredicate::ne, element, zero);
+        auto ifOp = b.create<scf::IfOp>(
+            isNotZero,
+            [&](OpBuilder &builder, Location loc) {
+              ImplicitLocOpBuilder b(loc, builder);
+              Value newProduct = b.create<MulOp>(product, element);
+              b.create<scf::YieldOp>(ValueRange{
+                  b.create<tensor::InsertOp>(newProduct, productions, iv),
+                  newProduct});
+            },
+            [&](OpBuilder &builder, Location loc) {
+              ImplicitLocOpBuilder b(loc, builder);
+              b.create<scf::YieldOp>(ValueRange{productions, product});
+            });
+        b.create<scf::YieldOp>(ifOp.getResults());
+      });
+
+  // [a₁, a₁*a₂, ..., a₁*a₂*...*aₙ]
+  productions = forOp.getResult(0);
+  // a₁*a₂*...*aₙ
+  product = forOp.getResult(1);
+
+  // (a₁*a₂* ... *aᵢ)⁻¹
+  Value invertedProduct =
+      Generate(b_.create<ExtractOp>(intType_, product), isMont);
+  invertedProduct = b_.create<EncapsulateOp>(modArithType_, invertedProduct);
+
+  // calculate [a₁⁻¹, a₂⁻¹, ..., aₙ⁻¹]
+  // TODO(quanxi1): Currently this is lowered to allocating a new buffer. Change
+  // this to in-place operation reusing the input buffer
+  Value result =
+      b_.create<tensor::EmptyOp>(shapedType.getShape(), modArithType_);
+  auto forOp2 = b_.create<scf::ForOp>(
+      /*lb=*/zeroIndex,
+      /*ub=*/b_.create<arith::SubIOp>(sizeIndex, oneIndex),
+      /*step=*/oneIndex,
+      /*iterArgs=*/ValueRange{result, invertedProduct},
+      [&](OpBuilder &builder, Location loc, Value iv, ValueRange iterArgs) {
+        ImplicitLocOpBuilder b(loc, builder);
+        Value currIndex = b.create<arith::SubIOp>(
+            sizeIndex, b.create<arith::AddIOp>(iv, oneIndex));
+        // (a₁*a₂*...*aᵢ)⁻¹
+        Value result = iterArgs[0];
+        Value invertedProduct = iterArgs[1];
+        Value element =
+            b.create<tensor::ExtractOp>(modArithType_, input, currIndex);
+
+        Value isNotZero =
+            b.create<CmpOp>(arith::CmpIPredicate::ne, element, zero);
+        auto ifOp = b.create<scf::IfOp>(
+            isNotZero,
+            [&](OpBuilder &builder, Location loc) {
+              ImplicitLocOpBuilder b(loc, builder);
+              Value prevIndex = b.create<arith::SubIOp>(currIndex, oneIndex);
+              // a₁*a₂*...*aᵢ₋₁
+              Value prevProd = b.create<tensor::ExtractOp>(
+                  modArithType_, productions, prevIndex);
+              // aᵢ⁻¹
+              Value elementInv = b.create<MulOp>(prevProd, invertedProduct);
+              Value newResult =
+                  b.create<tensor::InsertOp>(elementInv, result, currIndex);
+              // newInvertedProduct := invertedProduct * aᵢ = (a₁*a₂*...*aᵢ₋₁)⁻¹
+              Value newInvertedProduct =
+                  b.create<MulOp>(invertedProduct, element);
+              b.create<scf::YieldOp>(ValueRange{newResult, newInvertedProduct});
+            },
+            [&](OpBuilder &builder, Location loc) {
+              ImplicitLocOpBuilder b(loc, builder);
+              b.create<scf::YieldOp>(ValueRange{result, invertedProduct});
+            });
+
+        b.create<scf::YieldOp>(ifOp.getResults());
+      });
+
+  // [0, a₂⁻¹, ..., aₙ⁻¹]
+  result = forOp2.getResult(0);
+  // a₁⁻¹
+  invertedProduct = forOp2.getResult(1);
+  return b_.create<tensor::InsertOp>(invertedProduct, result, zeroIndex);
 }
 
 }  // namespace mlir::zkir::mod_arith
