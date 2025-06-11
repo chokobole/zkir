@@ -79,6 +79,14 @@ func.func @test_lower_inverse(%lhs : !Zp) -> !Zp {
   return %res : !Zp
 }
 
+// CHECK-LABEL: @test_lower_inverse_tensor
+// CHECK-SAME: (%[[INPUT:.*]]: [[T:.*]]) -> [[T]] {
+func.func @test_lower_inverse_tensor(%input : !Zpv) -> !Zpv {
+  // CHECK-NOT: mod_arith.inverse
+  %res = mod_arith.inverse %input : !Zpv
+  return %res : !Zpv
+}
+
 // CHECK-LABEL: @test_lower_add
 // CHECK-SAME: (%[[LHS:.*]]: [[T:.*]], %[[RHS:.*]]: [[T]]) -> [[T]] {
 func.func @test_lower_add(%lhs : !Zp, %rhs : !Zp) -> !Zp {
