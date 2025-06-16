@@ -18,33 +18,59 @@
 // RUN:      --shared-libs="%mlir_lib_dir/libmlir_runner_utils%shlibext" > %t
 // RUN: FileCheck %s --check-prefix=CHECK_TEST_MONT_SQUARE < %t
 
-!Fr = !mod_arith.int<2147483647:i32>
 
 func.func private @printMemrefI32(memref<*xi32>) attributes { llvm.emit_c_interface }
-
-func.func @test_lower_inverse() {
-  %p = mod_arith.constant 3723 : !Fr
-  %1 = mod_arith.inverse %p : !Fr
-  %2 = mod_arith.extract %1 : !Fr -> i32
-  %3 = tensor.from_elements %2 : tensor<1xi32>
-
-  %4 = bufferization.to_memref %3 : tensor<1xi32> to memref<1xi32>
-  %U = memref.cast %4 : memref<1xi32> to memref<*xi32>
-  func.call @printMemrefI32(%U) : (memref<*xi32>) -> ()
-  return
-}
-
-// CHECK_TEST_INVERSE: [1324944920]
 
 !Fq = !mod_arith.int<21888242871839275222246405745257275088548364400416034343698204186575808495617 : i256>
 !Fqm = !mod_arith.int<21888242871839275222246405745257275088548364400416034343698204186575808495617 : i256, true>
 #Fq_mont = #mod_arith.montgomery<!Fq>
+!Fr = !mod_arith.int<2147483647:i32>
+!Frm = !mod_arith.int<2147483647:i32, true>
+
+func.func @test_lower_inverse() {
+  %p = mod_arith.constant 3723 : !Fq
+  %p_mont = mod_arith.to_mont %p : !Fqm
+  %p_inv = mod_arith.mont_inverse %p_mont : !Fqm
+  %mul = mod_arith.mul %p_inv, %p_mont : !Fqm
+  %from_mont = mod_arith.from_mont %mul : !Fq
+  %2 = mod_arith.extract %from_mont : !Fq -> i256
+  %3 = arith.trunci %2 : i256 to i32
+  %4 = tensor.from_elements %3 : tensor<1xi32>
+  %5 = bufferization.to_memref %4 : tensor<1xi32> to memref<1xi32>
+  %U = memref.cast %5 : memref<1xi32> to memref<*xi32>
+  func.call @printMemrefI32(%U) : (memref<*xi32>) -> ()
+
+  %inv = mod_arith.inverse %p : !Fq
+  %mul2 = mod_arith.mul %inv, %p : !Fq
+  %6 = mod_arith.extract %mul2 : !Fq -> i256
+  %7 = arith.trunci %6 : i256 to i32
+  %8 = tensor.from_elements %7 : tensor<1xi32>
+  %9 = bufferization.to_memref %8 : tensor<1xi32> to memref<1xi32>
+  %10 = memref.cast %9 : memref<1xi32> to memref<*xi32>
+  func.call @printMemrefI32(%10) : (memref<*xi32>) -> ()
+
+  %p_r = mod_arith.constant 3724 : !Fr
+  %p_r_mont = mod_arith.to_mont %p_r : !Frm
+  %p_r_inv = mod_arith.mont_inverse %p_r_mont : !Frm
+  %mul_r = mod_arith.mul %p_r_inv, %p_r_mont : !Frm
+  %from_mont_r = mod_arith.from_mont %mul_r : !Fr
+  %r_ext = mod_arith.extract %from_mont_r : !Fr -> i32
+  %r_tensor = tensor.from_elements %r_ext : tensor<1xi32>
+  %r_mem = bufferization.to_memref %r_tensor : tensor<1xi32> to memref<1xi32>
+  %r_mem_cast = memref.cast %r_mem : memref<1xi32> to memref<*xi32>
+  func.call @printMemrefI32(%r_mem_cast) : (memref<*xi32>) -> ()
+  return
+}
+
+// CHECK_TEST_INVERSE: [1]
+// CHECK_TEST_INVERSE: [1]
+// CHECK_TEST_INVERSE: [1]
 
 func.func @test_lower_mont_reduce() {
   %p = arith.constant 2188824287183927522224640574525727508854836440041603434369820418657580849561 : i256
   %zero = arith.constant 0 : i256
   // `pR` is `p` << 256 so just give `p` as `high` and set `low` to 0
-  %p_mont = mod_arith.mont_reduce %zero, %p {montgomery=#Fq_mont} : i256 -> !Fq
+  %p_mont = mod_arith.mont_reduce %zero, %p : i256 -> !Fq
 
   %2 = mod_arith.extract %p_mont : !Fq -> i256
   // check if mod_arith.mont_reduce(pR) == p

@@ -15,6 +15,7 @@ def ModArithToArith : Pass<"mod-arith-to-arith", "ModuleOp"> {
     "mlir::arith::ArithDialect",
     "mlir::zkir::mod_arith::ModArithDialect",
     "mlir::scf::SCFDialect",
+    "mlir::math::MathDialect",
   ];
 }
 
