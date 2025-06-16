@@ -525,16 +525,23 @@ struct ConvertScalarMul : public OpConversionPattern<ScalarMulOp> {
         scalarFieldType.getModulus().getValue().getBitWidth();
     auto scalarIntType =
         IntegerType::get(b.getContext(), scalarBitWidth, IntegerType::Signless);
-    auto scalarReduced = b.create<field::FromMontOp>(
-        field::getStandardFormType(scalarFieldType), scalarPF);
+    Value scalarReduced =
+        scalarFieldType.isMontgomery()
+            ? b.create<field::FromMontOp>(
+                  field::getStandardFormType(scalarFieldType), scalarPF)
+            : scalarPF;
     auto scalarInt = b.create<field::ExtractOp>(scalarIntType, scalarReduced);
 
     Type baseFieldType =
         getCurveFromPointLike(op.getPoint().getType()).getBaseField();
     auto zeroBF = b.create<field::ConstantOp>(baseFieldType, 0);
-    Value oneBF = b.create<field::ToMontOp>(
-        baseFieldType, b.create<field::ConstantOp>(
-                           field::getStandardFormType(baseFieldType), 1));
+    Value oneBF = field::isMontgomery(baseFieldType)
+                      ? b.create<field::ToMontOp>(
+                             baseFieldType,
+                             b.create<field::ConstantOp>(
+                                 field::getStandardFormType(baseFieldType), 1))
+                            .getResult()
+                      : b.create<field::ConstantOp>(baseFieldType, 1);
 
     Value zeroPoint =
         isa<XYZZType>(outputType)
