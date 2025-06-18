@@ -31,32 +31,32 @@
 #include "zkir/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "zkir/Utils/APIntUtils.h"
 #include "zkir/Utils/ConversionUtils.h"
+#include "zkir/Utils/ShapedTypeConverter.h"
 
 namespace mlir::zkir::mod_arith {
 
 #define GEN_PASS_DEF_MODARITHTOARITH
 #include "zkir/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.h.inc"
 
-static IntegerType convertModArithType(ModArithType type) {
-  APInt modulus = type.getModulus().getValue();
-  return IntegerType::get(type.getContext(), modulus.getBitWidth());
-}
-
-static Type convertModArithLikeType(ShapedType type) {
-  if (auto modArithType = dyn_cast<ModArithType>(type.getElementType())) {
-    return type.cloneWith(type.getShape(), convertModArithType(modArithType));
-  }
-  return type;
-}
-
-class ModArithToArithTypeConverter : public TypeConverter {
+class ModArithToArithTypeConverter : public ShapedTypeConverter {
  public:
   explicit ModArithToArithTypeConverter(MLIRContext *ctx) {
     addConversion([](Type type) { return type; });
     addConversion(
         [](ModArithType type) -> Type { return convertModArithType(type); });
-    addConversion(
-        [](ShapedType type) -> Type { return convertModArithLikeType(type); });
+    addConversion([](ShapedType type) -> Type {
+      if (auto modArithType = dyn_cast<ModArithType>(type.getElementType())) {
+        return convertShapedType(type, type.getShape(),
+                                 convertModArithType(modArithType));
+      }
+      return type;
+    });
+  }
+
+ private:
+  static IntegerType convertModArithType(ModArithType type) {
+    APInt modulus = type.getModulus().getValue();
+    return IntegerType::get(type.getContext(), modulus.getBitWidth());
   }
 };
 
@@ -294,8 +294,8 @@ struct ConvertToMont : public OpConversionPattern<ToMontOp> {
     MontgomeryAttr montAttr = MontgomeryAttr::get(op.getContext(), resultType);
     TypedAttr rSquaredAttr = montAttr.getRSquared();
     if (auto shapedType = dyn_cast<ShapedType>(op.getOutput().getType())) {
-      auto intShapedType =
-          shapedType.cloneWith(std::nullopt, convertModArithType(resultType));
+      auto intShapedType = shapedType.cloneWith(
+          std::nullopt, typeConverter->convertType(resultType));
       rSquaredAttr = SplatElementsAttr::get(intShapedType, rSquaredAttr);
     }
     // x * R = REDC(x * rSquared)
@@ -321,10 +321,11 @@ struct ConvertFromMont : public OpConversionPattern<FromMontOp> {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     ModArithType resultType = getResultModArithType(op);
-    TypedAttr zeroAttr = b.getIntegerAttr(convertModArithType(resultType), 0);
+    TypedAttr zeroAttr =
+        b.getIntegerAttr(typeConverter->convertType(resultType), 0);
     if (auto shapedType = dyn_cast<ShapedType>(op.getOutput().getType())) {
-      auto intShapedType =
-          shapedType.cloneWith(std::nullopt, convertModArithType(resultType));
+      auto intShapedType = shapedType.cloneWith(
+          std::nullopt, typeConverter->convertType(resultType));
       zeroAttr = SplatElementsAttr::get(intShapedType, zeroAttr);
     }
 

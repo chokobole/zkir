@@ -23,6 +23,7 @@
 #include "zkir/Dialect/Field/IR/FieldOps.h"
 #include "zkir/Dialect/Field/IR/FieldTypes.h"
 #include "zkir/Utils/ConversionUtils.h"
+#include "zkir/Utils/ShapedTypeConverter.h"
 
 namespace mlir::zkir::elliptic_curve {
 
@@ -31,53 +32,7 @@ namespace mlir::zkir::elliptic_curve {
 
 //////////////// TYPE CONVERSION ////////////////
 
-template <typename T>
-static LogicalResult convertPointType(T type,
-                                      SmallVectorImpl<Type> &converted) {
-  Type baseFieldType = type.getCurve().getBaseField();
-  size_t numCoords = 0;
-  if constexpr (std::is_same_v<T, AffineType>) {
-    numCoords = 2;
-  } else if constexpr (std::is_same_v<T, JacobianType>) {
-    numCoords = 3;
-  } else if constexpr (std::is_same_v<T, XYZZType>) {
-    numCoords = 4;
-  } else {
-    return failure();
-  }
-  for (size_t i = 0; i < numCoords; ++i) {
-    converted.push_back(baseFieldType);
-  }
-  return success();
-}
-
-template <typename T>
-static T convertPointLikeType(T type) {
-  Type elementType = type.getElementType();
-  Type baseFieldType;
-  size_t numCoords = 0;
-  if (auto pointType = dyn_cast<AffineType>(elementType)) {
-    baseFieldType = pointType.getCurve().getBaseField();
-    numCoords = 2;
-  } else if (auto pointType = dyn_cast<JacobianType>(elementType)) {
-    baseFieldType = pointType.getCurve().getBaseField();
-    numCoords = 3;
-  } else if (auto pointType = dyn_cast<XYZZType>(elementType)) {
-    baseFieldType = pointType.getCurve().getBaseField();
-    numCoords = 4;
-  } else {
-    return type;
-  }
-  SmallVector<int64_t> newShape(type.getShape());
-  newShape.push_back(numCoords);
-  if constexpr (std::is_same_v<T, MemRefType>) {
-    return MemRefType::get(newShape, baseFieldType);
-  } else {
-    return type.cloneWith(newShape, baseFieldType);
-  }
-}
-
-class EllipticCurveToFieldTypeConverter : public TypeConverter {
+class EllipticCurveToFieldTypeConverter : public ShapedTypeConverter {
  public:
   explicit EllipticCurveToFieldTypeConverter(MLIRContext *ctx) {
     addConversion([](Type type) { return type; });
@@ -93,10 +48,47 @@ class EllipticCurveToFieldTypeConverter : public TypeConverter {
         [](XYZZType type, SmallVectorImpl<Type> &converted) -> LogicalResult {
           return convertPointType(type, converted);
         });
-    addConversion(
-        [](ShapedType type) -> Type { return convertPointLikeType(type); });
-    addConversion(
-        [](MemRefType type) -> Type { return convertPointLikeType(type); });
+    addConversion([](ShapedType type) -> Type {
+      Type elementType = type.getElementType();
+      Type baseFieldType;
+      size_t numCoords = 0;
+      if (auto pointType = dyn_cast<AffineType>(elementType)) {
+        baseFieldType = pointType.getCurve().getBaseField();
+        numCoords = 2;
+      } else if (auto pointType = dyn_cast<JacobianType>(elementType)) {
+        baseFieldType = pointType.getCurve().getBaseField();
+        numCoords = 3;
+      } else if (auto pointType = dyn_cast<XYZZType>(elementType)) {
+        baseFieldType = pointType.getCurve().getBaseField();
+        numCoords = 4;
+      } else {
+        return type;
+      }
+      SmallVector<int64_t> newShape(type.getShape());
+      newShape.push_back(numCoords);
+      return convertShapedType(type, newShape, baseFieldType);
+    });
+  }
+
+ private:
+  template <typename T>
+  static LogicalResult convertPointType(T type,
+                                        SmallVectorImpl<Type> &converted) {
+    Type baseFieldType = type.getCurve().getBaseField();
+    size_t numCoords = 0;
+    if constexpr (std::is_same_v<T, AffineType>) {
+      numCoords = 2;
+    } else if constexpr (std::is_same_v<T, JacobianType>) {
+      numCoords = 3;
+    } else if constexpr (std::is_same_v<T, XYZZType>) {
+      numCoords = 4;
+    } else {
+      return failure();
+    }
+    for (size_t i = 0; i < numCoords; ++i) {
+      converted.push_back(baseFieldType);
+    }
+    return success();
   }
 };
 

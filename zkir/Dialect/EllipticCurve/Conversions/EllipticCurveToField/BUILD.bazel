@@ -21,6 +21,7 @@ cc_library(
         "//zkir/Dialect/EllipticCurve/IR:EllipticCurve",
         "//zkir/Dialect/Field/IR:Field",
         "//zkir/Utils:ConversionUtils",
+        "//zkir/Utils:ShapedTypeConverter",
         "@llvm-project//mlir:BufferizationDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:LinalgDialect",

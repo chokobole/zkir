@@ -17,6 +17,7 @@ cc_library(
         "//zkir/Dialect/ModArith/IR:ModArith",
         "//zkir/Dialect/TensorExt/IR:TensorExt",
         "//zkir/Utils:ConversionUtils",
+        "//zkir/Utils:ShapedTypeConverter",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:BufferizationDialect",
