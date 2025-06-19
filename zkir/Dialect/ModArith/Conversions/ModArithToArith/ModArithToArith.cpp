@@ -27,6 +27,7 @@
 #include "zkir/Dialect/ModArith/IR/ModArithDialect.h"
 #include "zkir/Dialect/ModArith/IR/ModArithOps.h"
 #include "zkir/Dialect/ModArith/IR/ModArithTypes.h"
+#include "zkir/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "zkir/Utils/APIntUtils.h"
 #include "zkir/Utils/ConversionUtils.h"
 
@@ -861,7 +862,8 @@ void ModArithToArith::runOnOperation() {
       ConvertAny<tensor::FromElementsOp>,
       ConvertAny<tensor::InsertOp>,
       ConvertAny<tensor::InsertSliceOp>,
-      ConvertAny<tensor::ReshapeOp>
+      ConvertAny<tensor::ReshapeOp>,
+      ConvertAny<tensor_ext::BitReverseOp>
       // clang-format on
       >(typeConverter, context);
 
@@ -893,7 +895,8 @@ void ModArithToArith::runOnOperation() {
       tensor::FromElementsOp,
       tensor::InsertOp,
       tensor::InsertSliceOp,
-      tensor::ReshapeOp
+      tensor::ReshapeOp,
+      tensor_ext::BitReverseOp
       // clang-format on
       >([&](auto op) { return typeConverter.isLegal(op); });
 
