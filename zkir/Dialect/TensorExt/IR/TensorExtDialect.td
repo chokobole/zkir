@@ -13,6 +13,7 @@ def TensorExt_Dialect : Dialect {
     "tensor::TensorDialect",
   ];
   let useDefaultAttributePrinterParser = 1;
+  let hasConstantMaterializer = 1;
 }
 
 #endif  // ZKIR_DIALECT_TENSOREXT_IR_TENSOREXTDIALECT_TD_

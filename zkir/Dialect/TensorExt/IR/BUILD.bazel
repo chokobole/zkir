@@ -10,6 +10,7 @@ cc_library(
     srcs = [
         "TensorExtAttributes.cpp",
         "TensorExtDialect.cpp",
+        "TensorExtOps.cpp",
     ],
     hdrs = [
         "TensorExtAttributes.h",
@@ -21,6 +22,7 @@ cc_library(
         ":dialect_inc_gen",
         ":ops_inc_gen",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:DestinationStyleOpInterface",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",

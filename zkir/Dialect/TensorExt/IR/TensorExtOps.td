@@ -31,6 +31,7 @@ def TensorExt_BitReverseOp : TensorExt_Op<"bit_reverse", [Pure, Involution, Dest
   let extraClassDeclaration = [{
     MutableOperandRange getDpsInitsMutable() { return getInputMutable(); }
   }];
+  let hasFolder = 1;
 }
 
 #endif  // ZKIR_DIALECT_TENSOREXT_IR_TENSOREXTOPS_TD_
