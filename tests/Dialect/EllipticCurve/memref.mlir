@@ -10,6 +10,15 @@
 #curve = #elliptic_curve.sw<#1, #2, (#3, #4)>
 !affine = !elliptic_curve.affine<#curve>
 
+// CHECK-LABEL: @test_memref_alloc
+// CHECK-SAME: () -> [[T:.*]] {
+func.func @test_memref_alloc() -> memref<4x!affine> {
+  // CHECK: %[[ALLOC:.*]] = memref.alloc() : [[T]]
+  %alloc = memref.alloc() : memref<4x!affine>
+  // CHECK: return %[[ALLOC]] : [[T]]
+  return %alloc : memref<4x!affine>
+}
+
 // CHECK-LABEL: @test_memref_cast
 // CHECK-SAME: (%[[INPUT:.*]]: [[INPUT_TYPE:.*]]) -> [[T:.*]] {
 func.func @test_memref_cast(%input : memref<4x!affine>) -> memref<?x!affine> {
@@ -26,6 +35,27 @@ func.func @test_memref_unranked_cast(%input : memref<4x!affine>) -> memref<*x!af
   %cast = memref.cast %input : memref<4x!affine> to memref<*x!affine>
   // CHECK: return %[[CAST]] : [[T]]
   return %cast : memref<*x!affine>
+}
+
+// CHECK-LABEL: @test_memref_load
+// CHECK-SAME: (%[[INPUT:.*]]: [[INPUT_TYPE:.*]]) -> ([[T:.*]], [[T:.*]]) {
+func.func @test_memref_load(%input : memref<4x!affine>) -> !affine {
+  %c0 = arith.constant 0 : index
+  // CHECK: %[[LOAD0:.*]] = memref.load %[[INPUT]][%[[C0:.*]], %[[C0_0:.*]]] : [[INPUT_TYPE]]
+  // CHECK: %[[LOAD1:.*]] = memref.load %[[INPUT]][%[[C0:.*]], %[[C1:.*]]] : [[INPUT_TYPE]]
+  %load = memref.load %input[%c0] : memref<4x!affine>
+  // CHECK: return %[[LOAD0]], %[[LOAD1]] : [[T]], [[T]]
+  return %load : !affine
+}
+
+// CHECK-LABEL: @test_memref_store
+// CHECK-SAME: (%[[INPUT:.*]]: [[INPUT_TYPE:.*]], %[[ELEM0:.*]]: [[ELEM_TYPE:.*]], %[[ELEM1:.*]]: [[ELEM_TYPE:.*]]) {
+func.func @test_memref_store(%input : memref<4x!affine>, %point : !affine) {
+  %c0 = arith.constant 0 : index
+  // CHECK: memref.store %[[ELEM0]], %[[INPUT]][%[[C0:.*]], %[[C0_0:.*]]] : [[INPUT_TYPE]]
+  // CHECK: memref.store %[[ELEM1]], %[[INPUT]][%[[C0:.*]], %[[C1:.*]]] : [[INPUT_TYPE]]
+  memref.store %point, %input[%c0] : memref<4x!affine>
+  return
 }
 
 // CHECK-LABEL: @test_memref_subview
