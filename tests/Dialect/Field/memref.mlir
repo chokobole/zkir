@@ -37,6 +37,25 @@ func.func @test_memref_copy(%src : memref<4x!PF>, %dst : memref<4x!PF>) {
   return
 }
 
+// CHECK-LABEL: @test_memref_load
+// CHECK-SAME: (%[[INPUT:.*]]: [[INPUT_TYPE:.*]]) -> [[T:.*]] {
+func.func @test_memref_load(%input : memref<4x!PF>) -> !PF {
+  %c0 = arith.constant 0 : index
+  // CHECK: %[[LOAD:.*]] = memref.load %[[INPUT]][%[[C0:.*]]] : [[INPUT_TYPE]]
+  %load = memref.load %input[%c0] : memref<4x!PF>
+  // CHECK: return %[[LOAD]] : [[T]]
+  return %load : !PF
+}
+
+// CHECK-LABEL: @test_memref_store
+// CHECK-SAME: (%[[INPUT:.*]]: [[INPUT_TYPE:.*]], %[[ELEM_TYPE:.*]]: [[T:.*]]) {
+func.func @test_memref_store(%input : memref<4x!PF>, %value : !PF) {
+  %c0 = arith.constant 0 : index
+  // CHECK: memref.store %[[ELEM_TYPE]], %[[INPUT]][%[[C0:.*]]] : [[INPUT_TYPE]]
+  memref.store %value, %input[%c0] : memref<4x!PF>
+  return
+}
+
 // CHECK-LABEL: @test_memref_subview
 // CHECK-SAME: (%[[INPUT:.*]]: [[INPUT_TYPE:.*]]) -> [[T:.*]] {
 func.func @test_memref_subview(%input : memref<8x!PF>) -> memref<4x!PF, strided<[1], offset: 2>> {
