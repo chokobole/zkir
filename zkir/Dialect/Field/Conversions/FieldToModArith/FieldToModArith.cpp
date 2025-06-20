@@ -7,6 +7,7 @@
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/SparseTensor/IR/SparseTensor.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/Dialect/Tensor/Transforms/Transforms.h"
 #include "mlir/IR/BuiltinAttributeInterfaces.h"
@@ -29,56 +30,14 @@
 #include "zkir/Dialect/ModArith/IR/ModArithTypes.h"
 #include "zkir/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "zkir/Utils/ConversionUtils.h"
+#include "zkir/Utils/ShapedTypeConverter.h"
 
 namespace mlir::zkir::field {
 
 #define GEN_PASS_DEF_FIELDTOMODARITH
 #include "zkir/Dialect/Field/Conversions/FieldToModArith/FieldToModArith.h.inc"
 
-static mod_arith::ModArithType convertPrimeFieldType(PrimeFieldType type) {
-  IntegerAttr modulus = type.getModulus();
-  bool isMontgomery = type.isMontgomery();
-  return mod_arith::ModArithType::get(type.getContext(), modulus, isMontgomery);
-}
-
-template <typename T>
-static T convertPrimeFieldLike(T type) {
-  auto primeFieldType = cast<PrimeFieldType>(type.getElementType());
-  if constexpr (std::is_same_v<T, MemRefType>) {
-    return MemRefType::get(type.getShape(),
-                           convertPrimeFieldType(primeFieldType));
-  } else {
-    return type.cloneWith(type.getShape(),
-                          convertPrimeFieldType(primeFieldType));
-  }
-}
-
-static LogicalResult convertQuadraticExtFieldType(
-    QuadraticExtFieldType type, SmallVectorImpl<Type> &converted) {
-  mod_arith::ModArithType modArithType =
-      convertPrimeFieldType(type.getBaseField());
-  converted.push_back(modArithType);
-  converted.push_back(modArithType);
-  return success();
-}
-
-template <typename T>
-static T convertQuadraticExtFieldLike(T type) {
-  auto quadraticExtFieldType =
-      cast<QuadraticExtFieldType>(type.getElementType());
-  PrimeFieldType baseFieldType = quadraticExtFieldType.getBaseField();
-  mod_arith::ModArithType modArithType = convertPrimeFieldType(baseFieldType);
-
-  SmallVector<int64_t> newShape(type.getShape());
-  newShape.push_back(2);
-  if constexpr (std::is_same_v<T, MemRefType>) {
-    return MemRefType::get(newShape, modArithType);
-  } else {
-    return type.cloneWith(newShape, modArithType);
-  }
-}
-
-class FieldToModArithTypeConverter : public TypeConverter {
+class FieldToModArithTypeConverter : public ShapedTypeConverter {
  public:
   explicit FieldToModArithTypeConverter(MLIRContext *ctx) {
     addConversion([](Type type) { return type; });
@@ -90,23 +49,39 @@ class FieldToModArithTypeConverter : public TypeConverter {
       return convertQuadraticExtFieldType(type, converted);
     });
     addConversion([](ShapedType type) -> Type {
-      if (isa<PrimeFieldType>(type.getElementType())) {
-        return convertPrimeFieldLike(type);
+      if (auto primeFieldType =
+              dyn_cast<PrimeFieldType>(type.getElementType())) {
+        return convertShapedType(type, type.getShape(),
+                                 convertPrimeFieldType(primeFieldType));
       }
-      if (isa<QuadraticExtFieldType>(type.getElementType())) {
-        return convertQuadraticExtFieldLike(type);
+      if (auto quadraticExtFieldType =
+              dyn_cast<QuadraticExtFieldType>(type.getElementType())) {
+        PrimeFieldType baseFieldType = quadraticExtFieldType.getBaseField();
+        mod_arith::ModArithType modArithType =
+            convertPrimeFieldType(baseFieldType);
+        SmallVector<int64_t> newShape(type.getShape());
+        newShape.push_back(2);
+        return convertShapedType(type, newShape, modArithType);
       }
       return type;
     });
-    addConversion([](MemRefType type) -> Type {
-      if (isa<PrimeFieldType>(type.getElementType())) {
-        return convertPrimeFieldLike(type);
-      }
-      if (isa<QuadraticExtFieldType>(type.getElementType())) {
-        return convertQuadraticExtFieldLike(type);
-      }
-      return type;
-    });
+  }
+
+ private:
+  static mod_arith::ModArithType convertPrimeFieldType(PrimeFieldType type) {
+    IntegerAttr modulus = type.getModulus();
+    bool isMontgomery = type.isMontgomery();
+    return mod_arith::ModArithType::get(type.getContext(), modulus,
+                                        isMontgomery);
+  }
+
+  static LogicalResult convertQuadraticExtFieldType(
+      QuadraticExtFieldType type, SmallVectorImpl<Type> &converted) {
+    mod_arith::ModArithType modArithType =
+        convertPrimeFieldType(type.getBaseField());
+    converted.push_back(modArithType);
+    converted.push_back(modArithType);
+    return success();
   }
 };
 
@@ -123,10 +98,12 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
 
     mod_arith::ModArithType modType;
     if (auto pfType = dyn_cast<PrimeFieldType>(op.getOutput().getType())) {
-      modType = convertPrimeFieldType(pfType);
+      modType =
+          cast<mod_arith::ModArithType>(typeConverter->convertType(pfType));
     } else if (auto f2Type =
                    dyn_cast<QuadraticExtFieldType>(op.getOutput().getType())) {
-      modType = convertPrimeFieldType(f2Type.getBaseField());
+      modType = cast<mod_arith::ModArithType>(
+          typeConverter->convertType(f2Type.getBaseField()));
     } else {
       op.emitOpError("unsupported output type");
       return failure();
@@ -276,7 +253,7 @@ struct ConvertInverse : public OpConversionPattern<InverseOp> {
       // construct beta as a mod arith constant
       auto extFieldType = cast<QuadraticExtFieldType>(fieldType);
       auto beta = b.create<mod_arith::ConstantOp>(
-          convertPrimeFieldType(extFieldType.getBaseField()),
+          typeConverter->convertType(extFieldType.getBaseField()),
           extFieldType.getBeta().getValue());
 
       // denominator = a₀² - a₁²β
@@ -440,7 +417,7 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
       // construct beta as a mod arith constant
       auto extFieldType = cast<QuadraticExtFieldType>(fieldType);
       auto beta = b.create<mod_arith::ConstantOp>(
-          convertPrimeFieldType(extFieldType.getBaseField()),
+          typeConverter->convertType(extFieldType.getBaseField()),
           extFieldType.getBeta().getValue());
 
       // v₀ = a₀ * b₀
@@ -491,7 +468,7 @@ struct ConvertSquare : public OpConversionPattern<SquareOp> {
       // construct beta as a mod arith constant
       auto extFieldType = cast<QuadraticExtFieldType>(fieldType);
       auto beta = b.create<mod_arith::ConstantOp>(
-          convertPrimeFieldType(extFieldType.getBaseField()),
+          typeConverter->convertType(extFieldType.getBaseField()),
           extFieldType.getBeta().getValue());
 
       // v₀ = a₀ - a₁
@@ -626,8 +603,13 @@ void FieldToModArith::runOnOperation() {
       ConvertAny<linalg::MapOp>,
       ConvertAny<linalg::YieldOp>,
       ConvertAny<memref::AllocOp>,
+      ConvertAny<memref::CastOp>,
+      ConvertAny<memref::CopyOp>,
       ConvertAny<memref::LoadOp>,
       ConvertAny<memref::StoreOp>,
+      ConvertAny<memref::SubViewOp>,
+      ConvertAny<memref::ViewOp>,
+      ConvertAny<sparse_tensor::AssembleOp>,
       ConvertAny<tensor::CastOp>,
       ConvertAny<tensor::ConcatOp>,
       ConvertAny<tensor::EmptyOp>,
@@ -658,8 +640,13 @@ void FieldToModArith::runOnOperation() {
       linalg::MapOp,
       linalg::YieldOp,
       memref::AllocOp,
+      memref::CastOp,
+      memref::CopyOp,
       memref::LoadOp,
       memref::StoreOp,
+      memref::SubViewOp,
+      memref::ViewOp,
+      sparse_tensor::AssembleOp,
       tensor::CastOp,
       tensor::ConcatOp,
       tensor::EmptyOp,

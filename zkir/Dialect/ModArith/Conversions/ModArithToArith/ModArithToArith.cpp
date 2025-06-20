@@ -10,6 +10,7 @@
 #include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/Dialect/SparseTensor/IR/SparseTensor.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/BuiltinAttributeInterfaces.h"
 #include "mlir/IR/BuiltinAttributes.h"
@@ -30,32 +31,32 @@
 #include "zkir/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "zkir/Utils/APIntUtils.h"
 #include "zkir/Utils/ConversionUtils.h"
+#include "zkir/Utils/ShapedTypeConverter.h"
 
 namespace mlir::zkir::mod_arith {
 
 #define GEN_PASS_DEF_MODARITHTOARITH
 #include "zkir/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.h.inc"
 
-static IntegerType convertModArithType(ModArithType type) {
-  APInt modulus = type.getModulus().getValue();
-  return IntegerType::get(type.getContext(), modulus.getBitWidth());
-}
-
-static Type convertModArithLikeType(ShapedType type) {
-  if (auto modArithType = dyn_cast<ModArithType>(type.getElementType())) {
-    return type.cloneWith(type.getShape(), convertModArithType(modArithType));
-  }
-  return type;
-}
-
-class ModArithToArithTypeConverter : public TypeConverter {
+class ModArithToArithTypeConverter : public ShapedTypeConverter {
  public:
   explicit ModArithToArithTypeConverter(MLIRContext *ctx) {
     addConversion([](Type type) { return type; });
     addConversion(
         [](ModArithType type) -> Type { return convertModArithType(type); });
-    addConversion(
-        [](ShapedType type) -> Type { return convertModArithLikeType(type); });
+    addConversion([](ShapedType type) -> Type {
+      if (auto modArithType = dyn_cast<ModArithType>(type.getElementType())) {
+        return convertShapedType(type, type.getShape(),
+                                 convertModArithType(modArithType));
+      }
+      return type;
+    });
+  }
+
+ private:
+  static IntegerType convertModArithType(ModArithType type) {
+    APInt modulus = type.getModulus().getValue();
+    return IntegerType::get(type.getContext(), modulus.getBitWidth());
   }
 };
 
@@ -293,8 +294,8 @@ struct ConvertToMont : public OpConversionPattern<ToMontOp> {
     MontgomeryAttr montAttr = MontgomeryAttr::get(op.getContext(), resultType);
     TypedAttr rSquaredAttr = montAttr.getRSquared();
     if (auto shapedType = dyn_cast<ShapedType>(op.getOutput().getType())) {
-      auto intShapedType =
-          shapedType.cloneWith(std::nullopt, convertModArithType(resultType));
+      auto intShapedType = shapedType.cloneWith(
+          std::nullopt, typeConverter->convertType(resultType));
       rSquaredAttr = SplatElementsAttr::get(intShapedType, rSquaredAttr);
     }
     // x * R = REDC(x * rSquared)
@@ -320,10 +321,11 @@ struct ConvertFromMont : public OpConversionPattern<FromMontOp> {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     ModArithType resultType = getResultModArithType(op);
-    TypedAttr zeroAttr = b.getIntegerAttr(convertModArithType(resultType), 0);
+    TypedAttr zeroAttr =
+        b.getIntegerAttr(typeConverter->convertType(resultType), 0);
     if (auto shapedType = dyn_cast<ShapedType>(op.getOutput().getType())) {
-      auto intShapedType =
-          shapedType.cloneWith(std::nullopt, convertModArithType(resultType));
+      auto intShapedType = shapedType.cloneWith(
+          std::nullopt, typeConverter->convertType(resultType));
       zeroAttr = SplatElementsAttr::get(intShapedType, zeroAttr);
     }
 
@@ -852,8 +854,13 @@ void ModArithToArith::runOnOperation() {
       ConvertAny<linalg::MapOp>,
       ConvertAny<linalg::YieldOp>,
       ConvertAny<memref::AllocOp>,
+      ConvertAny<memref::CastOp>,
+      ConvertAny<memref::CopyOp>,
       ConvertAny<memref::LoadOp>,
       ConvertAny<memref::StoreOp>,
+      ConvertAny<memref::SubViewOp>,
+      ConvertAny<memref::ViewOp>,
+      ConvertAny<sparse_tensor::AssembleOp>,
       ConvertAny<tensor::CastOp>,
       ConvertAny<tensor::ConcatOp>,
       ConvertAny<tensor::EmptyOp>,
@@ -885,8 +892,13 @@ void ModArithToArith::runOnOperation() {
       linalg::MapOp,
       linalg::YieldOp,
       memref::AllocOp,
+      memref::CastOp,
+      memref::CopyOp,
       memref::LoadOp,
       memref::StoreOp,
+      memref::SubViewOp,
+      memref::ViewOp,
+      sparse_tensor::AssembleOp,
       tensor::CastOp,
       tensor::ConcatOp,
       tensor::EmptyOp,

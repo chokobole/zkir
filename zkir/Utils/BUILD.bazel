@@ -29,6 +29,7 @@ cc_library(
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TransformUtils",
+        "@llvm-project//mlir:ViewLikeInterface",
     ],
 )
 
@@ -39,5 +40,15 @@ cc_library(
     deps = [
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:TensorDialect",
+    ],
+)
+
+cc_library(
+    name = "ShapedTypeConverter",
+    srcs = ["ShapedTypeConverter.cpp"],
+    hdrs = ["ShapedTypeConverter.h"],
+    deps = [
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:TransformUtils",
     ],
 )

@@ -23,6 +23,7 @@
 #include "zkir/Dialect/Field/IR/FieldOps.h"
 #include "zkir/Dialect/Field/IR/FieldTypes.h"
 #include "zkir/Utils/ConversionUtils.h"
+#include "zkir/Utils/ShapedTypeConverter.h"
 
 namespace mlir::zkir::elliptic_curve {
 
@@ -31,105 +32,63 @@ namespace mlir::zkir::elliptic_curve {
 
 //////////////// TYPE CONVERSION ////////////////
 
-static LogicalResult convertAffineType(AffineType type,
-                                       SmallVectorImpl<Type> &converted) {
-  Type baseFieldType = type.getCurve().getBaseField();
-  converted.push_back(baseFieldType);
-  converted.push_back(baseFieldType);
-  return success();
-}
-
-static LogicalResult convertJacobianType(JacobianType type,
-                                         SmallVectorImpl<Type> &converted) {
-  Type baseFieldType = type.getCurve().getBaseField();
-  converted.push_back(baseFieldType);
-  converted.push_back(baseFieldType);
-  converted.push_back(baseFieldType);
-  return success();
-}
-
-static LogicalResult convertXYZZType(XYZZType type,
-                                     SmallVectorImpl<Type> &converted) {
-  Type baseFieldType = type.getCurve().getBaseField();
-  converted.push_back(baseFieldType);
-  converted.push_back(baseFieldType);
-  converted.push_back(baseFieldType);
-  converted.push_back(baseFieldType);
-  return success();
-}
-
-template <typename T>
-static T convertAffineLikeType(T type) {
-  auto affineType = cast<AffineType>(type.getElementType());
-  Type baseFieldType = affineType.getCurve().getBaseField();
-  SmallVector<int64_t> newShape(type.getShape());
-  newShape.push_back(2);
-  if constexpr (std::is_same_v<T, MemRefType>) {
-    return MemRefType::get(newShape, baseFieldType);
-  } else {
-    return type.cloneWith(newShape, baseFieldType);
-  }
-}
-
-template <typename T>
-static T convertJacobianLikeType(T type) {
-  auto jacobianType = cast<JacobianType>(type.getElementType());
-  Type baseFieldType = jacobianType.getCurve().getBaseField();
-  SmallVector<int64_t> newShape(type.getShape());
-  newShape.push_back(3);
-  if constexpr (std::is_same_v<T, MemRefType>) {
-    return MemRefType::get(newShape, baseFieldType);
-  } else {
-    return type.cloneWith(newShape, baseFieldType);
-  }
-}
-
-template <typename T>
-static T convertXYZZLikeType(T type) {
-  auto xyzzType = cast<XYZZType>(type.getElementType());
-  Type baseFieldType = xyzzType.getCurve().getBaseField();
-  SmallVector<int64_t> newShape(type.getShape());
-  newShape.push_back(4);
-  if constexpr (std::is_same_v<T, MemRefType>) {
-    return MemRefType::get(newShape, baseFieldType);
-  } else {
-    return type.cloneWith(newShape, baseFieldType);
-  }
-}
-
-template <typename T>
-static T convertPointLikeType(T type) {
-  Type elementType = type.getElementType();
-  if (isa<AffineType>(elementType)) {
-    return convertAffineLikeType(type);
-  } else if (isa<JacobianType>(elementType)) {
-    return convertJacobianLikeType(type);
-  } else if (isa<XYZZType>(elementType)) {
-    return convertXYZZLikeType(type);
-  }
-  return type;
-}
-
-class EllipticCurveToFieldTypeConverter : public TypeConverter {
+class EllipticCurveToFieldTypeConverter : public ShapedTypeConverter {
  public:
   explicit EllipticCurveToFieldTypeConverter(MLIRContext *ctx) {
     addConversion([](Type type) { return type; });
     addConversion(
         [](AffineType type, SmallVectorImpl<Type> &converted) -> LogicalResult {
-          return convertAffineType(type, converted);
+          return convertPointType(type, converted);
         });
     addConversion([](JacobianType type,
                      SmallVectorImpl<Type> &converted) -> LogicalResult {
-      return convertJacobianType(type, converted);
+      return convertPointType(type, converted);
     });
     addConversion(
         [](XYZZType type, SmallVectorImpl<Type> &converted) -> LogicalResult {
-          return convertXYZZType(type, converted);
+          return convertPointType(type, converted);
         });
-    addConversion(
-        [](ShapedType type) -> Type { return convertPointLikeType(type); });
-    addConversion(
-        [](MemRefType type) -> Type { return convertPointLikeType(type); });
+    addConversion([](ShapedType type) -> Type {
+      Type elementType = type.getElementType();
+      Type baseFieldType;
+      size_t numCoords = 0;
+      if (auto pointType = dyn_cast<AffineType>(elementType)) {
+        baseFieldType = pointType.getCurve().getBaseField();
+        numCoords = 2;
+      } else if (auto pointType = dyn_cast<JacobianType>(elementType)) {
+        baseFieldType = pointType.getCurve().getBaseField();
+        numCoords = 3;
+      } else if (auto pointType = dyn_cast<XYZZType>(elementType)) {
+        baseFieldType = pointType.getCurve().getBaseField();
+        numCoords = 4;
+      } else {
+        return type;
+      }
+      SmallVector<int64_t> newShape(type.getShape());
+      newShape.push_back(numCoords);
+      return convertShapedType(type, newShape, baseFieldType);
+    });
+  }
+
+ private:
+  template <typename T>
+  static LogicalResult convertPointType(T type,
+                                        SmallVectorImpl<Type> &converted) {
+    Type baseFieldType = type.getCurve().getBaseField();
+    size_t numCoords = 0;
+    if constexpr (std::is_same_v<T, AffineType>) {
+      numCoords = 2;
+    } else if constexpr (std::is_same_v<T, JacobianType>) {
+      numCoords = 3;
+    } else if constexpr (std::is_same_v<T, XYZZType>) {
+      numCoords = 4;
+    } else {
+      return failure();
+    }
+    for (size_t i = 0; i < numCoords; ++i) {
+      converted.push_back(baseFieldType);
+    }
+    return success();
   }
 };
 
@@ -676,8 +635,10 @@ void EllipticCurveToField::runOnOperation() {
       ConvertAny<bufferization::ToTensorOp>,
       ConvertAny<linalg::BroadcastOp>,
       ConvertAny<memref::AllocOp>,
+      ConvertAny<memref::CastOp>,
       ConvertAny<memref::LoadOp>,
       ConvertAny<memref::StoreOp>,
+      ConvertAny<memref::SubViewOp>,
       ConvertAny<tensor::ExtractOp>,
       ConvertAny<tensor::FromElementsOp>
       // clang-format on
@@ -689,8 +650,10 @@ void EllipticCurveToField::runOnOperation() {
       bufferization::ToTensorOp,
       linalg::BroadcastOp,
       memref::AllocOp,
+      memref::CastOp,
       memref::LoadOp,
       memref::StoreOp,
+      memref::SubViewOp,
       tensor::ExtractOp,
       tensor::FromElementsOp
       // clang-format on
