@@ -1,4 +1,4 @@
-// RUN: zkir-opt -field-to-mod-arith %s | FileCheck %s -enable-var-scope
+// RUN: zkir-opt -mod-arith-to-arith %s | FileCheck %s -enable-var-scope
 
 !Zp = !mod_arith.int<65537 : i32>
 
