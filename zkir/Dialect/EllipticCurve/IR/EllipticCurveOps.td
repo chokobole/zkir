@@ -138,7 +138,7 @@ def EllipticCurve_NegateOp : EllipticCurve_UnaryOp<"negate", [Involution, SameOp
   let description = [{
     Computes the negation of an elliptic curve point.
 
-    affine -> jacobian
+    affine -> affine
     jacobian -> jacobian
     xyzz -> xyzz
 
