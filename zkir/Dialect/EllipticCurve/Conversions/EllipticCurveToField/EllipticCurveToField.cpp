@@ -640,6 +640,7 @@ void EllipticCurveToField::runOnOperation() {
       ConvertAny<memref::SubViewOp>,
       ConvertAny<tensor::DimOp>,
       ConvertAny<tensor::ExtractOp>,
+      ConvertAny<tensor::ExtractSliceOp>,
       ConvertAny<tensor::FromElementsOp>
       // clang-format on
       >(typeConverter, context);
@@ -656,6 +657,7 @@ void EllipticCurveToField::runOnOperation() {
       memref::SubViewOp,
       tensor::DimOp,
       tensor::ExtractOp,
+      tensor::ExtractSliceOp,
       tensor::FromElementsOp
       // clang-format on
       >([&](auto op) { return typeConverter.isLegal(op); });
