@@ -202,15 +202,31 @@ def EllipticCurve_MSMOp : EllipticCurve_Op<"msm", []> {
     Output type determines internal computation type of buckets and window sums.
     xyzz is recommended for best performance.
 
+    When parallel is enabled, window-based parallelization is applied. If term-based parallelization is needed,
+    parallel should be disabled and the caller should implement it.
+
     Example:
+
+    If you want to run window-based parallelization, use the parallel attribute as follows:
+
+    ```
+    %msm_result = elliptic_curve.msm %scalars, %points parallel : tensor<3x!PF>, tensor<3x!affine> -> !xyzz
+    ```
+
+    If you want to run serial execution, simply omit the parallel attribute:
+
     ```
     %msm_result = elliptic_curve.msm %scalars, %points : tensor<3x!PF>, tensor<3x!affine> -> !xyzz
     ```
   }];
-  let arguments = (ins RankedTensorOf<[Field_PrimeFieldType]>:$scalars, RankedTensorOf<[PointType]>:$points);
+  let arguments = (ins
+    RankedTensorOf<[Field_PrimeFieldType]>:$scalars,
+    RankedTensorOf<[PointType]>:$points,
+    UnitAttr:$parallel
+  );
   let results = (outs PointType:$output);
   let hasVerifier = 1;
-  let assemblyFormat = "operands attr-dict `:` type($scalars) `,` type($points) `->` type($output)";
+  let assemblyFormat = "operands attr-dict (`parallel` $parallel^)? `:` type($scalars) `,` type($points) `->` type($output)";
 }
 
 ////////////// POINT CONVERSIONS //////////////
