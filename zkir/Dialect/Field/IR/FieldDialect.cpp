@@ -4,6 +4,7 @@
 #include <optional>
 
 #include "llvm/ADT/TypeSwitch.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/DialectImplementation.h"

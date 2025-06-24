@@ -308,4 +308,22 @@ def Field_MulOp : Field_BinaryOp<"mul", [Commutative]> {
   let hasCanonicalizer = 1;
 }
 
+// Field power.
+def Field_PowOp : Field_Op<"pow", [TypesMatchWith<
+  "base and output must have same type", "base", "output", "$_self">]> {
+  let summary = "Field power";
+  let description = [{
+    Computes the field element a to the power of integer b.
+
+    Example:
+    ```
+    %power = field.pow %a, %b : field.pf<primeModulus>, i32
+    ```
+  }];
+  let arguments = (ins FieldLike:$base, SignlessIntegerLike:$exp);
+  let results = (outs FieldLike:$output);
+  let assemblyFormat = "operands attr-dict `:` type($base) `,` type($exp)";
+  let hasVerifier = 1;
+}
+
 #endif  // ZKIR_DIALECT_FIELD_IR_FIELDOPS_TD_
