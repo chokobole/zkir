@@ -1,4 +1,4 @@
-// RUN: zkir-opt -field-to-mod-arith %s | FileCheck %s -enable-var-scope
+// RUN: zkir-opt -mod-arith-to-arith %s | FileCheck %s -enable-var-scope
 
 !Zp = !mod_arith.int<65537 : i32>
 
@@ -34,6 +34,25 @@ func.func @test_memref_unranked_cast(%input : memref<4x!Zp>) -> memref<*x!Zp> {
 func.func @test_memref_copy(%src : memref<4x!Zp>, %dst : memref<4x!Zp>) {
   // CHECK: memref.copy %[[SRC]], %[[DST]] : [[SRC_TYPE]] to [[DST_TYPE]]
   memref.copy %src, %dst : memref<4x!Zp> to memref<4x!Zp>
+  return
+}
+
+// CHECK-LABEL: @test_memref_load
+// CHECK-SAME: (%[[INPUT:.*]]: [[INPUT_TYPE:.*]]) -> [[T:.*]] {
+func.func @test_memref_load(%input : memref<4x!Zp>) -> !Zp {
+  %c0 = arith.constant 0 : index
+  // CHECK: %[[LOAD:.*]] = memref.load %[[INPUT]][%[[C0:.*]]] : [[INPUT_TYPE]]
+  %load = memref.load %input[%c0] : memref<4x!Zp>
+  // CHECK: return %[[LOAD]] : [[T]]
+  return %load : !Zp
+}
+
+// CHECK-LABEL: @test_memref_store
+// CHECK-SAME: (%[[INPUT:.*]]: [[INPUT_TYPE:.*]], %[[T:.*]]: [[T_TYPE:.*]]) {
+func.func @test_memref_store(%input : memref<4x!Zp>, %value : !Zp) {
+  %c0 = arith.constant 0 : index
+  // CHECK: memref.store %[[T]], %[[INPUT]][%[[C0:.*]]] : [[INPUT_TYPE]]
+  memref.store %value, %input[%c0] : memref<4x!Zp>
   return
 }
 
