@@ -33,7 +33,6 @@ Type ShapedTypeConverter::convertShapedType(ShapedType oldType,
       return MemRefType::get(shape, elementType, memrefType.getLayout(),
                              memrefType.getMemorySpace());
     }
-    return MemRefType::get(shape, elementType);
   } else if (auto tensorType = dyn_cast<RankedTensorType>(oldType)) {
     return tensorType.cloneWith(shape, elementType);
   }
