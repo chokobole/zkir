@@ -199,32 +199,20 @@ LogicalResult SubOp::verify() { return disallowTensorOfExtField(*this); }
 LogicalResult MulOp::verify() { return disallowTensorOfExtField(*this); }
 LogicalResult InverseOp::verify() { return disallowTensorOfExtField(*this); }
 LogicalResult FromMontOp::verify() {
-  Type resultType = getElementTypeOrSelf(this->getOutput().getType());
-  bool isMontgomery = true;
-  if (auto pfType = dyn_cast<PrimeFieldType>(resultType)) {
-    isMontgomery = pfType.isMontgomery();
-  } else if (auto f2Type = dyn_cast<QuadraticExtFieldType>(resultType)) {
-    isMontgomery = f2Type.isMontgomery();
-  }
-  if (isMontgomery) {
+  bool isMont = isMontgomery(this->getOutput().getType());
+  if (isMont) {
     return emitOpError()
            << "FromMontOp result should be a standard type, but got "
-           << resultType << ".";
+           << getElementTypeOrSelf(this->getOutput().getType()) << ".";
   }
   return disallowTensorOfExtField(*this);
 }
 LogicalResult ToMontOp::verify() {
-  Type resultType = getElementTypeOrSelf(this->getOutput().getType());
-  bool isMontgomery = false;
-  if (auto pfType = dyn_cast<PrimeFieldType>(resultType)) {
-    isMontgomery = pfType.isMontgomery();
-  } else if (auto f2Type = dyn_cast<QuadraticExtFieldType>(resultType)) {
-    isMontgomery = f2Type.isMontgomery();
-  }
-  if (!isMontgomery) {
+  bool isMont = isMontgomery(this->getOutput().getType());
+  if (!isMont) {
     return emitOpError()
            << "ToMontOp result should be a Montgomery type, but got "
-           << resultType << ".";
+           << getElementTypeOrSelf(this->getOutput().getType()) << ".";
   }
   return disallowTensorOfExtField(*this);
 }
