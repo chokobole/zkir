@@ -10,6 +10,16 @@
 #curve = #elliptic_curve.sw<#1, #2, (#3, #4)>
 !affine = !elliptic_curve.affine<#curve>
 
+// CHECK-LABEL: @test_tensor_dim
+// CHECK-SAME: (%[[INPUT:.*]]: [[INPUT_TYPE:.*]]) -> [[T:.*]] {
+func.func @test_tensor_dim(%input : tensor<?x!affine>) -> index {
+  %c0 = arith.constant 0 : index
+  // CHECK: %[[DIM:.*]] = tensor.dim %[[INPUT]], %[[C0:.*]] : [[INPUT_TYPE]]
+  %dim = tensor.dim %input, %c0 : tensor<?x!affine>
+  // CHECK: return %[[DIM]] : [[T]]
+  return %dim : index
+}
+
 // CHECK-LABEL: @test_tensor_extract
 // CHECK-SAME: (%[[INPUT:.*]]: [[INPUT_TYPE:.*]]) -> ([[T:.*]], [[T:.*]]) {
 func.func @test_tensor_extract(%input : tensor<4x!affine>) -> !affine {
