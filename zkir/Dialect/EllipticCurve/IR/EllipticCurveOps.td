@@ -202,6 +202,9 @@ def EllipticCurve_MSMOp : EllipticCurve_Op<"msm", []> {
     Output type determines internal computation type of buckets and window sums.
     xyzz is recommended for best performance.
 
+    If both scalars and points have a static shape, the size of scalars and points must be equal.
+    Otherwise, both must have a dynamic shape.
+
     When parallel is enabled, window-based parallelization is applied. If term-based parallelization is needed,
     parallel should be disabled and the caller should implement it.
 

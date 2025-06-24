@@ -74,9 +74,19 @@ LogicalResult MSMOp::verify() {
   Type outputType = getOutput().getType();
   if (isa<AffineType>(outputType)) {
     return emitError() << "output type cannot be affine";
-  } else {
-    return success();
   }
+
+  if (scalarsType.hasStaticShape() && pointsType.hasStaticShape()) {
+    if (scalarsType.getNumElements() != pointsType.getNumElements()) {
+      return emitError()
+             << "scalars and points must have the same number of elements";
+    }
+  } else if (scalarsType.hasStaticShape() && !pointsType.hasStaticShape()) {
+    return emitError() << "scalars has static shape and points does not";
+  } else if (!scalarsType.hasStaticShape() && pointsType.hasStaticShape()) {
+    return emitError() << "points has static shape and scalars does not";
+  }
+  return success();
   // TODO(ashjeong): check curves/fields are the same
 }
 
