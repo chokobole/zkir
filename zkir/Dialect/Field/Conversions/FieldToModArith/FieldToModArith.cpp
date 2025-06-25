@@ -135,16 +135,30 @@ struct ConvertEncapsulate : public OpConversionPattern<EncapsulateOp> {
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
-      EncapsulateOp op, OpAdaptor adaptor,
+      EncapsulateOp op, OneToNOpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto resultType = typeConverter->convertType(op.getResult().getType());
-    auto enc = b.create<mod_arith::EncapsulateOp>(resultType,
-                                                  adaptor.getOperands()[0]);
-    rewriter.replaceOp(op, enc);
-    return success();
-  }
+    Type fieldType = getElementTypeOrSelf(op.getOutput().getType());
+    if (isa<PrimeFieldType>(fieldType)) {
+      Type resultType = typeConverter->convertType(op.getResult().getType());
+      auto enc = b.create<mod_arith::EncapsulateOp>(resultType,
+                                                    adaptor.getOperands()[0]);
+      rewriter.replaceOp(op, enc);
+      return success();
+    } else if (auto extFieldType = dyn_cast<QuadraticExtFieldType>(fieldType)) {
+      Type resultType = typeConverter->convertType(extFieldType.getBaseField());
+      auto low = b.create<mod_arith::EncapsulateOp>(resultType,
+                                                    adaptor.getOperands()[0]);
+      auto high = b.create<mod_arith::EncapsulateOp>(resultType,
+                                                     adaptor.getOperands()[1]);
+      rewriter.replaceOpWithMultiple(op, {{low, high}});
+      return success();
+    } else {
+      op.emitOpError("unsupported output type");
+      return failure();
+    }
+  };
 };
 
 struct ConvertExtract : public OpConversionPattern<ExtractOp> {
@@ -154,14 +168,26 @@ struct ConvertExtract : public OpConversionPattern<ExtractOp> {
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
-      ExtractOp op, OpAdaptor adaptor,
+      ExtractOp op, OneToNOpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto resultType = typeConverter->convertType(op.getResult().getType());
-    auto extracted =
-        b.create<mod_arith::ExtractOp>(resultType, adaptor.getOperands()[0]);
-    rewriter.replaceOp(op, extracted);
+    Type fieldType = getElementTypeOrSelf(op.getInput().getType());
+    auto resultType = typeConverter->convertType(op.getResult(0).getType());
+    if (isa<PrimeFieldType>(fieldType)) {
+      auto extracted =
+          b.create<mod_arith::ExtractOp>(resultType, adaptor.getOperands()[0]);
+      rewriter.replaceOp(op, extracted);
+    } else if (isa<QuadraticExtFieldType>(fieldType)) {
+      auto low = b.create<mod_arith::ExtractOp>(resultType,
+                                                adaptor.getOperands()[0][0]);
+      auto high = b.create<mod_arith::ExtractOp>(resultType,
+                                                 adaptor.getOperands()[0][1]);
+      rewriter.replaceOpWithMultiple(op, {{low}, {high}});
+    } else {
+      op.emitOpError("unsupported output type");
+      return failure();
+    }
     return success();
   }
 };

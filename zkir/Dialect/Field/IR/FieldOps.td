@@ -98,38 +98,48 @@ def Field_F2ConstantOp : Op<Field_Dialect, "f2.constant", [Pure, TypesMatchWith<
   let assemblyFormat = "$low `,` $high attr-dict `:` type($output)";
 }
 
-def Field_EncapsulateOp : Field_Op<"pf.encapsulate"> {
+def Field_EncapsulateOp : Field_Op<"encapsulate"> {
   let summary = "Encapsulate an integer into a field type";
   let description = [{
     Converts the integer to be of field type.
 
+    The bitwidth of the input integer type is required to have the same bitwidth
+    as the storage type of the output field type.
+
     Example:
     ```
-    field.pf.encapsulate %c0 : i32 -> field.pf<7>
-    field.pf.encapsulate %c1 : i64 -> field.pf<7>
+    !PF = field.pf<7 : i32>
+    %f0 = field.encapsulate %c0 : i32 -> !PF
+    !QF = field.f2<!PF, #beta>
+    %f1, %f2 = field.encapsulate %c1, %c2 : i32, i32 -> !QF
     ```
   }];
-  let arguments = (ins SignlessIntegerLike:$input);
-  let results = (outs PrimeFieldLike:$output);
+  let arguments = (ins Variadic<SignlessIntegerLike>:$input);
+  let results = (outs FieldLike:$output);
   let assemblyFormat = "operands attr-dict `:` type($input) `->` type($output)";
+  let hasVerifier = 1;
 }
 
-def Field_ExtractOp : Field_Op<"pf.extract"> {
+def Field_ExtractOp : Field_Op<"extract"> {
   let summary = "Extract the integer stored inside field type";
   let description = [{
     Extracts the integer inside the field type.
 
-    It is required that the bitwidth of the output integer type is the same
-    as that of the storage type of the input field type.
+    The bitwidth of the output integer type is required to have the same
+    bitwidth as the storage type of the input field type.
 
     Example:
     ```
-    %c0 = field.pf.extract %f0 : field.pf<7 : i32> -> i32
+    !PF = field.pf<7 : i32>
+    %c0 = field.extract %f0 : !PF -> i32
+    !QF = field.f2<!PF, #beta>
+    %c1, %c2 = field.extract %f1 : !QF -> i32, i32
     ```
   }];
-  let arguments = (ins PrimeFieldLike:$input);
-  let results = (outs SignlessIntegerLike:$output);
+  let arguments = (ins FieldLike:$input);
+  let results = (outs Variadic<SignlessIntegerLike>:$output);
   let assemblyFormat = "operands attr-dict `:` type($input) `->` type($output)";
+  let hasVerifier = 1;
 }
 
 def Field_CmpOp : Field_Op<"cmp", [SameTypeOperands, TypesMatchWith<

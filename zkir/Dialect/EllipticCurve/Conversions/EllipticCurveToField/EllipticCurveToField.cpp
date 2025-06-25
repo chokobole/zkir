@@ -490,7 +490,9 @@ struct ConvertScalarMul : public OpConversionPattern<ScalarMulOp> {
             ? b.create<field::FromMontOp>(
                   field::getStandardFormType(scalarFieldType), scalarPF)
             : scalarPF;
-    auto scalarInt = b.create<field::ExtractOp>(scalarIntType, scalarReduced);
+    Value scalarInt =
+        b.create<field::ExtractOp>(TypeRange{scalarIntType}, scalarReduced)
+            .getResult(0);
 
     Type baseFieldType =
         getCurveFromPointLike(op.getPoint().getType()).getBaseField();
