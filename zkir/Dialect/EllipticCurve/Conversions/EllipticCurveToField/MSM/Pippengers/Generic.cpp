@@ -4,10 +4,8 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
-#include "mlir/IR/ImplicitLocOpBuilder.h"
 #include "zkir/Dialect/EllipticCurve/IR/EllipticCurveOps.h"
 #include "zkir/Dialect/Field/IR/FieldOps.h"
-#include "zkir/Dialect/Field/IR/FieldTypes.h"
 
 namespace mlir::zkir::elliptic_curve {
 

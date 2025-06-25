@@ -3,7 +3,6 @@
 
 #include "mlir/IR/ImplicitLocOpBuilder.h"
 #include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/MSM/Pippengers/Pippengers.h"
-#include "zkir/Dialect/Field/IR/FieldTypes.h"
 
 namespace mlir::zkir::elliptic_curve {
 
