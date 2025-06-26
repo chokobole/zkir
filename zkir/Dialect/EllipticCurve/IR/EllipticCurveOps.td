@@ -204,7 +204,7 @@ def EllipticCurve_MSMOp : EllipticCurve_Op<"msm", []> {
 
     Example:
     ```
-    %msm_result = elliptic_curve.msm %scalars, %points : tensor<3x!PF>, tensor<3x!affine> -> !jacobian
+    %msm_result = elliptic_curve.msm %scalars, %points : tensor<3x!PF>, tensor<3x!affine> -> !xyzz
     ```
   }];
   let arguments = (ins RankedTensorOf<[Field_PrimeFieldType]>:$scalars, RankedTensorOf<[PointType]>:$points);
