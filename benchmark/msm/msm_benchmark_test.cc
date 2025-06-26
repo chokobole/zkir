@@ -64,7 +64,7 @@ BENCHMARK(BM_msm_benchmark)->Iterations(20)->Unit(::benchmark::kMillisecond);
 // clang-format off
 // NOLINTBEGIN(whitespace/line_length)
 
-// $bazel run //benchmark/msm:msm_benchmark_test_serial
+// $bazel run -c opt //benchmark/msm:msm_benchmark_test_serial
 // 2025-06-26 tested on M4 Pro
 //
 // Run on (14 X 24 MHz CPU s)
@@ -78,7 +78,7 @@ BENCHMARK(BM_msm_benchmark)->Iterations(20)->Unit(::benchmark::kMillisecond);
 // -------------------------------------------------------------------------
 // BM_msm_benchmark/iterations:20       2786 ms         2761 ms           20
 
-// $bazel run //benchmark/msm:msm_benchmark_test_parallel
+// $bazel run -c opt //benchmark/msm:msm_benchmark_test_parallel
 // 2025-06-26 tested on M4 Pro
 //
 // Run on (14 X 24 MHz CPU s)
