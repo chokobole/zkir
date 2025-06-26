@@ -48,8 +48,8 @@ Pippengers::Pippengers(Value scalars, Value points, Type baseFieldType,
                        Type outputType, ImplicitLocOpBuilder &b, int32_t degree,
                        int32_t windowBits)
     : points_(points), outputType_(outputType), b_(b) {
-  zero_ = b_.create<arith::ConstantIndexOp>(0);
-  one_ = b_.create<arith::ConstantIndexOp>(1);
+  zero_ = b.create<arith::ConstantIndexOp>(0);
+  one_ = b.create<arith::ConstantIndexOp>(1);
 
   auto scalarsType = cast<RankedTensorType>(scalars.getType());
 
