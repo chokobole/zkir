@@ -16,7 +16,7 @@
 func.func @test_lower_constant() -> !poly_ty1 {
   // CHECK-NOT: poly.constant
   // CHECK: %[[CVAL:.*]] = arith.constant dense<[1, 0, 0, 1]> : [[TINT:.*]]
-  // CHECK: %[[RES:.*]] = field.pf.encapsulate %[[CVAL]] : [[TINT]] -> [[T]]
+  // CHECK: %[[RES:.*]] = field.encapsulate %[[CVAL]] : [[TINT]] -> [[T]]
   // CHECK: return %[[RES]] : [[T]]
   %res = poly.constant<x**3 + 1>:  !poly_ty1
   return %res: !poly_ty1
@@ -48,7 +48,7 @@ func.func @test_lower_sub(%lhs : !poly_ty1, %rhs : !poly_ty1) -> !poly_ty1 {
 func.func @test_lower_to_tensor() -> tensor<4x!PF1> {
   // CHECK-NOT: poly.constant
   // CHECK: %[[CVAL:.*]] = arith.constant dense<[1, 0, 0, 1]> : [[TINT:.*]]
-  // CHECK: %[[TVAL:.*]] = field.pf.encapsulate %[[CVAL]] : [[TINT]] -> [[T]]
+  // CHECK: %[[TVAL:.*]] = field.encapsulate %[[CVAL]] : [[TINT]] -> [[T]]
   %0 = poly.constant<x**3 + 1> : !poly_ty1
   // CHECK-NOT: poly.to_tensor
   // CHECK: %[[RES:.*]] = field.add %[[TVAL]], %[[TVAL]] : [[T]]

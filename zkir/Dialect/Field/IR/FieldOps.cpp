@@ -177,7 +177,7 @@ void ConstantOp::print(OpAsmPrinter &p) {
 }
 
 template <typename OpType>
-static LogicalResult disallowTensorOfExtField(OpType op) {
+static LogicalResult disallowShapedTypeOfExtField(OpType op) {
   // FIXME(batzor): In the prime field case, we rely on elementwise trait but in
   // the quadratic extension case, `linalg.generic` introduced by the
   // elementwise pass will be ill-formed due to the 1:N conversion.
@@ -186,18 +186,21 @@ static LogicalResult disallowTensorOfExtField(OpType op) {
     auto elementType = cast<ShapedType>(resultType).getElementType();
     if (isa<QuadraticExtFieldType>(elementType)) {
       return op->emitOpError(
-          "tensor operation is not supported for quadratic "
+          "shaped type is not supported for quadratic "
           "extension field type");
     }
   }
   return success();
 }
 
-LogicalResult NegateOp::verify() { return disallowTensorOfExtField(*this); }
-LogicalResult AddOp::verify() { return disallowTensorOfExtField(*this); }
-LogicalResult SubOp::verify() { return disallowTensorOfExtField(*this); }
-LogicalResult MulOp::verify() { return disallowTensorOfExtField(*this); }
-LogicalResult InverseOp::verify() { return disallowTensorOfExtField(*this); }
+LogicalResult NegateOp::verify() { return disallowShapedTypeOfExtField(*this); }
+LogicalResult AddOp::verify() { return disallowShapedTypeOfExtField(*this); }
+LogicalResult SubOp::verify() { return disallowShapedTypeOfExtField(*this); }
+LogicalResult MulOp::verify() { return disallowShapedTypeOfExtField(*this); }
+LogicalResult PowOp::verify() { return disallowShapedTypeOfExtField(*this); }
+LogicalResult InverseOp::verify() {
+  return disallowShapedTypeOfExtField(*this);
+}
 LogicalResult FromMontOp::verify() {
   bool isMont = isMontgomery(this->getOutput().getType());
   if (isMont) {
@@ -205,7 +208,7 @@ LogicalResult FromMontOp::verify() {
            << "FromMontOp result should be a standard type, but got "
            << getElementTypeOrSelf(this->getOutput().getType()) << ".";
   }
-  return disallowTensorOfExtField(*this);
+  return disallowShapedTypeOfExtField(*this);
 }
 LogicalResult ToMontOp::verify() {
   bool isMont = isMontgomery(this->getOutput().getType());
@@ -214,7 +217,89 @@ LogicalResult ToMontOp::verify() {
            << "ToMontOp result should be a Montgomery type, but got "
            << getElementTypeOrSelf(this->getOutput().getType()) << ".";
   }
-  return disallowTensorOfExtField(*this);
+  return disallowShapedTypeOfExtField(*this);
+}
+LogicalResult ExtractOp::verify() {
+  Type inputType = this->getInput().getType();
+  TypeRange resultTypes = this->getOutput().getTypes();
+
+  if (isa<ShapedType>(inputType) &&
+      isa<QuadraticExtFieldType>(getElementTypeOrSelf(inputType))) {
+    return emitOpError() << "shaped type is not supported for quadratic "
+                            "extension field type";
+  } else if (auto pfType = dyn_cast<PrimeFieldType>(inputType)) {
+    // For prime field input, expect exactly one integer output
+    if (resultTypes.size() != 1) {
+      return emitOpError()
+             << "expected one result type for prime field input, but got "
+             << resultTypes.size();
+    }
+    auto intType = cast<IntegerType>(resultTypes[0]);
+    if (intType.getWidth() != pfType.getModulus().getValue().getBitWidth()) {
+      return emitOpError() << "result integer bitwidth " << intType.getWidth()
+                           << " does not match prime field modulus bitwidth "
+                           << pfType.getModulus().getValue().getBitWidth();
+    }
+  } else if (auto f2Type = dyn_cast<QuadraticExtFieldType>(inputType)) {
+    if (isa<ShapedType>(inputType)) {
+      return emitOpError() << "shaped type is not supported for quadratic "
+                              "extension field type";
+    }
+    if (resultTypes.size() != 2) {
+      return emitOpError() << "expected two result types for quadratic "
+                              "extension field input, but got "
+                           << resultTypes.size();
+    }
+
+    auto baseField = f2Type.getBaseField();
+    unsigned modBitWidth = baseField.getModulus().getValue().getBitWidth();
+    for (int i = 0; i < 2; i++) {
+      auto intType = cast<IntegerType>((resultTypes[i]));
+      if (intType.getWidth() != modBitWidth) {
+        return emitOpError()
+               << "result integer bitwidth " << intType.getWidth()
+               << " does not match base field modulus bitwidth " << modBitWidth;
+      }
+    }
+  }
+  return success();
+}
+LogicalResult EncapsulateOp::verify() {
+  Type resultType = (this->getOutput().getType());
+  TypeRange inputTypes = this->getInput().getTypes();
+
+  disallowShapedTypeOfExtField(*this);
+  if (auto pfType = dyn_cast<PrimeFieldType>(resultType)) {
+    if (inputTypes.size() != 1) {
+      return emitOpError()
+             << "expected one input for prime field output, but got "
+             << inputTypes.size();
+    }
+    auto intType = cast<IntegerType>(inputTypes[0]);
+    if (intType.getWidth() != pfType.getModulus().getValue().getBitWidth()) {
+      return emitOpError() << "input integer bitwidth " << intType.getWidth()
+                           << " does not match prime field modulus bitwidth "
+                           << pfType.getModulus().getValue().getBitWidth();
+    }
+  } else if (auto f2Type = dyn_cast<QuadraticExtFieldType>(resultType)) {
+    if (inputTypes.size() != 2) {
+      return emitOpError() << "expected two input types for quadratic "
+                              "extension field output, but got "
+                           << inputTypes.size();
+    }
+
+    auto baseField = f2Type.getBaseField();
+    unsigned modBitWidth = baseField.getModulus().getValue().getBitWidth();
+    for (int i = 0; i < 2; i++) {
+      auto intType = cast<IntegerType>((inputTypes[i]));
+      if (intType.getWidth() != modBitWidth) {
+        return emitOpError()
+               << "input integer bitwidth " << intType.getWidth()
+               << " does not match base field modulus bitwidth " << modBitWidth;
+      }
+    }
+  }
+  return success();
 }
 
 namespace {

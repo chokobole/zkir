@@ -490,7 +490,9 @@ struct ConvertScalarMul : public OpConversionPattern<ScalarMulOp> {
             ? b.create<field::FromMontOp>(
                   field::getStandardFormType(scalarFieldType), scalarPF)
             : scalarPF;
-    auto scalarInt = b.create<field::ExtractOp>(scalarIntType, scalarReduced);
+    Value scalarInt =
+        b.create<field::ExtractOp>(TypeRange{scalarIntType}, scalarReduced)
+            .getResult(0);
 
     Type baseFieldType =
         getCurveFromPointLike(op.getPoint().getType()).getBaseField();
@@ -515,12 +517,32 @@ struct ConvertScalarMul : public OpConversionPattern<ScalarMulOp> {
             ? b.create<elliptic_curve::ConvertPointTypeOp>(outputType, point)
             : point;
 
+    auto arithOne = b.create<arith::ConstantIntOp>(1, scalarIntType);
+    auto arithZero = b.create<arith::ConstantIntOp>(0, scalarIntType);
+    auto result = zeroPoint;
+    auto ifOp = b.create<scf::IfOp>(
+        b.create<arith::CmpIOp>(arith::CmpIPredicate::ne,
+                                b.create<arith::AndIOp>(scalarInt, arithOne),
+                                arithZero),
+        [&](OpBuilder &builder, Location loc) {
+          ImplicitLocOpBuilder b(loc, builder);
+          auto newResult =
+              b.create<elliptic_curve::AddOp>(outputType, result, initialPoint);
+          b.create<scf::YieldOp>(ValueRange{newResult});
+        },
+        [&](OpBuilder &builder, Location loc) {
+          ImplicitLocOpBuilder b(loc, builder);
+          b.create<scf::YieldOp>(ValueRange{result});
+        });
+    result = ifOp.getResult(0);
+    scalarInt = b.create<arith::ShRUIOp>(scalarInt, arithOne);
+
     auto whileOp = b.create<scf::WhileOp>(
         /*resultTypes=*/TypeRange{scalarIntType, outputType, outputType},
-        /*operands=*/ValueRange{scalarInt, initialPoint, zeroPoint},
+        /*operands=*/ValueRange{scalarInt, initialPoint, result},
         /*beforeBuilder=*/
-        [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
-          auto arithZero = b.create<arith::ConstantIntOp>(0, scalarIntType);
+        [&](OpBuilder &beforeBuilder, Location beforeLoc, ValueRange args) {
+          ImplicitLocOpBuilder b(beforeLoc, beforeBuilder);
           // if `decreasingScalar` > 0, continue
           Value decreasingScalar = args[0];
           auto cmpGt = b.create<arith::CmpIOp>(arith::CmpIPredicate::ugt,
@@ -528,32 +550,32 @@ struct ConvertScalarMul : public OpConversionPattern<ScalarMulOp> {
           b.create<scf::ConditionOp>(cmpGt, args);
         },
         /*afterBuilder=*/
-        [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
-          auto arithOne = b.create<arith::ConstantIntOp>(1, scalarIntType);
+        [&](OpBuilder &afterBuilder, Location afterLoc, ValueRange args) {
+          ImplicitLocOpBuilder b(afterLoc, afterBuilder);
           Value decreasingScalar = args[0];
           Value multiplyingPoint = args[1];
           Value result = args[2];
 
+          // double `multiplyingPoint`
+          Value doubledPoint =
+              b.create<elliptic_curve::DoubleOp>(outputType, multiplyingPoint);
           // if `decreasingScalar` % 1 == 1...
           auto bitAdd = b.create<arith::AndIOp>(decreasingScalar, arithOne);
           auto cmpEq = b.create<arith::CmpIOp>(arith::CmpIPredicate::eq, bitAdd,
                                                arithOne);
           auto ifOp = b.create<scf::IfOp>(
               cmpEq,
-              // ...then add `multiplyingPoint` to `result`
+              // ...then add `doubledPoint` to `result`
               /*thenBuilder=*/
               [&](OpBuilder &builder, Location loc) {
                 Value innerResult = builder.create<elliptic_curve::AddOp>(
-                    loc, outputType, result, multiplyingPoint);
+                    loc, outputType, result, doubledPoint);
                 builder.create<scf::YieldOp>(loc, innerResult);
               },
               /*elseBuilder=*/
               [&](OpBuilder &builder, Location loc) {
                 builder.create<scf::YieldOp>(loc, result);
               });
-          // double `multiplyingPoint`
-          Value doubledPoint =
-              b.create<elliptic_curve::DoubleOp>(outputType, multiplyingPoint);
           // right shift `decreasingScalar` by 1
           decreasingScalar =
               b.create<arith::ShRUIOp>(decreasingScalar, arithOne);

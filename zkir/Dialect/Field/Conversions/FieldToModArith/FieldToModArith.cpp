@@ -5,8 +5,10 @@
 #include "llvm/Support/Casting.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
+#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/SparseTensor/IR/SparseTensor.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/Dialect/Tensor/Transforms/Transforms.h"
@@ -135,16 +137,30 @@ struct ConvertEncapsulate : public OpConversionPattern<EncapsulateOp> {
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
-      EncapsulateOp op, OpAdaptor adaptor,
+      EncapsulateOp op, OneToNOpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto resultType = typeConverter->convertType(op.getResult().getType());
-    auto enc = b.create<mod_arith::EncapsulateOp>(resultType,
-                                                  adaptor.getOperands()[0]);
-    rewriter.replaceOp(op, enc);
-    return success();
-  }
+    Type fieldType = getElementTypeOrSelf(op.getOutput().getType());
+    if (isa<PrimeFieldType>(fieldType)) {
+      Type resultType = typeConverter->convertType(op.getResult().getType());
+      auto enc = b.create<mod_arith::EncapsulateOp>(resultType,
+                                                    adaptor.getOperands()[0]);
+      rewriter.replaceOp(op, enc);
+      return success();
+    } else if (auto extFieldType = dyn_cast<QuadraticExtFieldType>(fieldType)) {
+      Type resultType = typeConverter->convertType(extFieldType.getBaseField());
+      auto low = b.create<mod_arith::EncapsulateOp>(resultType,
+                                                    adaptor.getOperands()[0]);
+      auto high = b.create<mod_arith::EncapsulateOp>(resultType,
+                                                     adaptor.getOperands()[1]);
+      rewriter.replaceOpWithMultiple(op, {{low, high}});
+      return success();
+    } else {
+      op.emitOpError("unsupported output type");
+      return failure();
+    }
+  };
 };
 
 struct ConvertExtract : public OpConversionPattern<ExtractOp> {
@@ -154,14 +170,26 @@ struct ConvertExtract : public OpConversionPattern<ExtractOp> {
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
-      ExtractOp op, OpAdaptor adaptor,
+      ExtractOp op, OneToNOpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto resultType = typeConverter->convertType(op.getResult().getType());
-    auto extracted =
-        b.create<mod_arith::ExtractOp>(resultType, adaptor.getOperands()[0]);
-    rewriter.replaceOp(op, extracted);
+    Type fieldType = getElementTypeOrSelf(op.getInput().getType());
+    auto resultType = typeConverter->convertType(op.getResult(0).getType());
+    if (isa<PrimeFieldType>(fieldType)) {
+      auto extracted =
+          b.create<mod_arith::ExtractOp>(resultType, adaptor.getOperands()[0]);
+      rewriter.replaceOp(op, extracted);
+    } else if (isa<QuadraticExtFieldType>(fieldType)) {
+      auto low = b.create<mod_arith::ExtractOp>(resultType,
+                                                adaptor.getOperands()[0][0]);
+      auto high = b.create<mod_arith::ExtractOp>(resultType,
+                                                 adaptor.getOperands()[0][1]);
+      rewriter.replaceOpWithMultiple(op, {{low}, {high}});
+    } else {
+      op.emitOpError("unsupported output type");
+      return failure();
+    }
     return success();
   }
 };
@@ -499,6 +527,140 @@ struct ConvertSquare : public OpConversionPattern<SquareOp> {
   }
 };
 
+struct ConvertPow : public OpConversionPattern<PowOp> {
+  explicit ConvertPow(MLIRContext *context)
+      : OpConversionPattern<PowOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult matchAndRewrite(
+      PowOp op, OneToNOpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    auto base = op.getBase();
+    auto exp = op.getExp();
+    auto fieldType = getElementTypeOrSelf(base);
+    auto isNonNegative = b.create<arith::CmpIOp>(
+        arith::CmpIPredicate::sge, exp,
+        b.create<arith::ConstantOp>(IntegerAttr::get(exp.getType(), 0)));
+    b.create<cf::AssertOp>(
+        isNonNegative,
+        StringAttr::get(
+            op.getContext(),
+            "negative exponent is not supported, try InverseOp instead"));
+
+    APInt modulus;
+    Value init;
+    if (auto pfType = dyn_cast<PrimeFieldType>(fieldType)) {
+      modulus = pfType.getModulus().getValue();
+      init = pfType.isMontgomery()
+                 ? b.create<field::ToMontOp>(
+                        pfType, b.create<field::ConstantOp>(
+                                    cast<PrimeFieldType>(
+                                        field::getStandardFormType(pfType)),
+                                    1))
+                       .getResult()
+                 : b.create<field::ConstantOp>(pfType, 1);
+    } else if (auto f2Type = dyn_cast<QuadraticExtFieldType>(fieldType)) {
+      modulus = f2Type.getBaseField().getModulus().getValue();
+      init = f2Type.isMontgomery()
+                 ? b.create<field::ToMontOp>(
+                        f2Type, b.create<field::ConstantOp>(
+                                    cast<QuadraticExtFieldType>(
+                                        field::getStandardFormType(f2Type)),
+                                    1, 0))
+                       .getResult()
+                 : b.create<field::ConstantOp>(f2Type, 1, 0);
+    } else {
+      op.emitOpError("unsupported output type");
+      return failure();
+    }
+
+    unsigned expBitWidth = cast<IntegerType>(exp.getType()).getWidth();
+    unsigned modBitWidth = modulus.getBitWidth();
+    if (modBitWidth > expBitWidth) {
+      exp = b.create<arith::ExtUIOp>(
+          IntegerType::get(exp.getContext(), modBitWidth), exp);
+    } else {
+      modulus = modulus.zext(expBitWidth);
+      modBitWidth = expBitWidth;
+    }
+    IntegerType intType = cast<IntegerType>(exp.getType());
+
+    // For prime field, x^(p-1) ≡ 1 mod p, so x^n ≡ x^(n mod (p-1)) mod p
+    // For quadratic extension field, x^(p²-1) ≡ 1 mod p², so
+    // x^n ≡ x^(n mod (p²-1)) mod p²
+    if (isa<PrimeFieldType>(fieldType)) {
+      exp = b.create<arith::RemUIOp>(
+          exp,
+          b.create<arith::ConstantOp>(IntegerAttr::get(intType, modulus - 1)));
+    } else if (isa<QuadraticExtFieldType>(fieldType)) {
+      modulus = modulus.zext(modBitWidth * 2);
+      modulus = modulus * modulus - 1;
+      exp = b.create<arith::ExtUIOp>(
+          IntegerType::get(exp.getContext(), modulus.getBitWidth()), exp);
+      intType = IntegerType::get(exp.getContext(), modulus.getBitWidth());
+      exp = b.create<arith::RemUIOp>(
+          exp, b.create<arith::ConstantOp>(IntegerAttr::get(intType, modulus)));
+    }
+
+    Value zero = b.create<arith::ConstantOp>(IntegerAttr::get(intType, 0));
+    Value one = b.create<arith::ConstantOp>(IntegerAttr::get(intType, 1));
+    Value powerOfP = base;
+    auto ifOp = b.create<scf::IfOp>(
+        b.create<arith::CmpIOp>(arith::CmpIPredicate::ne,
+                                b.create<arith::AndIOp>(exp, one), zero),
+        [&](OpBuilder &builder, Location loc) {
+          ImplicitLocOpBuilder b(loc, builder);
+          auto newResult = b.create<field::MulOp>(init, powerOfP);
+          b.create<scf::YieldOp>(ValueRange{newResult});
+        },
+        [&](OpBuilder &builder, Location loc) {
+          ImplicitLocOpBuilder b(loc, builder);
+          b.create<scf::YieldOp>(ValueRange{init});
+        });
+    exp = b.create<arith::ShRUIOp>(exp, one);
+    init = ifOp.getResult(0);
+    auto whileOp = b.create<scf::WhileOp>(
+        TypeRange{intType, fieldType, fieldType},
+        ValueRange{exp, powerOfP, init},
+        [&](OpBuilder &builder, Location loc, ValueRange args) {
+          ImplicitLocOpBuilder b(loc, builder);
+          auto cond =
+              b.create<arith::CmpIOp>(arith::CmpIPredicate::ugt, args[0], zero);
+          b.create<scf::ConditionOp>(cond, args);
+        },
+        [&](OpBuilder &builder, Location loc, ValueRange args) {
+          ImplicitLocOpBuilder b(loc, builder);
+          auto currExp = args[0];
+          auto currPowerOfP = args[1];
+          auto currResult = args[2];
+
+          auto newPowerOfP = b.create<field::SquareOp>(currPowerOfP);
+          auto masked = b.create<arith::AndIOp>(currExp, one);
+          auto isOdd =
+              b.create<arith::CmpIOp>(arith::CmpIPredicate::ne, masked, zero);
+          auto ifOp = b.create<scf::IfOp>(
+              isOdd,
+              [&](OpBuilder &builder, Location loc) {
+                ImplicitLocOpBuilder b(loc, builder);
+                auto newResult =
+                    b.create<field::MulOp>(currResult, newPowerOfP);
+                b.create<scf::YieldOp>(ValueRange{newResult});
+              },
+              [&](OpBuilder &builder, Location loc) {
+                ImplicitLocOpBuilder b(loc, builder);
+                b.create<scf::YieldOp>(ValueRange{currResult});
+              });
+          auto shifted = b.create<arith::ShRUIOp>(currExp, one);
+          b.create<scf::YieldOp>(
+              ValueRange{shifted, newPowerOfP, ifOp.getResult(0)});
+        });
+    rewriter.replaceOp(op, whileOp.getResult(2));
+    return success();
+  }
+};
+
 // TODO(ashjeong): Account for Montgomery domain inputs. Currently only accounts
 // for base domain inputs.
 struct ConvertCmp : public OpConversionPattern<CmpOp> {
@@ -587,6 +749,7 @@ void FieldToModArith::runOnOperation() {
       ConvertInverse,
       ConvertNegate,
       ConvertMul,
+      ConvertPow,
       ConvertSquare,
       ConvertSub,
       ConvertToMont,

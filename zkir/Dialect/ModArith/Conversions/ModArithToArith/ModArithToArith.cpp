@@ -588,19 +588,25 @@ MulExtendedResult squareExtended(ImplicitLocOpBuilder &b, Op op, Value input) {
   auto noOverflow =
       arith::IntegerOverflowFlagsAttr::get(b.getContext(), overflowFlag);
 
-  const unsigned limbWidth = APInt::APINT_BITS_PER_WORD;
-
   Type intType = modulusType(op, /*mul=*/false);
   Type resultType = modulusType(op, /*mul=*/true);
-  Type limbType = IntegerType::get(b.getContext(), limbWidth);
 
   const unsigned modBitWidth = cast<IntegerType>(intType).getWidth();
+  const unsigned limbWidth = modBitWidth > APInt::APINT_BITS_PER_WORD
+                                 ? APInt::APINT_BITS_PER_WORD
+                                 : modBitWidth;
   const unsigned numLimbs = (modBitWidth + limbWidth - 1) / limbWidth;
 
+  Type limbType = IntegerType::get(b.getContext(), limbWidth);
   Value zeroLimb = b.create<arith::ConstantOp>(IntegerAttr::get(limbType, 0));
 
-  auto decomposeToLimbs = [&b, limbType](SmallVector<Value> &limbs, Value input,
-                                         Type type) {
+  auto decomposeToLimbs = [&b, limbType, limbWidth, numLimbs](
+                              SmallVector<Value> &limbs, Value input,
+                              Type type) {
+    if (numLimbs == 1 && type == limbType) {
+      limbs[0] = input;
+      return limbs;
+    }
     limbs[0] = b.create<arith::TruncIOp>(limbType, input);
     Value remaining = input;
     Value shift =
@@ -686,7 +692,9 @@ MulExtendedResult squareExtended(ImplicitLocOpBuilder &b, Op op, Value input) {
   Value resultLow = zero;
   Value resultHigh = zero;
   for (unsigned i = 0; i < 2 * numLimbs; ++i) {
-    Value rAtI = b.create<arith::ExtUIOp>(intType, resultVec[i]);
+    Value rAtI = numLimbs == 1
+                     ? resultVec[i]
+                     : b.create<arith::ExtUIOp>(intType, resultVec[i]);
     if (i < numLimbs) {
       auto shifted = b.create<arith::ShLIOp>(
           rAtI, b.create<arith::ConstantOp>(

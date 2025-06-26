@@ -18,12 +18,12 @@ func.func private @printMemrefI32(memref<*xi32>) attributes { llvm.emit_c_interf
 
 func.func @test_poly_ntt() {
   %coeffsRaw = arith.constant dense<[1,2,3,4]> : tensor<4xi32>
-  %coeffs = field.pf.encapsulate %coeffsRaw : tensor<4xi32> -> tensor<4x!coeff_ty>
+  %coeffs = field.encapsulate %coeffsRaw : tensor<4xi32> -> tensor<4x!coeff_ty>
   %coeffs_mont = field.to_mont %coeffs : tensor<4x!coeff_ty_mont>
   %res = poly.ntt %coeffs_mont {root=#root} : tensor<4x!coeff_ty_mont>
 
   %res_standard = field.from_mont %res : tensor<4x!coeff_ty>
-  %extract = field.pf.extract %res_standard : tensor<4x!coeff_ty> -> tensor<4xi32>
+  %extract = field.extract %res_standard : tensor<4x!coeff_ty> -> tensor<4xi32>
   %1 = bufferization.to_memref %extract : tensor<4xi32> to memref<4xi32>
   %U = memref.cast %1 : memref<4xi32> to memref<*xi32>
   func.call @printMemrefI32(%U) : (memref<*xi32>) -> ()
@@ -32,7 +32,7 @@ func.func @test_poly_ntt() {
   %poly = poly.from_tensor %intt : tensor<4x!coeff_ty_mont> -> !poly_ty
   %res2 = poly.to_tensor %poly : !poly_ty -> tensor<4x!coeff_ty_mont>
   %res2_standard = field.from_mont %res2 : tensor<4x!coeff_ty>
-  %extract2 = field.pf.extract %res2_standard : tensor<4x!coeff_ty> -> tensor<4xi32>
+  %extract2 = field.extract %res2_standard : tensor<4x!coeff_ty> -> tensor<4xi32>
   %2= bufferization.to_memref %extract2 : tensor<4xi32> to memref<4xi32>
   %U2 = memref.cast %2 : memref<4xi32> to memref<*xi32>
   func.call @printMemrefI32(%U2) : (memref<*xi32>) -> ()

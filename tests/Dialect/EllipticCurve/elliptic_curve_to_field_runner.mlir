@@ -32,7 +32,7 @@ func.func @test_ops_in_order() {
   %index2 = arith.constant 1 : index
 
   %c_tensor = tensor.from_elements %c1, %c2: tensor<2xi256>
-  %f_tensor = field.pf.encapsulate %c_tensor : tensor<2xi256> -> tensor<2x!PF>
+  %f_tensor = field.encapsulate %c_tensor : tensor<2xi256> -> tensor<2x!PF>
   %c_mont_tensor = field.to_mont %f_tensor : tensor<2x!PFm>
   %var1 = tensor.extract %c_mont_tensor[%index1] : tensor<2x!PFm>
   %var2 = tensor.extract %c_mont_tensor[%index2] : tensor<2x!PFm>
@@ -47,7 +47,7 @@ func.func @test_ops_in_order() {
   %extract_point1x, %extract_point1y, %extract_point1z = elliptic_curve.extract %jacobian2 : !jacobian -> !PFm, !PFm, !PFm
   %extract_point1 = tensor.from_elements %extract_point1x, %extract_point1y, %extract_point1z : tensor<3x!PFm>
   %from_mont1 = field.from_mont %extract_point1 : tensor<3x!PF>
-  %extract1 = field.pf.extract %from_mont1 : tensor<3x!PF> -> tensor<3xi256>
+  %extract1 = field.extract %from_mont1 : tensor<3x!PF> -> tensor<3xi256>
   %trunc1 = arith.trunci %extract1 : tensor<3xi256> to tensor<3xi32>
   %1 = bufferization.to_memref %trunc1 : tensor<3xi32> to memref<3xi32>
   %U1 = memref.cast %1 : memref<3xi32> to memref<*xi32>
@@ -57,7 +57,7 @@ func.func @test_ops_in_order() {
   %extract_point2x, %extract_point2y, %extract_point2z = elliptic_curve.extract %jacobian3 : !jacobian -> !PFm, !PFm, !PFm
   %extract_point2 = tensor.from_elements %extract_point2x, %extract_point2y, %extract_point2z : tensor<3x!PFm>
   %from_mont2 = field.from_mont %extract_point2 : tensor<3x!PF>
-  %extract2 = field.pf.extract %from_mont2 : tensor<3x!PF> -> tensor<3xi256>
+  %extract2 = field.extract %from_mont2 : tensor<3x!PF> -> tensor<3xi256>
   %trunc2 = arith.trunci %extract2 : tensor<3xi256> to tensor<3xi32>
   %2 = bufferization.to_memref %trunc2 : tensor<3xi32> to memref<3xi32>
   %U2 = memref.cast %2 : memref<3xi32> to memref<*xi32>
@@ -67,7 +67,7 @@ func.func @test_ops_in_order() {
   %extract_point3x, %extract_point3y, %extract_point3z = elliptic_curve.extract %jacobian4 : !jacobian -> !PFm, !PFm, !PFm
   %extract_point3 = tensor.from_elements %extract_point3x, %extract_point3y, %extract_point3z : tensor<3x!PFm>
   %from_mont3 = field.from_mont %extract_point3 : tensor<3x!PF>
-  %extract3 = field.pf.extract %from_mont3 : tensor<3x!PF> -> tensor<3xi256>
+  %extract3 = field.extract %from_mont3 : tensor<3x!PF> -> tensor<3xi256>
   %trunc3 = arith.trunci %extract3 : tensor<3xi256> to tensor<3xi32>
   %3 = bufferization.to_memref %trunc3 : tensor<3xi32> to memref<3xi32>
   %U3 = memref.cast %3 : memref<3xi32> to memref<*xi32>
@@ -77,7 +77,7 @@ func.func @test_ops_in_order() {
   %extract_point4x, %extract_point4y, %extract_point4z = elliptic_curve.extract %jacobian5 : !jacobian -> !PFm, !PFm, !PFm
   %extract_point4 = tensor.from_elements %extract_point4x, %extract_point4y, %extract_point4z : tensor<3x!PFm>
   %from_mont4 = field.from_mont %extract_point4 : tensor<3x!PF>
-  %extract4 = field.pf.extract %from_mont4 : tensor<3x!PF> -> tensor<3xi256>
+  %extract4 = field.extract %from_mont4 : tensor<3x!PF> -> tensor<3xi256>
   %trunc4 = arith.trunci %extract4 : tensor<3xi256> to tensor<3xi32>
   %4 = bufferization.to_memref %trunc4 : tensor<3xi32> to memref<3xi32>
   %U4 = memref.cast %4 : memref<3xi32> to memref<*xi32>
@@ -87,7 +87,7 @@ func.func @test_ops_in_order() {
   %extract_point5x, %extract_point5y, %extract_point5zz, %extract_point5zzz = elliptic_curve.extract %xyzz1 : !xyzz -> !PFm, !PFm, !PFm, !PFm
   %extract_point5 = tensor.from_elements %extract_point5x, %extract_point5y, %extract_point5zz, %extract_point5zzz : tensor<4x!PFm>
   %from_mont5 = field.from_mont %extract_point5 : tensor<4x!PF>
-  %extract5 = field.pf.extract %from_mont5 : tensor<4x!PF> -> tensor<4xi256>
+  %extract5 = field.extract %from_mont5 : tensor<4x!PF> -> tensor<4xi256>
   %trunc5 = arith.trunci %extract5 : tensor<4xi256> to tensor<4xi32>
   %5 = bufferization.to_memref %trunc5 : tensor<4xi32> to memref<4xi32>
   %U5 = memref.cast %5 : memref<4xi32> to memref<*xi32>
@@ -97,7 +97,7 @@ func.func @test_ops_in_order() {
   %extract_point6x, %extract_point6y = elliptic_curve.extract %affine2 : !affine -> !PFm, !PFm
   %extract_point6 = tensor.from_elements %extract_point6x, %extract_point6y : tensor<2x!PFm>
   %from_mont6 = field.from_mont %extract_point6 : tensor<2x!PF>
-  %extract6 = field.pf.extract %from_mont6 : tensor<2x!PF> -> tensor<2xi256>
+  %extract6 = field.extract %from_mont6 : tensor<2x!PF> -> tensor<2xi256>
   %trunc6 = arith.trunci %extract6 : tensor<2xi256> to tensor<2xi32>
   %6 = bufferization.to_memref %trunc6 : tensor<2xi32> to memref<2xi32>
   %U6 = memref.cast %6 : memref<2xi32> to memref<*xi32>
@@ -109,7 +109,7 @@ func.func @test_ops_in_order() {
   %extract_point7x, %extract_point7y, %extract_point7z = elliptic_curve.extract %jacobian6_1 : !jacobian -> !PFm, !PFm, !PFm
   %extract_point7 = tensor.from_elements %extract_point7x, %extract_point7y, %extract_point7z : tensor<3x!PFm>
   %from_mont7 = field.from_mont %extract_point7 : tensor<3x!PF>
-  %extract7 = field.pf.extract %from_mont7 : tensor<3x!PF> -> tensor<3xi256>
+  %extract7 = field.extract %from_mont7 : tensor<3x!PF> -> tensor<3xi256>
   %trunc7 = arith.trunci %extract7 : tensor<3xi256> to tensor<3xi32>
   %7 = bufferization.to_memref %trunc7 : tensor<3xi32> to memref<3xi32>
   %U7 = memref.cast %7 : memref<3xi32> to memref<*xi32>
@@ -119,7 +119,7 @@ func.func @test_ops_in_order() {
   %extract_point8x, %extract_point8y = elliptic_curve.extract %affine3 : !affine -> !PFm, !PFm
   %extract_point8 = tensor.from_elements %extract_point8x, %extract_point8y : tensor<2x!PFm>
   %from_mont8 = field.from_mont %extract_point8 : tensor<2x!PF>
-  %extract8 = field.pf.extract %from_mont8 : tensor<2x!PF> -> tensor<2xi256>
+  %extract8 = field.extract %from_mont8 : tensor<2x!PF> -> tensor<2xi256>
   %trunc8 = arith.trunci %extract8 : tensor<2xi256> to tensor<2xi32>
   %8 = bufferization.to_memref %trunc8 : tensor<2xi32> to memref<2xi32>
   %U8 = memref.cast %8 : memref<2xi32> to memref<*xi32>
@@ -131,7 +131,7 @@ func.func @test_ops_in_order() {
   %extract_point9x, %extract_point9y, %extract_point9zz, %extract_point9zzz = elliptic_curve.extract %xyzz3 : !xyzz -> !PFm, !PFm, !PFm, !PFm
   %extract_point9 = tensor.from_elements %extract_point9x, %extract_point9y, %extract_point9zz, %extract_point9zzz : tensor<4x!PFm>
   %from_mont9 = field.from_mont %extract_point9 : tensor<4x!PF>
-  %extract9 = field.pf.extract %from_mont9 : tensor<4x!PF> -> tensor<4xi256>
+  %extract9 = field.extract %from_mont9 : tensor<4x!PF> -> tensor<4xi256>
   %trunc9 = arith.trunci %extract9 : tensor<4xi256> to tensor<4xi32>
   %9 = bufferization.to_memref %trunc9 : tensor<4xi32> to memref<4xi32>
   %U9 = memref.cast %9 : memref<4xi32> to memref<*xi32>
