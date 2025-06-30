@@ -65,6 +65,7 @@ void fieldToLLVMPipelineBuilder(OpPassManager &manager) {
   manager.addNestedPass<func::FuncOp>(createLinalgGeneralizeNamedOpsPass());
   manager.addPass(field::createFieldToModArith());
   manager.addNestedPass<func::FuncOp>(createLinalgGeneralizeNamedOpsPass());
+  manager.addPass(createCanonicalizerPass());
   manager.addPass(mod_arith::createModArithToArith());
   // FIXME(batzor): With this, some memref loads are canonicalized even though
   // it was modified in the middle, causing `poly_ntt_runner` test to fail.
