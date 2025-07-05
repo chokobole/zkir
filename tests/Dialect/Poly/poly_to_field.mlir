@@ -42,19 +42,12 @@ func.func @test_lower_sub(%lhs : !poly_ty1, %rhs : !poly_ty1) -> !poly_ty1 {
   return %res : !poly_ty1
 }
 
-// FIXME(batzor): lowering doesn't work if I try `to_tensor` on the argument polynomial
 // CHECK-LABEL: @test_lower_to_tensor
-// CHECK-SAME: () -> [[T:.*]] {
-func.func @test_lower_to_tensor() -> tensor<4x!PF1> {
-  // CHECK-NOT: poly.constant
-  // CHECK: %[[CVAL:.*]] = arith.constant dense<[1, 0, 0, 1]> : [[TINT:.*]]
-  // CHECK: %[[TVAL:.*]] = field.encapsulate %[[CVAL]] : [[TINT]] -> [[T]]
-  %0 = poly.constant<x**3 + 1> : !poly_ty1
+// CHECK-SAME: (%[[ARG0:.*]]: [[T:.*]]) -> [[T]] {
+func.func @test_lower_to_tensor(%arg0 : !poly_ty1) -> tensor<4x!PF1> {
   // CHECK-NOT: poly.to_tensor
-  // CHECK: %[[RES:.*]] = field.add %[[TVAL]], %[[TVAL]] : [[T]]
-  // CHECK: return %[[RES]] : [[T]]
-  %1 = poly.to_tensor %0 : !poly_ty1 -> tensor<4x!PF1>
-  %res = field.add %1, %1 : tensor<4x!PF1>
+  // CHECK: return %[[ARG0]] : [[T]]
+  %res = poly.to_tensor %arg0 : !poly_ty1 -> tensor<4x!PF1>
   return %res : tensor<4x!PF1>
 }
 

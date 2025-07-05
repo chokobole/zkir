@@ -160,7 +160,7 @@ struct ConvertToTensor : public OpConversionPattern<ToTensorOp> {
   LogicalResult matchAndRewrite(
       ToTensorOp op, OpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOp(op, adaptor.getOperands()[0].getDefiningOp());
+    rewriter.replaceOp(op, adaptor.getInput());
     return success();
   }
 };
