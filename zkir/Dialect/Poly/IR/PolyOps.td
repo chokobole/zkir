@@ -8,9 +8,31 @@ include "mlir/Interfaces/DestinationStyleOpInterface.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
+// Base class for polynomial operations.
 class Poly_Op<string mnemonic, list<Trait> traits = []> :
     Op<Poly_Dialect, mnemonic, traits # [Pure]> {
   let assemblyFormat = "operands attr-dict `:` functional-type(operands, results)";
+}
+
+// Base class for polynomial arithmetic ops. All ops have one result,
+// and the result type is the same as the operand type.
+class Poly_ArithOp<string mnemonic, list<Trait> traits = [ElementwiseMappable]> :
+    Poly_Op<mnemonic, traits # [SameOperandsAndResultType]>;
+
+// Base class for unary polynomial arithmetic.
+class Poly_UnaryOp<string mnemonic, list<Trait> traits = []> :
+    Poly_ArithOp<mnemonic, traits>,
+  Arguments<(ins PolyLike:$input)>,
+  Results<(outs PolyLike:$output)> {
+  let assemblyFormat = "operands attr-dict `:` type($output)";
+}
+
+// Base class for binary polynomial arithmetic
+class Poly_BinaryOp<string mnemonic, list<Trait> traits = []> :
+    Poly_ArithOp<mnemonic, traits>,
+  Arguments<(ins PolyLike:$lhs, PolyLike:$rhs)>,
+  Results<(outs PolyLike:$output)> {
+  let assemblyFormat = "operands attr-dict `:` type($output)";
 }
 
 def Poly_ConstantOp : Op<Poly_Dialect, "constant", [Pure]> {
@@ -28,19 +50,6 @@ def Poly_ConstantOp : Op<Poly_Dialect, "constant", [Pure]> {
   let arguments = (ins Poly_UnivariatePolyAttr:$value);
   let results = (outs Poly_PolyType:$output);
   let hasCustomAssemblyFormat = 1;
-}
-
-class Poly_UnaryOp<string mnemonic, list<Trait> traits = []> :
-    Poly_Op<mnemonic, traits # [SameOperandsAndResultType]> {
-  let arguments = (ins Poly_PolyType:$operand);
-  let results = (outs Poly_PolyType:$result);
-}
-
-class Poly_BinaryOp<string mnemonic, list<Trait> traits = []> :
-    Poly_Op<mnemonic, !listconcat(traits, [SameOperandsAndResultType, ElementwiseMappable])> {
-  let arguments = (ins PolyLike:$lhs, PolyLike:$rhs);
-  let results = (outs PolyLike:$result);
-  let assemblyFormat = "operands attr-dict `:` type($result)";
 }
 
 def Poly_AddOp : Poly_BinaryOp<"add", [Commutative]> {
