@@ -142,8 +142,7 @@ struct ConvertFromTensor : public OpConversionPattern<FromTensorOp> {
 
 // Butterfly : Cooley-Tukey
 static std::pair<Value, Value> bflyCT(ImplicitLocOpBuilder &b, Value A, Value B,
-                                      Value root,
-                                      mod_arith::MontgomeryAttr montAttr) {
+                                      Value root) {
   Value rootB = b.create<field::MulOp>(B, root);
   auto ctPlus = b.create<field::AddOp>(A, rootB);
   auto ctMinus = b.create<field::SubOp>(A, rootB);
@@ -152,8 +151,7 @@ static std::pair<Value, Value> bflyCT(ImplicitLocOpBuilder &b, Value A, Value B,
 
 // Butterfly : Gentleman-Sande
 static std::pair<Value, Value> bflyGS(ImplicitLocOpBuilder &b, Value A, Value B,
-                                      Value root,
-                                      mod_arith::MontgomeryAttr montAttr) {
+                                      Value root) {
   auto gsPlus = b.create<field::AddOp>(A, B);
   auto gsMinus = b.create<field::SubOp>(A, B);
   Value gsMinusRoot = b.create<field::MulOp>(gsMinus, root);
@@ -327,8 +325,7 @@ static Value fastNTT(ImplicitLocOpBuilder &b, PrimitiveRootAttr rootAttr,
           // an inverse transform.
           // ---------------------------------------------------------
           auto bflyResult =
-              kInverse ? bflyGS(pb, A, B, root, rootAttr.getMontgomery())
-                       : bflyCT(pb, A, B, root, rootAttr.getMontgomery());
+              kInverse ? bflyGS(pb, A, B, root) : bflyCT(pb, A, B, root);
 
           // Write the results back into the coefficient array.
           // Insert the "plus" result into `indexA` and the "minus"
