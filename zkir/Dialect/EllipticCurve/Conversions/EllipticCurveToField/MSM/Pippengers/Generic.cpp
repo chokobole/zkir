@@ -34,10 +34,12 @@ ValueRange PippengersGeneric::scalarIsOneBranch(Value point, Value windowOffset,
 }
 
 // https://encrypt.a41.io/primitives/abstract-algebra/elliptic-curve/msm/pippengers-algorithm#id-1.-scalar-decomposition
-Value PippengersGeneric::scalarDecomposition(IntegerType scalarIntType,
-                                             Value scalar,
+Value PippengersGeneric::scalarDecomposition(Value scalar,
                                              Value windowOffsetIndex,
                                              ImplicitLocOpBuilder &b) {
+  size_t scalarBitWidth =
+      scalarFieldType_.getModulus().getValue().getBitWidth();
+  auto scalarIntType = IntegerType::get(b.getContext(), scalarBitWidth);
   Value windowOffset =
       b.create<arith::IndexCastOp>(scalarIntType, windowOffsetIndex);
 
@@ -65,8 +67,7 @@ void PippengersGeneric::scalarIsNotOneBranch(Value scalar, Value point,
 
   Value zeroInt = b.create<arith::ConstantIntOp>(0, scalarIntType);
   Value oneInt = b.create<arith::ConstantIntOp>(1, scalarIntType);
-  Value scalarForWindow =
-      scalarDecomposition(scalarIntType, scalar, windowOffset, b);
+  Value scalarForWindow = scalarDecomposition(scalar, windowOffset, b);
 
   // If the scalar is non-zero, we update the corresponding bucket. (Recall that
   // `buckets` doesn't have a zero bucket.)
