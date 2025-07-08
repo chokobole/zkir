@@ -9,8 +9,7 @@
 #inv_elem = #field.pf.elem<4298:i32>  : !coeff_ty
 #root_of_unity = #field.root_of_unity<#elem, 4:i32>
 
-!mod = !mod_arith.int<7681:i32>
-#mont = #mod_arith.montgomery<!mod>
+#mont = #mod_arith.montgomery<7681:i32>
 #root = #poly.primitive_root<#root_of_unity, #mont>
 !poly_ty = !poly.polynomial<!coeff_ty_mont, 3>
 
