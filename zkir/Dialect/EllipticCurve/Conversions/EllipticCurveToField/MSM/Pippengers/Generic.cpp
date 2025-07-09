@@ -49,24 +49,17 @@ Value PippengersGeneric::scalarDecomposition(Value scalar,
       b.create<field::ExtractOp>(TypeRange{scalarIntType}, scalar).getResult(0);
   auto upperBitsScalar = b.create<arith::ShRUIOp>(signlessScalar, windowOffset);
 
-  // We mod the remaining bits by 2^{bitsPerWindow},
-  // thus taking `bitsPerWindow` total bits.
-  Value mask =
-      b.create<arith::ConstantIntOp>((1 << bitsPerWindow_) - 1, scalarIntType);
-  auto scalarPerWindow = b.create<arith::AndIOp>(upperBitsScalar, mask);
-
-  return scalarPerWindow;
+  auto windowBitIntType = IntegerType::get(b.getContext(), bitsPerWindow_);
+  return b.create<arith::TruncIOp>(windowBitIntType, upperBitsScalar);
 }
 
 void PippengersGeneric::scalarIsNotOneBranch(Value scalar, Value point,
                                              Value buckets, Value windowOffset,
                                              ImplicitLocOpBuilder &b) {
-  size_t scalarBitWidth =
-      scalarFieldType_.getModulus().getValue().getBitWidth();
-  auto scalarIntType = IntegerType::get(b.getContext(), scalarBitWidth);
+  auto windowBitIntType = IntegerType::get(b.getContext(), bitsPerWindow_);
 
-  Value zeroInt = b.create<arith::ConstantIntOp>(0, scalarIntType);
-  Value oneInt = b.create<arith::ConstantIntOp>(1, scalarIntType);
+  Value zeroInt = b.create<arith::ConstantIntOp>(0, windowBitIntType);
+  Value oneInt = b.create<arith::ConstantIntOp>(1, windowBitIntType);
   Value scalarForWindow = scalarDecomposition(scalar, windowOffset, b);
 
   // If the scalar is non-zero, we update the corresponding bucket. (Recall that
@@ -80,7 +73,7 @@ void PippengersGeneric::scalarIsNotOneBranch(Value scalar, Value point,
         ImplicitLocOpBuilder b0(loc, builder);
         auto scalarPerWindowMinusOne =
             b0.create<arith::SubIOp>(scalarForWindow, oneInt);
-        Value adjustedIdx = b0.create<arith::IndexCastOp>(
+        Value adjustedIdx = b0.create<arith::IndexCastUIOp>(
             b0.getIndexType(), scalarPerWindowMinusOne);
         auto bucketAtAdjustedIdx =
             b0.create<memref::LoadOp>(outputType_, buckets, adjustedIdx);
