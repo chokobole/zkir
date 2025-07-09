@@ -14,6 +14,7 @@
 #include "zkir/Dialect/Poly/IR/PolyOps.h"
 #include "zkir/Dialect/Poly/IR/PolyTypes.h"
 #include "zkir/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "zkir/Utils/APIntUtils.h"
 #include "zkir/Utils/ConversionUtils.h"
 
 namespace mlir::zkir::poly {
@@ -183,22 +184,35 @@ static Value fastNTT(ImplicitLocOpBuilder &b, NTTOpAdaptor adaptor,
   // -------------------------------------------------------------------------
   // Precompute the roots of unity in the given prime field.
   // -------------------------------------------------------------------------
-  auto rootAttr = adaptor.getRoot();
-  auto baseFieldType =
-      dyn_cast<field::PrimeFieldType>(rootAttr.getRoot().getType());
-  APInt cmod = baseFieldType.getModulus().getValue();
-  APInt root = rootAttr.getRoot().getValue().getValue();
+  Value roots;
+  if (adaptor.getTwiddles()) {
+    roots = adaptor.getTwiddles();
+  } else {
+    assert(adaptor.getRoot() &&
+           "Root of unity is required if no twiddles are provided");
+    field::RootOfUnityAttr rootAttr = adaptor.getRoot().value();
+    APInt cmod = coeffType.getModulus().getValue();
+    APInt root = rootAttr.getRoot().getValue().getValue();
 
-  // Create a tensor constant of precomputed roots for fast access during the
-  // NTT.
-  auto rootsType = intTensorType.clone({degree});
-  Value roots =
-      !kInverse
-          ? b.create<arith::ConstantOp>(rootsType, rootAttr.getRoots())
-          : b.create<arith::ConstantOp>(rootsType, rootAttr.getInvRoots());
+    mod_arith::MontgomeryAttr montAttr;
+    if (coeffType.isMontgomery()) {
+      montAttr = mod_arith::MontgomeryAttr::get(b.getContext(),
+                                                coeffType.getModulus());
+    }
+    auto primitiveRootsAttr =
+        PrimitiveRootAttr::get(b.getContext(), rootAttr, montAttr);
 
-  // Wrap the roots in a field encapsulation for further field operations.
-  roots = b.create<field::EncapsulateOp>(tensorType, roots);
+    // Create a tensor constant of precomputed roots for fast access during the
+    // NTT.
+    auto rootsType = intTensorType.clone({degree});
+    roots = !kInverse ? b.create<arith::ConstantOp>(
+                            rootsType, primitiveRootsAttr.getRoots())
+                      : b.create<arith::ConstantOp>(
+                            rootsType, primitiveRootsAttr.getInvRoots());
+
+    // Wrap the roots in a field encapsulation for further field operations.
+    roots = b.create<field::EncapsulateOp>(tensorType, roots);
+  }
 
   // -------------------------------------------------------------------------
   // Iterative NTT computation using a modified Cooley-Tukey / Gentleman-Sande
@@ -242,7 +256,7 @@ static Value fastNTT(ImplicitLocOpBuilder &b, NTTOpAdaptor adaptor,
   Value n = b.create<arith::ConstantIndexOp>(degree);
 
   // Create a memref buffer for in-place updates
-  auto memrefType = MemRefType::get(intTensorType.getShape(), baseFieldType);
+  auto memrefType = MemRefType::get(intTensorType.getShape(), coeffType);
   Value inputMemref = b.create<bufferization::ToMemrefOp>(memrefType, input);
 
   // Define affine expressions for index calculations.
@@ -371,10 +385,16 @@ static Value fastNTT(ImplicitLocOpBuilder &b, NTTOpAdaptor adaptor,
   // For the inverse NTT, we must scale the output by the multiplicative inverse
   // of the degree.
   if (kInverse) {
+    APInt modulus = coeffType.getModulus().getValue();
+    APInt invDegree =
+        multiplicativeInverse(APInt(modulus.getBitWidth(), degree), modulus);
+    auto invDegreeAttr = field::PrimeFieldAttr::get(
+        cast<field::PrimeFieldType>(getStandardFormType(coeffType)), invDegree);
+    if (coeffType.isMontgomery()) {
+      invDegreeAttr = getAttrAsMontgomeryForm(invDegreeAttr);
+    }
     // TODO(batzor): Use scalar multiplication directly when it's available.
-    Value invDegree =
-        b.create<arith::ConstantOp>(rootAttr.getInvDegree().getValue());
-    invDegree = b.create<field::EncapsulateOp>(baseFieldType, invDegree);
+    auto invDegreeConst = b.create<field::ConstantOp>(coeffType, invDegreeAttr);
     b.create<linalg::MapOp>(
         /*inputs=*/ValueRange{inputMemref},
         /*outputs=*/inputMemref,
@@ -382,14 +402,14 @@ static Value fastNTT(ImplicitLocOpBuilder &b, NTTOpAdaptor adaptor,
         [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
           ImplicitLocOpBuilder b(nestedLoc, nestedBuilder);
           Value mulResult;
-          mulResult = b.create<field::MulOp>(args[0], invDegree);
+          mulResult = b.create<field::MulOp>(args[0], invDegreeConst);
           b.create<linalg::YieldOp>(mulResult);
         });
   }
 
   // The final result is the coefficient tensor after all stages.
   Value result = b.create<bufferization::ToTensorOp>(
-      intTensorType.cloneWith(std::nullopt, baseFieldType), inputMemref,
+      intTensorType.cloneWith(std::nullopt, coeffType), inputMemref,
       /*restrict=*/true, /*writable=*/true);
 
   return result;

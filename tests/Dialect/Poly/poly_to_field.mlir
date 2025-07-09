@@ -5,7 +5,6 @@
 !poly_ty2 = !poly.polynomial<!PF1, 4>
 #elem = #field.pf.elem<6:i255>  : !PF1
 #root_of_unity = #field.root_of_unity<#elem, 2:i255>
-#root = #poly.primitive_root<#root_of_unity>
 
 // CHECK-LABEL: @test_lower_add
 // CHECK-SAME: (%[[LHS:.*]]: [[T:.*]], %[[RHS:.*]]: [[T]]) -> [[T]] {
@@ -49,7 +48,16 @@ func.func @test_lower_from_tensor(%t : tensor<4x!PF1>) -> !poly_ty1 {
 // CHECK-SAME: (%[[INPUT:.*]]: [[T:.*]]) -> [[T]] {
 func.func @test_lower_ntt(%input : tensor<2x!PF1>) -> tensor<2x!PF1> {
   // CHECK-NOT: poly.ntt
-  %res = poly.ntt %input {root=#root} : tensor<2x!PF1>
+  %res = poly.ntt %input {root=#root_of_unity}: tensor<2x!PF1>
+  return %res: tensor<2x!PF1>
+}
+
+// CHECK-LABEL: @test_lower_ntt_with_twiddles
+// CHECK-SAME: (%[[INPUT:.*]]: [[T:.*]]) -> [[T]] {
+func.func @test_lower_ntt_with_twiddles(%input : tensor<2x!PF1>, %twiddles : tensor<2x!PF1>) -> tensor<2x!PF1> {
+  // CHECK-NOT: poly.ntt
+  // CHECK-NOT: arith.constant dense
+  %res = poly.ntt %input, %twiddles: tensor<2x!PF1>
   return %res: tensor<2x!PF1>
 }
 
@@ -57,6 +65,15 @@ func.func @test_lower_ntt(%input : tensor<2x!PF1>) -> tensor<2x!PF1> {
 // CHECK-SAME: (%[[INPUT:.*]]: [[T:.*]]) -> [[P:.*]] {
 func.func @test_lower_intt(%input : tensor<2x!PF1>) -> tensor<2x!PF1> {
   // CHECK-NOT: poly.ntt
-  %res = poly.ntt %input {root=#root} inverse=true : tensor<2x!PF1>
+  %res = poly.ntt %input {root=#root_of_unity} inverse=true : tensor<2x!PF1>
+  return %res: tensor<2x!PF1>
+}
+
+// CHECK-LABEL: @test_lower_intt_with_twiddles
+// CHECK-SAME: (%[[INPUT:.*]]: [[T:.*]]) -> [[T]] {
+func.func @test_lower_intt_with_twiddles(%input : tensor<2x!PF1>, %twiddles : tensor<2x!PF1>) -> tensor<2x!PF1> {
+  // CHECK-NOT: poly.ntt
+  // CHECK-NOT: arith.constant dense
+  %res = poly.ntt %input, %twiddles inverse=true: tensor<2x!PF1>
   return %res: tensor<2x!PF1>
 }
