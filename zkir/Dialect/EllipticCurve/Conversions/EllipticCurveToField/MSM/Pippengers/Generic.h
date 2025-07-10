@@ -48,8 +48,8 @@ class PippengersGeneric : public Pippengers {
                                ImplicitLocOpBuilder &b);
 
   // Scalar Decomposition - reduce scalars into window slices
-  Value scalarDecomposition(IntegerType scalarIntType, Value scalar,
-                            Value windowOffset, ImplicitLocOpBuilder &b);
+  Value scalarDecomposition(Value scalar, Value windowOffset,
+                            ImplicitLocOpBuilder &b);
 
   void scalarIsNotOneBranch(Value scalar, Value point, Value buckets,
                             Value windowOffset, ImplicitLocOpBuilder &b);
