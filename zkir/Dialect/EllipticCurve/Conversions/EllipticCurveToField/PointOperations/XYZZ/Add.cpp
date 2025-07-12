@@ -6,6 +6,7 @@
 #include "zkir/Dialect/Field/IR/FieldOps.h"
 
 namespace mlir::zkir::elliptic_curve {
+namespace {
 
 // madd-2008-s
 // http://www.hyperelliptic.org/EFD/g1p/auto-shortw-xyzz.html#addition-mmadd-2008-s
@@ -193,6 +194,8 @@ static SmallVector<Value> xyzzAndXyzz(ValueRange p1, ValueRange p2,
       });
   return ifOp.getResults();
 }
+
+}  // namespace
 
 SmallVector<Value> xyzzAdd(ValueRange p1, ValueRange p2,
                            ShortWeierstrassAttr curve,
