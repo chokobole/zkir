@@ -5,7 +5,10 @@ zkir_benchmark_test(
     mlir_src = "mul_benchmark.mlir",
     tags = ["manual"],
     test_src = ["mul_benchmark_test.cc"],
-    zkir_opt_flags = ["-poly-to-llvm"],
+    zkir_opt_flags = [
+        "-poly-to-field",
+        "-field-to-llvm",
+    ],
     deps = [
         "//benchmark:BenchmarkUtils",
     ],

@@ -1,9 +1,9 @@
-// RUN: zkir-opt %s -poly-to-llvm \
+// RUN: zkir-opt %s -poly-to-field -field-to-llvm \
 // RUN:   | mlir-runner -e test_poly_ntt -entry-point-result=void \
 // RUN:      -shared-libs="%mlir_lib_dir/libmlir_runner_utils%shlibext" > %t
 // RUN: FileCheck %s -check-prefix=CHECK_TEST_POLY_NTT < %t
 
-// RUN: zkir-opt %s -poly-to-llvm \
+// RUN: zkir-opt %s -poly-to-field -field-to-llvm \
 // RUN:   | mlir-runner -e test_poly_ntt_with_twiddles -entry-point-result=void \
 // RUN:      -shared-libs="%mlir_lib_dir/libmlir_runner_utils%shlibext" > %t
 // RUN: FileCheck %s -check-prefix=CHECK_TEST_POLY_NTT_WITH_TWIDDLES < %t

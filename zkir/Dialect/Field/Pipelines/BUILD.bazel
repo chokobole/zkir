@@ -5,19 +5,14 @@ package(
 )
 
 cc_library(
-    name = "PipelineRegistration",
-    srcs = ["PipelineRegistration.cpp"],
-    hdrs = ["PipelineRegistration.h"],
+    name = "Passes",
+    srcs = ["Passes.cpp"],
+    hdrs = ["Passes.h"],
     deps = [
-        "//zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField",
         "//zkir/Dialect/Field/Conversions/FieldToModArith",
         "//zkir/Dialect/ModArith/Conversions/ModArithToArith",
-        "//zkir/Dialect/Poly/Conversions/PolyToField",
         "//zkir/Dialect/TensorExt/Conversions/TensorExtToTensor",
         "@llvm-project//mlir:AffineToStandard",
-        "@llvm-project//mlir:AffineTransforms",
-        "@llvm-project//mlir:ArithTransforms",
-        "@llvm-project//mlir:BufferizationToMemRef",
         "@llvm-project//mlir:BufferizationTransforms",
         "@llvm-project//mlir:ConvertToLLVM",
         "@llvm-project//mlir:FuncDialect",

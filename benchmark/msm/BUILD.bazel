@@ -5,7 +5,10 @@ zkir_benchmark_test(
     mlir_src = "msm_benchmark.mlir",
     tags = ["manual"],
     test_src = ["msm_benchmark_test.cc"],
-    zkir_opt_flags = ["-elliptic-curve-to-omp"],
+    zkir_opt_flags = [
+        "-elliptic-curve-to-field",
+        "-field-to-llvm=enable-openmp=true",
+    ],
     deps = [
         "//benchmark:BenchmarkUtils",
     ],
@@ -16,7 +19,10 @@ zkir_benchmark_test(
     mlir_src = "msm_benchmark.mlir",
     tags = ["manual"],
     test_src = ["msm_benchmark_test.cc"],
-    zkir_opt_flags = ["-elliptic-curve-to-llvm"],
+    zkir_opt_flags = [
+        "-elliptic-curve-to-field",
+        "-field-to-llvm",
+    ],
     deps = [
         "//benchmark:BenchmarkUtils",
     ],
