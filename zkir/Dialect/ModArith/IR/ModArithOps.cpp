@@ -1,8 +1,15 @@
 #include "zkir/Dialect/ModArith/IR/ModArithOps.h"
 
-#include "mlir/IR/Matchers.h"
 #include "mlir/IR/PatternMatch.h"
+#include "mlir/IR/TypeUtilities.h"
+#include "zkir/Dialect/ModArith/IR/ModArithDialect.h"
+#include "zkir/Dialect/ModArith/IR/ModArithTypes.h"
 #include "zkir/Utils/APIntUtils.h"
+
+// IWYU pragma: begin_keep
+// Headers needed for ModArithCanonicalization.cpp.inc
+#include "mlir/IR/Matchers.h"
+// IWYU pragma: end_keep
 
 namespace mlir::zkir::mod_arith {
 
