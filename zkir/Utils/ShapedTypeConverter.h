@@ -1,7 +1,6 @@
 #ifndef ZKIR_UTILS_SHAPEDTYPECONVERTER_H_
 #define ZKIR_UTILS_SHAPEDTYPECONVERTER_H_
 
-#include "llvm/ADT/SmallVector.h"
 #include "mlir/Transforms/DialectConversion.h"
 
 namespace mlir::zkir {
