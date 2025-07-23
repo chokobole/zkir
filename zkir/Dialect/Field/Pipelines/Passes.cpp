@@ -90,6 +90,7 @@ void buildFieldToGPU(OpPassManager &pm, const FieldToGPUOptions &options) {
   pm.addPass(createConvertLinalgToAffineLoopsPass());
   pm.addNestedPass<func::FuncOp>(createLoopInvariantCodeMotionPass());
   pm.addNestedPass<func::FuncOp>(createConvertAffineForToGPUPass());
+  pm.addNestedPass<func::FuncOp>(createConvertParallelLoopToGpuPass());
   pm.addPass(createGpuKernelOutliningPass());
   pm.addPass(createLowerAffinePass());
   pm.addPass(createGpuDecomposeMemrefsPass());

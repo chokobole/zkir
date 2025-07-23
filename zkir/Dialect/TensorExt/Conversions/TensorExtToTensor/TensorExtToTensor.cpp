@@ -3,6 +3,7 @@
 #include <utility>
 
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
+#include "mlir/Dialect/GPU/Transforms/ParallelLoopMapper.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
@@ -41,7 +42,7 @@ struct ConvertBitReverse : public OpConversionPattern<BitReverseOp> {
                                             /*read_only=*/true);
     auto destMemref =
         b.create<bufferization::ToMemrefOp>(memrefType, adaptor.getDest());
-    b.create<scf::ParallelOp>(
+    auto parallelOp = b.create<scf::ParallelOp>(
         /*lowerBound=*/ValueRange{c0},
         /*lowerBound=*/ValueRange{cN},
         /*steps=*/ValueRange{c1},
@@ -72,6 +73,13 @@ struct ConvertBitReverse : public OpConversionPattern<BitReverseOp> {
                 thenBuilder.create<scf::YieldOp>();
               });
         });
+
+    // Forward GPU mapping attribute if present.
+    StringRef gpuMappingAttrName = gpu::getMappingAttrName();
+    if (auto gpuMappingAttr = op->getAttr(gpuMappingAttrName)) {
+      parallelOp->setAttr(gpuMappingAttrName, gpuMappingAttr);
+    }
+
     auto result = b.create<bufferization::ToTensorOp>(
         tensorType, destMemref, /*restrict=*/true, /*writable=*/true);
     rewriter.replaceOp(op, result);
