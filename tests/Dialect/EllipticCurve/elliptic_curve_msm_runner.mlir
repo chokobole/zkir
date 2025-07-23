@@ -1,4 +1,4 @@
-// RUN: zkir-opt %s -elliptic-curve-to-llvm \
+// RUN: zkir-opt %s -elliptic-curve-to-field -field-to-llvm \
 // RUN:   | mlir-runner -e test_msm -entry-point-result=void \
 // RUN:      -shared-libs="%mlir_lib_dir/libmlir_runner_utils%shlibext" > %t
 // RUN: FileCheck %s -check-prefix=CHECK_TEST_MSM < %t

@@ -26,7 +26,7 @@ struct ConvertBitReverse : public OpConversionPattern<BitReverseOp> {
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto tensorType = cast<RankedTensorType>(adaptor.getInput().getType());
+    auto tensorType = cast<RankedTensorType>(adaptor.getSource().getType());
     MemRefType memrefType =
         MemRefType::get(tensorType.getShape(), tensorType.getElementType());
     unsigned numCoeffs = tensorType.getShape()[0];
@@ -43,8 +43,11 @@ struct ConvertBitReverse : public OpConversionPattern<BitReverseOp> {
     auto c0 = b.create<arith::ConstantIndexOp>(0);
     auto c1 = b.create<arith::ConstantIndexOp>(1);
     auto c2 = b.create<arith::ConstantIndexOp>(2);
-    auto inputMemref =
-        b.create<bufferization::ToMemrefOp>(memrefType, op.getInput());
+    auto sourceMemref =
+        b.create<bufferization::ToMemrefOp>(memrefType, adaptor.getSource(),
+                                            /*read_only=*/true);
+    auto destMemref =
+        b.create<bufferization::ToMemrefOp>(memrefType, adaptor.getDest());
     b.create<scf::ParallelOp>(
         /*lowerBound=*/ValueRange{c0},
         /*lowerBound=*/ValueRange{numSwaps},
@@ -57,13 +60,13 @@ struct ConvertBitReverse : public OpConversionPattern<BitReverseOp> {
           auto i1 =
               nb.create<tensor::ExtractOp>(indices, ValueRange{fromIndex});
           auto i2 = nb.create<tensor::ExtractOp>(indices, ValueRange{toIndex});
-          auto e1 = nb.create<memref::LoadOp>(inputMemref, ValueRange{i1});
-          auto e2 = nb.create<memref::LoadOp>(inputMemref, ValueRange{i2});
-          nb.create<memref::StoreOp>(e1, inputMemref, ValueRange{i2});
-          nb.create<memref::StoreOp>(e2, inputMemref, ValueRange{i1});
+          auto e1 = nb.create<memref::LoadOp>(sourceMemref, ValueRange{i1});
+          auto e2 = nb.create<memref::LoadOp>(sourceMemref, ValueRange{i2});
+          nb.create<memref::StoreOp>(e1, destMemref, ValueRange{i2});
+          nb.create<memref::StoreOp>(e2, destMemref, ValueRange{i1});
         });
     auto result = b.create<bufferization::ToTensorOp>(
-        tensorType, inputMemref, /*restrict=*/true, /*writable=*/true);
+        tensorType, destMemref, /*restrict=*/true, /*writable=*/true);
     rewriter.replaceOp(op, result);
     return success();
   }

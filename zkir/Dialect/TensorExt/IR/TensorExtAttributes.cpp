@@ -25,11 +25,15 @@ BitReverseIndicesAttrStorage *BitReverseIndicesAttrStorage::construct(
   unsigned indexBitWidth = bitWidthAttr.getValue().getZExtValue();
   unsigned numCoeffs = 1 << indexBitWidth;
   SmallVector<APInt> indices;
-  indices.reserve((numCoeffs - (1 << (indexBitWidth / 2))) / 2);
+  // clang-format off
+  // NOTE(batzor): Number of identity mapped indices is 2^(indexBitWidth / 2) / 2.  // NOLINT(whitespace/line_length)
+  // Since these indices are inserted twice, we add it to the reserved size.
+  // clang-format on
+  indices.reserve((numCoeffs + (1 << (indexBitWidth / 2))) / 2);
   for (unsigned index = 0; index < numCoeffs; index++) {
     APInt idx = APInt(indexBitWidth, index);
     APInt ridx = idx.reverseBits();
-    if (idx.ult(ridx)) {
+    if (idx.ule(ridx)) {
       indices.push_back(idx);
       indices.push_back(ridx);
     }
