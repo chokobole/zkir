@@ -1,23 +1,27 @@
 #include "zkir/Dialect/ModArith/IR/ModArithDialect.h"
 
 #include <cassert>
-#include <optional>
 
 #include "llvm/ADT/TypeSwitch.h"
+#include "mlir/IR/OpImplementation.h"
+#include "mlir/Support/LLVM.h"
+#include "zkir/Dialect/ModArith/IR/ModArithTypes.h"
+
+// IWYU pragma: begin_keep
+// Headers needed for ModArithDialect.cpp.inc
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/IR/MLIRContext.h"
+// Headers needed for ModArithAttributes.cpp.inc
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/DialectImplementation.h"
 #include "mlir/IR/Location.h"
-#include "mlir/IR/MLIRContext.h"
-#include "mlir/IR/OpImplementation.h"
-#include "mlir/IR/OperationSupport.h"
-#include "mlir/IR/TypeUtilities.h"
-#include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
 #include "zkir/Dialect/ModArith/IR/ModArithAttributes.h"
+// Headers needed for ModArithOps.cpp.inc
 #include "zkir/Dialect/ModArith/IR/ModArithOps.h"
-#include "zkir/Dialect/ModArith/IR/ModArithTypes.h"
+#include "zkir/Utils/OpUtils.h"
+// IWYU pragma: end_keep
 
 // Generated definitions
 #include "zkir/Dialect/ModArith/IR/ModArithDialect.cpp.inc"

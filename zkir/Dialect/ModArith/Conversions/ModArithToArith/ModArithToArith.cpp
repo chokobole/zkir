@@ -2,14 +2,11 @@
 
 #include <utility>
 
-#include "llvm/Support/Casting.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
-#include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
-#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/SparseTensor/IR/SparseTensor.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/BuiltinAttributeInterfaces.h"
@@ -29,9 +26,14 @@
 #include "zkir/Dialect/ModArith/IR/ModArithOps.h"
 #include "zkir/Dialect/ModArith/IR/ModArithTypes.h"
 #include "zkir/Dialect/TensorExt/IR/TensorExtOps.h"
-#include "zkir/Utils/APIntUtils.h"
 #include "zkir/Utils/ConversionUtils.h"
 #include "zkir/Utils/ShapedTypeConverter.h"
+
+// IWYU pragma: begin_keep
+// Headers needed for ModArithToArith.h.inc
+#include "mlir/Dialect/Math/IR/Math.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
+// IWYU pragma: end_keep
 
 namespace mlir::zkir::mod_arith {
 
