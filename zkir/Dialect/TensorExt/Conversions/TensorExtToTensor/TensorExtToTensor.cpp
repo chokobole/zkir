@@ -3,12 +3,13 @@
 #include <utility>
 
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
+#include "mlir/Dialect/GPU/Transforms/ParallelLoopMapper.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/ImplicitLocOpBuilder.h"
 #include "mlir/Transforms/DialectConversion.h"
-#include "zkir/Dialect/TensorExt/IR/TensorExtAttributes.h"
 #include "zkir/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "zkir/Dialect/TensorExt/IR/TensorExtOps.h"
 
@@ -33,37 +34,52 @@ struct ConvertBitReverse : public OpConversionPattern<BitReverseOp> {
            "expected the number of coefficients to be a power of 2");
     unsigned indexBitWidth = llvm::countr_zero(numCoeffs);
 
-    auto indicesAttr = BitReverseIndicesAttr::get(
-        IntegerAttr::get(b.getIndexType(), indexBitWidth));
-    auto indices = b.create<arith::ConstantOp>(indicesAttr.getIndicesType(),
-                                               indicesAttr.getIndices());
-    auto numSwaps =
-        b.create<arith::ConstantIndexOp>(indicesAttr.getIndices().size());
     auto c0 = b.create<arith::ConstantIndexOp>(0);
     auto c1 = b.create<arith::ConstantIndexOp>(1);
-    auto c2 = b.create<arith::ConstantIndexOp>(2);
+    auto cN = b.create<arith::ConstantIndexOp>(numCoeffs);
     auto sourceMemref =
         b.create<bufferization::ToMemrefOp>(memrefType, adaptor.getSource(),
                                             /*read_only=*/true);
     auto destMemref =
         b.create<bufferization::ToMemrefOp>(memrefType, adaptor.getDest());
-    b.create<scf::ParallelOp>(
+    auto parallelOp = b.create<scf::ParallelOp>(
         /*lowerBound=*/ValueRange{c0},
-        /*lowerBound=*/ValueRange{numSwaps},
-        /*steps=*/ValueRange{c2},
+        /*lowerBound=*/ValueRange{cN},
+        /*steps=*/ValueRange{c1},
         /*bodyBuilder=*/
         [&](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
           ImplicitLocOpBuilder nb(nestedLoc, nestedBuilder);
-          auto fromIndex = args[0];
-          auto toIndex = nb.create<arith::AddIOp>(fromIndex, c1);
-          auto i1 =
-              nb.create<tensor::ExtractOp>(indices, ValueRange{fromIndex});
-          auto i2 = nb.create<tensor::ExtractOp>(indices, ValueRange{toIndex});
-          auto e1 = nb.create<memref::LoadOp>(sourceMemref, ValueRange{i1});
-          auto e2 = nb.create<memref::LoadOp>(sourceMemref, ValueRange{i2});
-          nb.create<memref::StoreOp>(e1, destMemref, ValueRange{i2});
-          nb.create<memref::StoreOp>(e2, destMemref, ValueRange{i1});
+
+          auto index = nb.create<arith::IndexCastUIOp>(
+              nb.getIntegerType(indexBitWidth), args[0]);
+          auto bitReversed = nb.create<LLVM::BitReverseOp>(index);
+          auto isGE = nb.create<arith::CmpIOp>(arith::CmpIPredicate::sge,
+                                               bitReversed, index);
+          nb.create<scf::IfOp>(
+              isGE, /*thenBuilder=*/
+              [&](OpBuilder &thenB, Location thenLoc) {
+                ImplicitLocOpBuilder thenBuilder(thenLoc, thenB);
+                auto bitReversedIndex =
+                    thenBuilder.create<arith::IndexCastUIOp>(nb.getIndexType(),
+                                                             bitReversed);
+                auto e1 = thenBuilder.create<memref::LoadOp>(
+                    sourceMemref, ValueRange{args[0]});
+                auto e2 = thenBuilder.create<memref::LoadOp>(
+                    sourceMemref, ValueRange{bitReversedIndex});
+                thenBuilder.create<memref::StoreOp>(
+                    e1, destMemref, ValueRange{bitReversedIndex});
+                thenBuilder.create<memref::StoreOp>(e2, destMemref,
+                                                    ValueRange{args[0]});
+                thenBuilder.create<scf::YieldOp>();
+              });
         });
+
+    // Forward GPU mapping attribute if present.
+    StringRef gpuMappingAttrName = gpu::getMappingAttrName();
+    if (auto gpuMappingAttr = op->getAttr(gpuMappingAttrName)) {
+      parallelOp->setAttr(gpuMappingAttrName, gpuMappingAttr);
+    }
+
     auto result = b.create<bufferization::ToTensorOp>(
         tensorType, destMemref, /*restrict=*/true, /*writable=*/true);
     rewriter.replaceOp(op, result);
@@ -87,6 +103,7 @@ void TensorExtToTensor::runOnOperation() {
   target.addLegalDialect<memref::MemRefDialect>();
   target.addLegalDialect<arith::ArithDialect>();
   target.addLegalDialect<bufferization::BufferizationDialect>();
+  target.addLegalDialect<LLVM::LLVMDialect>();
   target.addLegalDialect<scf::SCFDialect>();
   RewritePatternSet patterns(context);
 

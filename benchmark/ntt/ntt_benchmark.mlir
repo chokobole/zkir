@@ -11,24 +11,28 @@
 
 func.func @ntt(%arg0 : !memref_ty) attributes { llvm.emit_c_interface } {
   %t = bufferization.to_tensor %arg0 restrict writable : !memref_ty to !coefft_ty
-  poly.ntt %t into %t {root=#root_of_unity} : !coefft_ty
+  %res = poly.ntt %t into %t {root=#root_of_unity} : !coefft_ty
+  bufferization.materialize_in_destination %res in writable %arg0 : (!coefft_ty, !memref_ty) -> ()
   return
 }
 
 func.func @intt(%arg0 : !memref_ty) attributes { llvm.emit_c_interface } {
   %t = bufferization.to_tensor %arg0 restrict writable : !memref_ty to !coefft_ty
-  poly.ntt %t into %t {root=#root_of_unity} inverse=true : !coefft_ty
+  %res = poly.ntt %t into %t {root=#root_of_unity} inverse=true : !coefft_ty
+  bufferization.materialize_in_destination %res in writable %arg0 : (!coefft_ty, !memref_ty) -> ()
   return
 }
 
 func.func @ntt_mont(%arg0 : !memref_ty_mont) attributes { llvm.emit_c_interface } {
   %t = bufferization.to_tensor %arg0 restrict writable : !memref_ty_mont to !coefft_ty_mont
-  poly.ntt %t into %t {root=#root_of_unity} : !coefft_ty_mont
+  %res = poly.ntt %t into %t {root=#root_of_unity} : !coefft_ty_mont
+  bufferization.materialize_in_destination %res in writable %arg0 : (!coefft_ty_mont, !memref_ty_mont) -> ()
   return
 }
 
 func.func @intt_mont(%arg0 : !memref_ty_mont) attributes { llvm.emit_c_interface } {
   %t = bufferization.to_tensor %arg0 restrict writable : !memref_ty_mont to !coefft_ty_mont
-  poly.ntt %t into %t {root=#root_of_unity} inverse=true : !coefft_ty_mont
+  %res = poly.ntt %t into %t {root=#root_of_unity} inverse=true : !coefft_ty_mont
+  bufferization.materialize_in_destination %res in writable %arg0 : (!coefft_ty_mont, !memref_ty_mont) -> ()
   return
 }

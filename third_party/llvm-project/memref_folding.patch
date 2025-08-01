@@ -1,0 +1,11 @@
+diff --git i/mlir/lib/Dialect/Bufferization/IR/BufferizationOps.cpp w/mlir/lib/Dialect/Bufferization/IR/BufferizationOps.cpp
+index 4fce9be390bd..984bbd37436c 100644
+--- mlir/lib/Dialect/Bufferization/IR/BufferizationOps.cpp
++++ mlir/lib/Dialect/Bufferization/IR/BufferizationOps.cpp
+@@ -827,5 +827,5 @@ struct LoadOfToMemref : public OpRewritePattern<memref::LoadOp> {
+   LogicalResult matchAndRewrite(memref::LoadOp load,
+                                 PatternRewriter &rewriter) const override {
+     auto toMemref = load.getMemref().getDefiningOp<ToMemrefOp>();
+-    if (!toMemref)
++    if (!toMemref || !toMemref.getReadOnly())
+       return failure();

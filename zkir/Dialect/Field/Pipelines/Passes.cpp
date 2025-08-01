@@ -10,6 +10,7 @@
 #include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
 #include "mlir/Conversion/SCFToGPU/SCFToGPUPass.h"
 #include "mlir/Conversion/SCFToOpenMP/SCFToOpenMP.h"
+#include "mlir/Dialect/Affine/Passes.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/GPU/Transforms/Passes.h"
 #include "mlir/Dialect/Linalg/Passes.h"
@@ -88,8 +89,16 @@ void buildFieldToGPU(OpPassManager &pm, const FieldToGPUOptions &options) {
   }
 
   pm.addPass(createConvertLinalgToAffineLoopsPass());
+  // FIXME(batzor): 1-D `affine::ForOp` is making the GPU conversion pass to
+  // fail so I added this pass as a temporary workaround. Due to this, some
+  // VecOps will not be lowered to GPU dialect.
+  pm.addPass(affine::createAffineParallelize());
   pm.addNestedPass<func::FuncOp>(createLoopInvariantCodeMotionPass());
   pm.addNestedPass<func::FuncOp>(createConvertAffineForToGPUPass());
+  // -gpu-map-parallel-loops greedily maps loops to GPU hardware dimensions if
+  // it's not already mapped.
+  pm.addPass(createGpuMapParallelLoopsPass());
+  pm.addNestedPass<func::FuncOp>(createConvertParallelLoopToGpuPass());
   pm.addPass(createGpuKernelOutliningPass());
   pm.addPass(createLowerAffinePass());
   pm.addPass(createGpuDecomposeMemrefsPass());
@@ -108,6 +117,8 @@ void buildFieldToGPU(OpPassManager &pm, const FieldToGPUOptions &options) {
   opt.hostBarePtrCallConv = true;
   opt.kernelBarePtrCallConv = true;
   pm.addPass(createGpuToLLVMConversionPass(opt));
+  pm.addPass(createSCFToControlFlowPass());
+  pm.addPass(createConvertToLLVMPass());
   pm.addPass(createCanonicalizerPass());
 }
 

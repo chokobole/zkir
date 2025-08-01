@@ -8,17 +8,14 @@ package(
 cc_library(
     name = "TensorExt",
     srcs = [
-        "TensorExtAttributes.cpp",
         "TensorExtDialect.cpp",
         "TensorExtOps.cpp",
     ],
     hdrs = [
-        "TensorExtAttributes.h",
         "TensorExtDialect.h",
         "TensorExtOps.h",
     ],
     deps = [
-        ":attributes_inc_gen",
         ":canonicalization_inc_gen",
         ":dialect_inc_gen",
         ":ops_inc_gen",
@@ -27,6 +24,7 @@ cc_library(
         "@llvm-project//mlir:DestinationStyleOpInterface",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
+        "@llvm-project//mlir:LLVMDialect",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
     ],
@@ -35,7 +33,6 @@ cc_library(
 td_library(
     name = "td_files",
     srcs = [
-        "TensorExtAttributes.td",
         "TensorExtDialect.td",
         "TensorExtOps.td",
     ],
@@ -46,23 +43,6 @@ td_library(
         "@llvm-project//mlir:SideEffectInterfacesTdFiles",
         "@llvm-project//mlir:TensorOpsTdFiles",
     ],
-)
-
-gentbl_cc_library(
-    name = "attributes_inc_gen",
-    tbl_outs = [
-        (
-            ["-gen-attrdef-decls"],
-            "TensorExtAttributes.h.inc",
-        ),
-        (
-            ["-gen-attrdef-defs"],
-            "TensorExtAttributes.cpp.inc",
-        ),
-    ],
-    tblgen = "@llvm-project//mlir:mlir-tblgen",
-    td_file = "TensorExtAttributes.td",
-    deps = [":td_files"],
 )
 
 gentbl_cc_library(
