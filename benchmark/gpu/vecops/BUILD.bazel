@@ -1,0 +1,34 @@
+load("@rules_cuda//cuda:defs.bzl", "requires_cuda")
+load("//benchmark:benchmark.bzl", "zkir_benchmark", "zkir_mlir_cc_import")
+
+zkir_mlir_cc_import(
+    name = "vecops_cpu_ciface",
+    mlir_src = "vecops_cpu.mlir",
+    zkir_opt_flags = [
+        "-field-to-llvm=enable-openmp=true",
+    ],
+)
+
+zkir_mlir_cc_import(
+    name = "vecops_gpu_ciface",
+    mlir_src = "vecops_gpu.mlir",
+    target_compatible_with = requires_cuda(),
+    zkir_opt_flags = [
+        "-field-to-gpu",
+    ],
+)
+
+zkir_benchmark(
+    name = "vecops_benchmark_test",
+    srcs = ["vecops_benchmark.cc"],
+    target_compatible_with = requires_cuda(),
+    deps = [
+        ":vecops_cpu_ciface",
+        ":vecops_gpu_ciface",
+        "//benchmark:BenchmarkUtils",
+        "@llvm-project//mlir:ExecutionEngine",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:mlir_cuda_runtime",
+        "@local_config_omp//:omp",
+    ],
+)
