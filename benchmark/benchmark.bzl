@@ -89,18 +89,18 @@ mlir_translate = rule(
     },
 )
 
-def zkir_benchmark_test(name, mlir_src, test_src, zkir_opt_flags = [], data = [], tags = [], deps = [], **kwargs):
-    """A rule for running compiling MLIR code and running a test linked to it.
+def zkir_mlir_cc_import(name, mlir_src, zkir_opt_flags = [], tags = [], **kwargs):
+    """Compiles an MLIR file to an object file and exposes it via cc_import.
+
+    This rule runs the following pipeline:
+      MLIR -> (zkir-opt) -> LLVM IR -> Object (.o) -> cc_import
 
     Args:
-      name: The name of the cc_test target.
-      mlir_src: The source mlir file to compile.
-      test_src: The C++ test harness source file.
-      zkir_opt_flags: Flags to pass to zkir-opt before mlir-translate.
-      data: Data dependencies to be passed to cc_test
-      tags: Tags to pass to cc_test
-      deps: Deps to pass to cc_test and cc_library
-      **kwargs: Keyword arguments to pass to cc_library and cc_test.
+      name: The name of the cc_import target.
+      mlir_src: The source .mlir file to compile.
+      zkir_opt_flags: Optional list of flags to pass to zkir-opt.
+      tags: Optional Bazel tags to apply to each build step.
+      **kwargs: Additional arguments to pass to each build step.
     """
     zkir_opt_name = "%s_zkir_opt" % name
     generated_zkir_opt_name = "%s_zkir_opt.mlir" % name
@@ -108,14 +108,15 @@ def zkir_benchmark_test(name, mlir_src, test_src, zkir_opt_flags = [], data = []
     generated_llvmir_name = "%s_llvmir.ll" % name
     obj_name = "%s_object" % name
     generated_obj_name = "%s.o" % name
-    import_name = "%s_object_import" % name
 
     if zkir_opt_flags:
         zkir_opt(
             name = zkir_opt_name,
             src = mlir_src,
             pass_flags = zkir_opt_flags,
+            tags = tags,
             generated_filename = generated_zkir_opt_name,
+            **kwargs
         )
     else:
         generated_zkir_opt_name = mlir_src
@@ -126,6 +127,7 @@ def zkir_benchmark_test(name, mlir_src, test_src, zkir_opt_flags = [], data = []
         pass_flags = ["--mlir-to-llvmir"],
         tags = tags,
         generated_filename = generated_llvmir_name,
+        **kwargs
     )
 
     llc(
@@ -134,22 +136,28 @@ def zkir_benchmark_test(name, mlir_src, test_src, zkir_opt_flags = [], data = []
         pass_flags = ["-relocation-model=pic", "-filetype=obj"],
         tags = tags,
         generated_filename = generated_obj_name,
+        **kwargs
     )
     cc_import(
-        name = import_name,
+        name = name,
         objects = [generated_obj_name],
+        data = [generated_obj_name],
+        tags = tags,
+        **kwargs
     )
+
+def zkir_benchmark(name, srcs, deps, data = [], tags = [], **kwargs):
+    """A rule for running a benchmark test."""
+
     cc_test(
         name = name,
-        srcs = test_src,
+        srcs = srcs,
         deps = deps + [
-            ":" + import_name,
             "@google_benchmark//:benchmark_main",
             "@googletest//:gtest",
             "@llvm-project//mlir:mlir_runner_utils",
-            "@local_config_omp//:omp",
         ],
         tags = tags,
-        data = data + [generated_obj_name],
+        data = data,
         **kwargs
     )

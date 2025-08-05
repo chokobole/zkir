@@ -1,15 +1,19 @@
-load("//benchmark:benchmark.bzl", "zkir_benchmark_test")
+load("//benchmark:benchmark.bzl", "zkir_benchmark", "zkir_mlir_cc_import")
 
-zkir_benchmark_test(
-    name = "mul_benchmark_test",
+zkir_mlir_cc_import(
+    name = "mul_ciface",
     mlir_src = "mul_benchmark.mlir",
-    tags = ["manual"],
-    test_src = ["mul_benchmark_test.cc"],
     zkir_opt_flags = [
         "-poly-to-field",
         "-field-to-llvm",
     ],
+)
+
+zkir_benchmark(
+    name = "mul_benchmark_test",
+    srcs = ["mul_benchmark_test.cc"],
     deps = [
+        ":mul_ciface",
         "//benchmark:BenchmarkUtils",
         "@llvm-project//mlir:ExecutionEngine",
         "@llvm-project//mlir:Support",
