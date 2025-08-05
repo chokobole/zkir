@@ -29,6 +29,7 @@ http_archive(
     build_file_content = "# empty",
     patches = [
         "//third_party/llvm-project:linalg_type_support.patch",
+        "//third_party/llvm-project:owning_memref.patch",
         "//third_party/llvm-project:tensor_type_support.patch",
         "//third_party/llvm-project:memref_folding.patch",
     ],
