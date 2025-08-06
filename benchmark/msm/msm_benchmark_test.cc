@@ -3,7 +3,6 @@
 
 #include "benchmark/BenchmarkUtils.h"
 #include "benchmark/benchmark.h"
-#include "gtest/gtest.h"
 #include "mlir/ExecutionEngine/MemRefUtils.h"
 #include "mlir/Support/LLVM.h"
 
