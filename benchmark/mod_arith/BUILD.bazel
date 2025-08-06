@@ -11,5 +11,7 @@ zkir_benchmark_test(
     ],
     deps = [
         "//benchmark:BenchmarkUtils",
+        "@llvm-project//mlir:ExecutionEngine",
+        "@llvm-project//mlir:Support",
     ],
 )

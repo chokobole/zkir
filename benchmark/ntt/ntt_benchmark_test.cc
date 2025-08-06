@@ -4,6 +4,8 @@
 #include "benchmark/BenchmarkUtils.h"
 #include "benchmark/benchmark.h"
 #include "gtest/gtest.h"
+#include "mlir/ExecutionEngine/MemRefUtils.h"
+#include "mlir/Support/LLVM.h"
 
 #define NUM_COEFFS (1 << 20)
 
@@ -17,81 +19,76 @@ using i256 = BigInt<4>;
 const i256 kPrime = i256::fromHexString(
     "0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001");
 
-// Fill the input with random numbers in [0, prime).
-void fillWithRandom(Memref<i256> *input, const i256 &kPrime) {
-  // Set up the random number generator.
-  std::mt19937_64 rng(std::random_device{}());  // NOLINT(whitespace/braces)
-  std::uniform_int_distribution<uint64_t> dist(0, UINT64_MAX);
-  for (int i = 0; i < NUM_COEFFS; i++) {
-    *input->pget(i, 0) = i256::randomLT(kPrime, rng, dist);
-  }
+// Set up the random number generator.
+std::mt19937_64 rng(std::random_device{}());  // NOLINT(whitespace/braces)
+std::uniform_int_distribution<uint64_t> dist(0, UINT64_MAX);
+
+// Set the element to a random number in [0, `kPrime`).
+void fillWithRandom(i256 &elem, ArrayRef<int64_t> coords) {
+  elem = i256::randomLT(kPrime, rng, dist);
 }
 
-extern "C" void _mlir_ciface_ntt(Memref<i256> *buffer);
-extern "C" void _mlir_ciface_intt(Memref<i256> *buffer);
+extern "C" void _mlir_ciface_ntt(StridedMemRefType<i256, 1> *buffer);
+extern "C" void _mlir_ciface_intt(StridedMemRefType<i256, 1> *buffer);
 
-extern "C" void _mlir_ciface_ntt_mont(Memref<i256> *buffer);
-extern "C" void _mlir_ciface_intt_mont(Memref<i256> *buffer);
+extern "C" void _mlir_ciface_ntt_mont(StridedMemRefType<i256, 1> *buffer);
+extern "C" void _mlir_ciface_intt_mont(StridedMemRefType<i256, 1> *buffer);
 
 template <bool kIsMont>
 void BM_ntt_benchmark(::benchmark::State &state) {
-  Memref<i256> input(NUM_COEFFS, 1);
-  fillWithRandom(&input, kPrime);
+  OwningMemRef<i256, 1> input(/*shape=*/{NUM_COEFFS}, /*shapeAlloc=*/{},
+                              /*init=*/fillWithRandom);
 
-  Memref<i256> ntt(NUM_COEFFS, 1);
+  OwningMemRef<i256, 1> ntt(/*shape=*/{NUM_COEFFS}, /*shapeAlloc=*/{});
   for (auto _ : state) {
     state.PauseTiming();
-    memcpy(ntt.pget(0, 0), input.pget(0, 0), sizeof(i256) * NUM_COEFFS);
+    memcpy((*ntt).data, (*input).data, sizeof(i256) * NUM_COEFFS);
     state.ResumeTiming();
     if constexpr (kIsMont) {
-      _mlir_ciface_ntt_mont(&ntt);
+      _mlir_ciface_ntt_mont(&*ntt);
     } else {
-      _mlir_ciface_ntt(&ntt);
+      _mlir_ciface_ntt(&*ntt);
     }
   }
 
   if constexpr (kIsMont) {
-    _mlir_ciface_intt_mont(&ntt);
+    _mlir_ciface_intt_mont(&*ntt);
   } else {
-    _mlir_ciface_intt(&ntt);
+    _mlir_ciface_intt(&*ntt);
   }
 
   for (int i = 0; i < NUM_COEFFS; i++) {
-    for (int j = 0; j < 4; j++) {
-      EXPECT_EQ(ntt.pget(i, 0)->limbs[j], input.pget(i, 0)->limbs[j]);
-    }
+    EXPECT_EQ((*ntt)[i], (*input)[i]);
   }
 }
 
 template <bool kIsMont>
 void BM_intt_benchmark(::benchmark::State &state) {
-  Memref<i256> input(NUM_COEFFS, 1);
-  fillWithRandom(&input, kPrime);
+  OwningMemRef<i256, 1> input(/*shape=*/{NUM_COEFFS}, /*shapeAlloc=*/{},
+                              /*init=*/fillWithRandom);
 
-  Memref<i256> ntt(NUM_COEFFS, 1);
-  memcpy(ntt.pget(0, 0), input.pget(0, 0), sizeof(i256) * NUM_COEFFS);
+  OwningMemRef<i256, 1> ntt(/*shape=*/{NUM_COEFFS}, /*shapeAlloc=*/{});
+  memcpy((*ntt).data, (*input).data, sizeof(i256) * NUM_COEFFS);
   if constexpr (kIsMont) {
-    _mlir_ciface_ntt_mont(&ntt);
+    _mlir_ciface_ntt_mont(&*ntt);
   } else {
-    _mlir_ciface_ntt(&ntt);
+    _mlir_ciface_ntt(&*ntt);
   }
 
-  Memref<i256> intt(NUM_COEFFS, 1);
+  OwningMemRef<i256, 1> intt(/*shape=*/{NUM_COEFFS}, /*shapeAlloc=*/{});
   for (auto _ : state) {
     state.PauseTiming();
-    memcpy(intt.pget(0, 0), ntt.pget(0, 0), sizeof(i256) * NUM_COEFFS);
+    memcpy((*intt).data, (*ntt).data, sizeof(i256) * NUM_COEFFS);
     state.ResumeTiming();
     if constexpr (kIsMont) {
-      _mlir_ciface_intt_mont(&intt);
+      _mlir_ciface_intt_mont(&*intt);
     } else {
-      _mlir_ciface_intt(&intt);
+      _mlir_ciface_intt(&*intt);
     }
   }
 
   for (int i = 0; i < NUM_COEFFS; i++) {
-    for (int j = 0; j < 4; j++) {
-      EXPECT_EQ(intt.pget(i, 0)->limbs[j], input.pget(i, 0)->limbs[j]);
-    }
+    EXPECT_EQ((*intt)[i], (*input)[i]);
   }
 }
 

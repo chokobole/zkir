@@ -4,6 +4,8 @@
 #include "benchmark/BenchmarkUtils.h"
 #include "benchmark/benchmark.h"
 #include "gtest/gtest.h"
+#include "mlir/ExecutionEngine/MemRefUtils.h"
+#include "mlir/Support/LLVM.h"
 
 #define NUM_SCALARMULS (1 << 20)
 
@@ -20,44 +22,37 @@ const i256 kPrimeBase = i256::fromHexString(
 const i256 kPrimeScalar = i256::fromHexString(
     "0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001");
 
-// Fill the input with random numbers in [0, prime).
-void fillWithRandom(Memref<i256> *input, const i256 &kPrime) {
-  // Set up the random number generator.
-  std::mt19937_64 rng(std::random_device{}());  // NOLINT(whitespace/braces)
-  std::uniform_int_distribution<uint64_t> dist(0, UINT64_MAX);
-  for (int i = 0; i < NUM_SCALARMULS; i++) {
-    *input->pget(i, 0) = i256::randomLT(kPrime, rng, dist);
+// Set up the random number generator.
+std::mt19937_64 rng(std::random_device{}());  // NOLINT(whitespace/braces)
+std::uniform_int_distribution<uint64_t> dist(0, UINT64_MAX);
+
+template <bool kIsScalar>
+void fillWithRandom(i256 &elem, ArrayRef<int64_t> coords) {
+  if constexpr (kIsScalar) {
+    elem = i256::randomLT(kPrimeScalar, rng, dist);
+  } else {
+    elem = i256::randomLT(kPrimeBase, rng, dist);
   }
 }
 
-// Fill the input with random numbers in [0, prime).
-void fillWithRandomPoints(Memref<i256> *input, const i256 &kPrime) {
-  // Set up the random number generator.
-  std::mt19937_64 rng(std::random_device{}());  // NOLINT(whitespace/braces)
-  std::uniform_int_distribution<uint64_t> dist(0, UINT64_MAX);
-  for (int i = 0; i < NUM_SCALARMULS; i++) {
-    *input->pget(i, 0) = i256::randomLT(kPrime, rng, dist);
-    *input->pget(i, 1) = i256::randomLT(kPrime, rng, dist);
-  }
-}
-
-extern "C" void _mlir_ciface_msm_serial(Memref<i256> *scalars,
-                                        Memref<i256> *points);
-extern "C" void _mlir_ciface_msm_parallel(Memref<i256> *scalars,
-                                          Memref<i256> *points);
+extern "C" void _mlir_ciface_msm_serial(StridedMemRefType<i256, 1> *scalars,
+                                        StridedMemRefType<i256, 2> *points);
+extern "C" void _mlir_ciface_msm_parallel(StridedMemRefType<i256, 1> *scalars,
+                                          StridedMemRefType<i256, 2> *points);
 
 template <bool kIsParallel>
 void BM_msm_benchmark(::benchmark::State &state) {
-  Memref<i256> scalars(NUM_SCALARMULS, 1);
-  fillWithRandom(&scalars, kPrimeScalar);
-  Memref<i256> points(NUM_SCALARMULS, 2);
-  fillWithRandomPoints(&points, kPrimeBase);
+  OwningMemRef<i256, 1> scalars(/*shape=*/{NUM_SCALARMULS}, /*shapeAlloc=*/{},
+                                /*init=*/fillWithRandom<true>);
+  OwningMemRef<i256, 2> points(/*shape=*/{NUM_SCALARMULS, 2},
+                               /*shapeAlloc=*/{},
+                               /*init=*/fillWithRandom<false>);
 
   for (auto _ : state) {
     if constexpr (kIsParallel) {
-      _mlir_ciface_msm_parallel(&scalars, &points);
+      _mlir_ciface_msm_parallel(&*scalars, &*points);
     } else {
-      _mlir_ciface_msm_serial(&scalars, &points);
+      _mlir_ciface_msm_serial(&*scalars, &*points);
     }
   }
 }
