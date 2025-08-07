@@ -41,8 +41,12 @@ void fillWithRandomPoints(Memref<i256> *input, const i256 &kPrime) {
   }
 }
 
-extern "C" void _mlir_ciface_msm(Memref<i256> *scalars, Memref<i256> *points);
+extern "C" void _mlir_ciface_msm_serial(Memref<i256> *scalars,
+                                        Memref<i256> *points);
+extern "C" void _mlir_ciface_msm_parallel(Memref<i256> *scalars,
+                                          Memref<i256> *points);
 
+template <bool kIsParallel>
 void BM_msm_benchmark(::benchmark::State &state) {
   Memref<i256> scalars(NUM_SCALARMULS, 1);
   fillWithRandom(&scalars, kPrimeScalar);
@@ -50,11 +54,23 @@ void BM_msm_benchmark(::benchmark::State &state) {
   fillWithRandomPoints(&points, kPrimeBase);
 
   for (auto _ : state) {
-    _mlir_ciface_msm(&scalars, &points);
+    if constexpr (kIsParallel) {
+      _mlir_ciface_msm_parallel(&scalars, &points);
+    } else {
+      _mlir_ciface_msm_serial(&scalars, &points);
+    }
   }
 }
 
-BENCHMARK(BM_msm_benchmark)->Iterations(20)->Unit(::benchmark::kMillisecond);
+BENCHMARK_TEMPLATE(BM_msm_benchmark, /*kIsParallel=*/false)
+    ->Iterations(20)
+    ->Unit(::benchmark::kMillisecond)
+    ->Name("msm_serial");
+
+BENCHMARK_TEMPLATE(BM_msm_benchmark, /*kIsParallel=*/true)
+    ->Iterations(20)
+    ->Unit(::benchmark::kMillisecond)
+    ->Name("msm_parallel");
 
 }  // namespace
 }  // namespace mlir::zkir::benchmark
@@ -62,31 +78,17 @@ BENCHMARK(BM_msm_benchmark)->Iterations(20)->Unit(::benchmark::kMillisecond);
 // clang-format off
 // NOLINTBEGIN(whitespace/line_length)
 
-// $bazel run -c opt //benchmark/msm:msm_benchmark_test_serial
-// 2025-06-26 tested on M4 Pro
-//
-// Run on (14 X 24 MHz CPU s)
+// 2025-08-07T01:40:36+00:00
+// Run on AMD Ryzen 9 9950X3D (32 X 5501.43 MHz CPU s)
 // CPU Caches:
-//   L1 Data 64 KiB
-//   L1 Instruction 128 KiB
-//   L2 Unified 4096 KiB (x14)
-// Load Average: 7.82, 13.83, 10.35
-// -------------------------------------------------------------------------
-// Benchmark                               Time             CPU   Iterations
-// -------------------------------------------------------------------------
-// BM_msm_benchmark/iterations:20       2786 ms         2761 ms           20
-
-// $bazel run -c opt //benchmark/msm:msm_benchmark_test_parallel
-// 2025-06-26 tested on M4 Pro
-//
-// Run on (14 X 24 MHz CPU s)
-// CPU Caches:
-//   L1 Data 64 KiB
-//   L1 Instruction 128 KiB
-//   L2 Unified 4096 KiB (x14)
-// Load Average: 22.03, 18.19, 11.02
-// -------------------------------------------------------------------------
-// Benchmark                               Time             CPU   Iterations
-// -------------------------------------------------------------------------
-// BM_msm_benchmark/iterations:20        609 ms          485 ms           20
+//   L1 Data 48 KiB (x16)
+//   L1 Instruction 32 KiB (x16)
+//   L2 Unified 1024 KiB (x16)
+//   L3 Unified 98304 KiB (x2)
+// Load Average: 3.91, 4.78, 7.12
+// ---------------------------------------------------------------------
+// Benchmark                           Time             CPU   Iterations
+// ---------------------------------------------------------------------
+// msm_serial/iterations:20         2348 ms         2348 ms           20
+// msm_parallel/iterations:20        276 ms          276 ms           20
 // NOLINTEND()
