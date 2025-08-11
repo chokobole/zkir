@@ -3,16 +3,15 @@
 
 #include "benchmark/BenchmarkUtils.h"
 #include "benchmark/benchmark.h"
-#include "gtest/gtest.h"
+#include "mlir/ExecutionEngine/MemRefUtils.h"
+#include "mlir/Support/LLVM.h"
 
 #define NUM_SCALARMULS (1 << 20)
 
-namespace zkir {
+namespace mlir::zkir::benchmark {
 namespace {
 
-using benchmark::Memref;
-
-using i256 = benchmark::BigInt<4>;
+using i256 = BigInt<4>;
 
 // `kPrime` =
 // 21888242871839275222246405745257275088548364400416034343698204186575808495617
@@ -22,73 +21,68 @@ const i256 kPrimeBase = i256::fromHexString(
 const i256 kPrimeScalar = i256::fromHexString(
     "0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001");
 
-// Fill the input with random numbers in [0, prime).
-static void fillWithRandom(Memref<i256> *input, const i256 &kPrime) {
-  // Set up the random number generator.
-  std::mt19937_64 rng(std::random_device{}());  // NOLINT(whitespace/braces)
-  std::uniform_int_distribution<uint64_t> dist(0, UINT64_MAX);
-  for (int i = 0; i < NUM_SCALARMULS; i++) {
-    *input->pget(i, 0) = i256::randomLT(kPrime, rng, dist);
+// Set up the random number generator.
+std::mt19937_64 rng(std::random_device{}());  // NOLINT(whitespace/braces)
+std::uniform_int_distribution<uint64_t> dist(0, UINT64_MAX);
+
+template <bool kIsScalar>
+void fillWithRandom(i256 &elem, ArrayRef<int64_t> coords) {
+  if constexpr (kIsScalar) {
+    elem = i256::randomLT(kPrimeScalar, rng, dist);
+  } else {
+    elem = i256::randomLT(kPrimeBase, rng, dist);
   }
 }
 
-// Fill the input with random numbers in [0, prime).
-static void fillWithRandomPoints(Memref<i256> *input, const i256 &kPrime) {
-  // Set up the random number generator.
-  std::mt19937_64 rng(std::random_device{}());  // NOLINT(whitespace/braces)
-  std::uniform_int_distribution<uint64_t> dist(0, UINT64_MAX);
-  for (int i = 0; i < NUM_SCALARMULS; i++) {
-    *input->pget(i, 0) = i256::randomLT(kPrime, rng, dist);
-    *input->pget(i, 1) = i256::randomLT(kPrime, rng, dist);
-  }
-}
+extern "C" void _mlir_ciface_msm_serial(StridedMemRefType<i256, 1> *scalars,
+                                        StridedMemRefType<i256, 2> *points);
+extern "C" void _mlir_ciface_msm_parallel(StridedMemRefType<i256, 1> *scalars,
+                                          StridedMemRefType<i256, 2> *points);
 
-extern "C" void _mlir_ciface_msm(Memref<i256> *scalars, Memref<i256> *points);
-
+template <bool kIsParallel>
 void BM_msm_benchmark(::benchmark::State &state) {
-  Memref<i256> scalars(NUM_SCALARMULS, 1);
-  fillWithRandom(&scalars, kPrimeScalar);
-  Memref<i256> points(NUM_SCALARMULS, 2);
-  fillWithRandomPoints(&points, kPrimeBase);
+  OwningMemRef<i256, 1> scalars(/*shape=*/{NUM_SCALARMULS}, /*shapeAlloc=*/{},
+                                /*init=*/fillWithRandom<true>);
+  OwningMemRef<i256, 2> points(/*shape=*/{NUM_SCALARMULS, 2},
+                               /*shapeAlloc=*/{},
+                               /*init=*/fillWithRandom<false>);
 
   for (auto _ : state) {
-    _mlir_ciface_msm(&scalars, &points);
+    if constexpr (kIsParallel) {
+      _mlir_ciface_msm_parallel(&*scalars, &*points);
+    } else {
+      _mlir_ciface_msm_serial(&*scalars, &*points);
+    }
   }
 }
 
-BENCHMARK(BM_msm_benchmark)->Iterations(20)->Unit(::benchmark::kMillisecond);
+BENCHMARK_TEMPLATE(BM_msm_benchmark, /*kIsParallel=*/false)
+    ->Iterations(20)
+    ->Unit(::benchmark::kMillisecond)
+    ->Name("msm_serial");
+
+BENCHMARK_TEMPLATE(BM_msm_benchmark, /*kIsParallel=*/true)
+    ->Iterations(20)
+    ->Unit(::benchmark::kMillisecond)
+    ->Name("msm_parallel");
 
 }  // namespace
-}  // namespace zkir
+}  // namespace mlir::zkir::benchmark
 
 // clang-format off
 // NOLINTBEGIN(whitespace/line_length)
 
-// $bazel run -c opt //benchmark/msm:msm_benchmark_test_serial
-// 2025-06-26 tested on M4 Pro
-//
-// Run on (14 X 24 MHz CPU s)
+// 2025-08-07T01:40:36+00:00
+// Run on AMD Ryzen 9 9950X3D (32 X 5501.43 MHz CPU s)
 // CPU Caches:
-//   L1 Data 64 KiB
-//   L1 Instruction 128 KiB
-//   L2 Unified 4096 KiB (x14)
-// Load Average: 7.82, 13.83, 10.35
-// -------------------------------------------------------------------------
-// Benchmark                               Time             CPU   Iterations
-// -------------------------------------------------------------------------
-// BM_msm_benchmark/iterations:20       2786 ms         2761 ms           20
-
-// $bazel run -c opt //benchmark/msm:msm_benchmark_test_parallel
-// 2025-06-26 tested on M4 Pro
-//
-// Run on (14 X 24 MHz CPU s)
-// CPU Caches:
-//   L1 Data 64 KiB
-//   L1 Instruction 128 KiB
-//   L2 Unified 4096 KiB (x14)
-// Load Average: 22.03, 18.19, 11.02
-// -------------------------------------------------------------------------
-// Benchmark                               Time             CPU   Iterations
-// -------------------------------------------------------------------------
-// BM_msm_benchmark/iterations:20        609 ms          485 ms           20
+//   L1 Data 48 KiB (x16)
+//   L1 Instruction 32 KiB (x16)
+//   L2 Unified 1024 KiB (x16)
+//   L3 Unified 98304 KiB (x2)
+// Load Average: 3.91, 4.78, 7.12
+// ---------------------------------------------------------------------
+// Benchmark                           Time             CPU   Iterations
+// ---------------------------------------------------------------------
+// msm_serial/iterations:20         2348 ms         2348 ms           20
+// msm_parallel/iterations:20        276 ms          276 ms           20
 // NOLINTEND()

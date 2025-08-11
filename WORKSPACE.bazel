@@ -28,7 +28,9 @@ http_archive(
     name = "llvm-raw",
     build_file_content = "# empty",
     patches = [
+        "//third_party/llvm-project:cuda_runtime.patch",
         "//third_party/llvm-project:linalg_type_support.patch",
+        "//third_party/llvm-project:owning_memref.patch",
         "//third_party/llvm-project:tensor_type_support.patch",
         "//third_party/llvm-project:memref_folding.patch",
     ],
@@ -78,3 +80,15 @@ http_archive(
 load("@hedron_compile_commands//:workspace_setup.bzl", "hedron_compile_commands_setup")
 
 hedron_compile_commands_setup()
+
+http_archive(
+    name = "rules_cuda",
+    strip_prefix = "rules_cuda-b11b7e499550954ad396ad41aac597b380ce2957",
+    urls = ["https://github.com/bazel-contrib/rules_cuda/archive/b11b7e499550954ad396ad41aac597b380ce2957.tar.gz"],
+)
+
+load("@rules_cuda//cuda:repositories.bzl", "rules_cuda_dependencies", "rules_cuda_toolchains")
+
+rules_cuda_dependencies()
+
+rules_cuda_toolchains(register_toolchains = True)

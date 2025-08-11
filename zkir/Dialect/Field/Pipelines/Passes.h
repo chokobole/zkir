@@ -52,6 +52,10 @@ struct FieldToLLVMOptions : public PassPipelineOptions<FieldToLLVMOptions> {
 void buildFieldToLLVM(OpPassManager &pm, const FieldToLLVMOptions &options);
 
 struct FieldToGPUOptions : public PassPipelineOptions<FieldToGPUOptions> {
+  PassOptions::Option<bool> parallelizeAffine{
+      *this, "parallelize-affine", llvm::cl::desc("Parallelize affine loops"),
+      llvm::cl::init(false)};
+
   PassOptions::Option<bool> bufferizeFunctionBoundaries{
       *this, "bufferize-function-boundaries",
       llvm::cl::desc("Bufferize function boundaries"), llvm::cl::init(false)};
@@ -64,6 +68,9 @@ struct FieldToGPUOptions : public PassPipelineOptions<FieldToGPUOptions> {
       *this, "hoist-static-allocs", llvm::cl::desc("Hoist static allocs"),
       llvm::cl::init(true)};
 
+  PassOptions::Option<std::string> targetFormat{*this, "target-format",
+                                                llvm::cl::desc("Target format"),
+                                                llvm::cl::init("fatbin")};
   PassOptions::Option<std::string> targetChip{*this, "target-chip",
                                               llvm::cl::desc("Target chip"),
                                               llvm::cl::init("sm_80")};
@@ -76,10 +83,10 @@ struct FieldToGPUOptions : public PassPipelineOptions<FieldToGPUOptions> {
 
   PassOptions::Option<unsigned> nvvmIndexBitwidth{
       *this, "nvvm-index-bitwidth", llvm::cl::desc("NVVM index bitwidth"),
-      llvm::cl::init(0)};
+      llvm::cl::init(64)};
   PassOptions::Option<bool> nvvmUseBarePtrCallConv{
       *this, "nvvm-use-bare-ptr-call-conv",
-      llvm::cl::desc("NVVM use bare ptr call conv"), llvm::cl::init(true)};
+      llvm::cl::desc("NVVM use bare ptr call conv"), llvm::cl::init(false)};
 
   // Projects out the options for `OneShotBufferizePass`.
   bufferization::OneShotBufferizePassOptions bufferizationOptions() const {
@@ -110,6 +117,12 @@ struct FieldToGPUOptions : public PassPipelineOptions<FieldToGPUOptions> {
     opts.chip = targetChip;
     opts.features = targetFeatures;
     opts.optLevel = targetOptLevel;
+    return opts;
+  }
+
+  GpuModuleToBinaryPassOptions gpuModuleToBinaryPassOptions() const {
+    GpuModuleToBinaryPassOptions opts{};
+    opts.compilationTarget = targetFormat;
     return opts;
   }
 };

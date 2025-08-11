@@ -1,6 +1,7 @@
 #include "zkir/Dialect/Field/Pipelines/Passes.h"
 
 #include "mlir/Conversion/AffineToStandard/AffineToStandard.h"
+#include "mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h"
 #include "mlir/Conversion/ConvertToLLVM/ToLLVMPass.h"
 #include "mlir/Conversion/GPUCommon/GPUCommonPass.h"
 #include "mlir/Conversion/GPUToNVVM/GPUToNVVMPass.h"
@@ -29,6 +30,8 @@ namespace mlir::zkir::field {
 
 void buildFieldToLLVM(OpPassManager &pm, const FieldToLLVMOptions &options) {
   pm.addNestedPass<mlir::func::FuncOp>(
+      mlir::createLinalgGeneralizeNamedOpsPass());
+  pm.addNestedPass<mlir::func::FuncOp>(
       mlir::createConvertElementwiseToLinalgPass());
   pm.addNestedPass<mlir::func::FuncOp>(
       mlir::createLinalgElementwiseOpFusionPass());
@@ -38,12 +41,11 @@ void buildFieldToLLVM(OpPassManager &pm, const FieldToLLVMOptions &options) {
   pm.addPass(mod_arith::createModArithToArith());
   pm.addPass(createCanonicalizerPass());
 
-  pm.addPass(createLowerAffinePass());
-
   pm.addPass(tensor_ext::createTensorExtToTensor());
 
   pm.addPass(bufferization::createOneShotBufferizePass(
       options.bufferizationOptions()));
+  pm.addPass(createCanonicalizerPass());
 
   if (options.bufferResultsToOutParams) {
     pm.addPass(bufferization::createBufferResultsToOutParamsPass(
@@ -51,13 +53,13 @@ void buildFieldToLLVM(OpPassManager &pm, const FieldToLLVMOptions &options) {
   }
 
   pm.addNestedPass<func::FuncOp>(createConvertLinalgToParallelLoopsPass());
+  pm.addPass(createLowerAffinePass());
 
   if (options.enableOpenMP) {
     pm.addPass(createConvertSCFToOpenMPPass());
   }
 
   pm.addNestedPass<func::FuncOp>(memref::createExpandStridedMetadataPass());
-  pm.addPass(createLowerAffinePass());
   pm.addPass(createFinalizeMemRefToLLVMConversionPass());
   pm.addPass(createSCFToControlFlowPass());
   pm.addPass(createConvertToLLVMPass());
@@ -92,7 +94,9 @@ void buildFieldToGPU(OpPassManager &pm, const FieldToGPUOptions &options) {
   // FIXME(batzor): 1-D `affine::ForOp` is making the GPU conversion pass to
   // fail so I added this pass as a temporary workaround. Due to this, some
   // VecOps will not be lowered to GPU dialect.
-  pm.addPass(affine::createAffineParallelize());
+  if (options.parallelizeAffine) {
+    pm.addPass(affine::createAffineParallelize());
+  }
   pm.addNestedPass<func::FuncOp>(createLoopInvariantCodeMotionPass());
   pm.addNestedPass<func::FuncOp>(createConvertAffineForToGPUPass());
   // -gpu-map-parallel-loops greedily maps loops to GPU hardware dimensions if
@@ -114,10 +118,13 @@ void buildFieldToGPU(OpPassManager &pm, const FieldToGPUOptions &options) {
   pm.addNestedPass<gpu::GPUModuleOp>(createReconcileUnrealizedCastsPass());
 
   GpuToLLVMConversionPassOptions opt;
-  opt.hostBarePtrCallConv = true;
-  opt.kernelBarePtrCallConv = true;
+  opt.hostBarePtrCallConv = options.nvvmUseBarePtrCallConv;
+  opt.kernelBarePtrCallConv = options.nvvmUseBarePtrCallConv;
   pm.addPass(createGpuToLLVMConversionPass(opt));
   pm.addPass(createSCFToControlFlowPass());
+  pm.addPass(createConvertControlFlowToLLVMPass());
+  pm.addPass(
+      createGpuModuleToBinaryPass(options.gpuModuleToBinaryPassOptions()));
   pm.addPass(createConvertToLLVMPass());
   pm.addPass(createCanonicalizerPass());
 }
