@@ -40,11 +40,10 @@ jobs:
       - name: Checkout Setup Python
         uses: actions/setup-python@v4.7.0
         with:
-            python-version: '3.10'
+          python-version: "3.10"
 
       - name: Install cpplint
-        run:
-          pip install cpplint
+        run: pip install cpplint
 
       - name: Run pre-commit github action
         uses: pre-commit/action@646c83fcd040023954eafda54b4db0192ce70507 # pin@v3
