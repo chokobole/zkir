@@ -18,7 +18,7 @@ repos:
       - id: clang-format
         args: ["--style=file"]
 
-  # cpplint
+  # cpplint + clang-tidy
   - repo: https://github.com/pocc/pre-commit-hooks
     rev: v1.3.5
     hooks:
@@ -26,6 +26,11 @@ repos:
         args:
           [
             "--filter=-whitespace/indent_namespace, -legal/copyright, -build/namespaces, -runtime/references",
+          ]
+      - id: clang-tidy
+        args:
+          [
+            "--checks=readability-static-definition-in-anonymous-namespace,modernize-concat-nested-namespaces",
           ]
 
   # Starlark
