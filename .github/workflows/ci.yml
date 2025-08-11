@@ -45,5 +45,9 @@ jobs:
       - name: Install cpplint
         run: pip install cpplint
 
+      - name: Refresh compile commands
+        run: |
+          bazel run @hedron_compile_commands//:refresh_all
+
       - name: Run pre-commit github action
         uses: pre-commit/action@646c83fcd040023954eafda54b4db0192ce70507 # pin@v3
