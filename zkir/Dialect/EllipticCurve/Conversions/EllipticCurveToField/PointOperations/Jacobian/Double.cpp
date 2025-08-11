@@ -112,7 +112,7 @@ SmallVector<Value> jacobianDouble(ValueRange point, ShortWeierstrassAttr curve,
   } else if (point.size() == 3) {
     return jacobianToJacobian(point, a, b);
   } else {
-    assert(false && "Unsupported point type for jacobian doubling");
+    llvm_unreachable("Unsupported point type for jacobian doubling");
     return {};
   }
 }

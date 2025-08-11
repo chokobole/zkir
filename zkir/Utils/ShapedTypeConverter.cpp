@@ -36,7 +36,7 @@ Type ShapedTypeConverter::convertShapedType(ShapedType oldType,
   } else if (auto tensorType = dyn_cast<RankedTensorType>(oldType)) {
     return tensorType.cloneWith(shape, elementType);
   }
-  assert(false && "Unsupported shaped type");
+  llvm_unreachable("Unsupported shaped type");
   return oldType;
 }
 

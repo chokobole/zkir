@@ -380,7 +380,7 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
                   sum = jacobianAdd(p1Coords, p2Coords, jacobianType.getCurve(),
                                     b);
                 } else {
-                  assert(false && "Unsupported point types for addition");
+                  llvm_unreachable("Unsupported point types for addition");
                 }
                 b.create<scf::YieldOp>(loc, sum);
               });
@@ -411,7 +411,7 @@ struct ConvertDouble : public OpConversionPattern<DoubleOp> {
     } else if (auto jacobianType = dyn_cast<JacobianType>(outputType)) {
       doubled = jacobianDouble(coords, jacobianType.getCurve(), b);
     } else {
-      assert(false && "Unsupported point type for doubling");
+      llvm_unreachable("Unsupported point type for doubling");
     }
 
     rewriter.replaceOpWithMultiple(op, {doubled});

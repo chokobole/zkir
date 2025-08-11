@@ -94,7 +94,7 @@ SmallVector<Value> xyzzDouble(ValueRange point, ShortWeierstrassAttr curve,
   } else if (point.size() == 4) {
     return xyzzToXyzz(point, curve, b);
   } else {
-    assert(false && "Unsupported point type for xyzz doubling");
+    llvm_unreachable("Unsupported point type for xyzz doubling");
     return {};
   }
 }
