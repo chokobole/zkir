@@ -202,7 +202,7 @@ LogicalResult NegateOp::verify() { return disallowShapedTypeOfExtField(*this); }
 LogicalResult AddOp::verify() { return disallowShapedTypeOfExtField(*this); }
 LogicalResult SubOp::verify() { return disallowShapedTypeOfExtField(*this); }
 LogicalResult MulOp::verify() { return disallowShapedTypeOfExtField(*this); }
-LogicalResult PowOp::verify() { return disallowShapedTypeOfExtField(*this); }
+LogicalResult PowUIOp::verify() { return disallowShapedTypeOfExtField(*this); }
 LogicalResult InverseOp::verify() {
   return disallowShapedTypeOfExtField(*this);
 }

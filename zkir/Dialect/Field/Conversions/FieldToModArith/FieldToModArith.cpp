@@ -524,27 +524,19 @@ struct ConvertSquare : public OpConversionPattern<SquareOp> {
   }
 };
 
-struct ConvertPow : public OpConversionPattern<PowOp> {
-  explicit ConvertPow(MLIRContext *context)
-      : OpConversionPattern<PowOp>(context) {}
+struct ConvertPowUI : public OpConversionPattern<PowUIOp> {
+  explicit ConvertPowUI(MLIRContext *context)
+      : OpConversionPattern<PowUIOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
-      PowOp op, OneToNOpAdaptor adaptor,
+      PowUIOp op, OneToNOpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     auto base = op.getBase();
     auto exp = op.getExp();
     auto fieldType = getElementTypeOrSelf(base);
-    auto isNonNegative = b.create<arith::CmpIOp>(
-        arith::CmpIPredicate::sge, exp,
-        b.create<arith::ConstantIntOp>(exp.getType(), 0));
-    b.create<cf::AssertOp>(
-        isNonNegative,
-        StringAttr::get(
-            op.getContext(),
-            "negative exponent is not supported, try InverseOp instead"));
 
     APInt modulus;
     Value init;
@@ -745,7 +737,7 @@ void FieldToModArith::runOnOperation() {
       ConvertInverse,
       ConvertNegate,
       ConvertMul,
-      ConvertPow,
+      ConvertPowUI,
       ConvertSquare,
       ConvertSub,
       ConvertToMont,
