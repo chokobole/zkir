@@ -11,7 +11,7 @@ repos:
       - id: check-added-large-files
         args: ["--maxkb=500000"] # 500MB
 
-  # cpplint + clang-tidy
+  # cpplint
   - repo: https://github.com/pocc/pre-commit-hooks
     rev: v1.3.5
     hooks:
@@ -20,11 +20,20 @@ repos:
           [
             "--filter=-whitespace/indent_namespace, -legal/copyright, -build/namespaces, -runtime/references",
           ]
+
+  # clang-tidy
+  # This hook now relies on a local shell script.
+  - repo: local
+    hooks:
       - id: clang-tidy
-        args:
-          [
-            "--checks=readability-static-definition-in-anonymous-namespace,modernize-concat-nested-namespaces",
-          ]
+        name: clang-tidy
+        entry: ./run_clang_tidy.sh
+        language: script
+        files: '\.(c|cc|cpp|cxx|h|hh|hpp|hxx)$'
+        exclude: |
+          (?x)
+          (^|/)(bazel-.*|bazel-out/|build/|out/|third_party/|external/)
+        pass_filenames: true
 
   # clang-format
   - repo: https://github.com/pre-commit/mirrors-clang-format
@@ -60,6 +69,7 @@ repos:
     hooks:
       - id: actionlint
         additional_dependencies: [pyflakes>=3.0.1, shellcheck-py>=0.9.0.5]
+        args: ["--config-file=.github/actionlint.yaml"]
 
   # mdformat
   - repo: https://github.com/executablebooks/mdformat
