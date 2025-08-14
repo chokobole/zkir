@@ -380,7 +380,7 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
                   sum = jacobianAdd(p1Coords, p2Coords, jacobianType.getCurve(),
                                     b);
                 } else {
-                  assert(false && "Unsupported point types for addition");
+                  llvm_unreachable("Unsupported point types for addition");
                 }
                 b.create<scf::YieldOp>(loc, sum);
               });
@@ -411,7 +411,7 @@ struct ConvertDouble : public OpConversionPattern<DoubleOp> {
     } else if (auto jacobianType = dyn_cast<JacobianType>(outputType)) {
       doubled = jacobianDouble(coords, jacobianType.getCurve(), b);
     } else {
-      assert(false && "Unsupported point type for doubling");
+      llvm_unreachable("Unsupported point type for doubling");
     }
 
     rewriter.replaceOpWithMultiple(op, {doubled});
@@ -517,8 +517,8 @@ struct ConvertScalarMul : public OpConversionPattern<ScalarMulOp> {
             ? b.create<elliptic_curve::ConvertPointTypeOp>(outputType, point)
             : point;
 
-    auto arithOne = b.create<arith::ConstantIntOp>(1, scalarIntType);
-    auto arithZero = b.create<arith::ConstantIntOp>(0, scalarIntType);
+    auto arithOne = b.create<arith::ConstantIntOp>(scalarIntType, 1);
+    auto arithZero = b.create<arith::ConstantIntOp>(scalarIntType, 0);
     auto result = zeroPoint;
     auto ifOp = b.create<scf::IfOp>(
         b.create<arith::CmpIOp>(arith::CmpIPredicate::ne,
@@ -655,7 +655,7 @@ void EllipticCurveToField::runOnOperation() {
       ConvertSub,
       ConvertAny<bufferization::AllocTensorOp>,
       ConvertAny<bufferization::MaterializeInDestinationOp>,
-      ConvertAny<bufferization::ToMemrefOp>,
+      ConvertAny<bufferization::ToBufferOp>,
       ConvertAny<bufferization::ToTensorOp>,
       ConvertAny<memref::AllocOp>,
       ConvertAny<memref::AllocaOp>,
@@ -674,7 +674,7 @@ void EllipticCurveToField::runOnOperation() {
       // clang-format off
       bufferization::AllocTensorOp,
       bufferization::MaterializeInDestinationOp,
-      bufferization::ToMemrefOp,
+      bufferization::ToBufferOp,
       bufferization::ToTensorOp,
       memref::AllocOp,
       memref::AllocaOp,

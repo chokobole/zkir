@@ -309,11 +309,11 @@ def Field_MulOp : Field_BinaryOp<"mul", [Commutative]> {
 }
 
 // Field power.
-def Field_PowOp : Field_Op<"pow", [TypesMatchWith<
+def Field_PowUIOp : Field_Op<"powui", [TypesMatchWith<
   "base and output must have same type", "base", "output", "$_self">]> {
-  let summary = "Field power";
+  let summary = "Field power with unsigned integer exponent";
   let description = [{
-    Computes the field element a to the power of integer b.
+    Computes the field element a raised to the power of unsigned integer b.
 
     Example:
     ```

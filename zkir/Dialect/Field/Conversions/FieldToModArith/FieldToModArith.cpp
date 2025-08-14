@@ -524,27 +524,19 @@ struct ConvertSquare : public OpConversionPattern<SquareOp> {
   }
 };
 
-struct ConvertPow : public OpConversionPattern<PowOp> {
-  explicit ConvertPow(MLIRContext *context)
-      : OpConversionPattern<PowOp>(context) {}
+struct ConvertPowUI : public OpConversionPattern<PowUIOp> {
+  explicit ConvertPowUI(MLIRContext *context)
+      : OpConversionPattern<PowUIOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
 
   LogicalResult matchAndRewrite(
-      PowOp op, OneToNOpAdaptor adaptor,
+      PowUIOp op, OneToNOpAdaptor adaptor,
       ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
     auto base = op.getBase();
     auto exp = op.getExp();
     auto fieldType = getElementTypeOrSelf(base);
-    auto isNonNegative = b.create<arith::CmpIOp>(
-        arith::CmpIPredicate::sge, exp,
-        b.create<arith::ConstantOp>(IntegerAttr::get(exp.getType(), 0)));
-    b.create<cf::AssertOp>(
-        isNonNegative,
-        StringAttr::get(
-            op.getContext(),
-            "negative exponent is not supported, try InverseOp instead"));
 
     APInt modulus;
     Value init;
@@ -589,8 +581,7 @@ struct ConvertPow : public OpConversionPattern<PowOp> {
     // x^n ≡ x^(n mod (p²-1)) mod p²
     if (isa<PrimeFieldType>(fieldType)) {
       exp = b.create<arith::RemUIOp>(
-          exp,
-          b.create<arith::ConstantOp>(IntegerAttr::get(intType, modulus - 1)));
+          exp, b.create<arith::ConstantIntOp>(intType, modulus - 1));
     } else if (isa<QuadraticExtFieldType>(fieldType)) {
       modulus = modulus.zext(modBitWidth * 2);
       modulus = modulus * modulus - 1;
@@ -598,11 +589,11 @@ struct ConvertPow : public OpConversionPattern<PowOp> {
           IntegerType::get(exp.getContext(), modulus.getBitWidth()), exp);
       intType = IntegerType::get(exp.getContext(), modulus.getBitWidth());
       exp = b.create<arith::RemUIOp>(
-          exp, b.create<arith::ConstantOp>(IntegerAttr::get(intType, modulus)));
+          exp, b.create<arith::ConstantIntOp>(intType, modulus));
     }
 
-    Value zero = b.create<arith::ConstantOp>(IntegerAttr::get(intType, 0));
-    Value one = b.create<arith::ConstantOp>(IntegerAttr::get(intType, 1));
+    Value zero = b.create<arith::ConstantIntOp>(intType, 0);
+    Value one = b.create<arith::ConstantIntOp>(intType, 1);
     Value powerOfP = base;
     auto ifOp = b.create<scf::IfOp>(
         b.create<arith::CmpIOp>(arith::CmpIPredicate::ne,
@@ -746,7 +737,7 @@ void FieldToModArith::runOnOperation() {
       ConvertInverse,
       ConvertNegate,
       ConvertMul,
-      ConvertPow,
+      ConvertPowUI,
       ConvertSquare,
       ConvertSub,
       ConvertToMont,
@@ -757,7 +748,7 @@ void FieldToModArith::runOnOperation() {
       ConvertAny<affine::AffineYieldOp>,
       ConvertAny<bufferization::AllocTensorOp>,
       ConvertAny<bufferization::MaterializeInDestinationOp>,
-      ConvertAny<bufferization::ToMemrefOp>,
+      ConvertAny<bufferization::ToBufferOp>,
       ConvertAny<bufferization::ToTensorOp>,
       ConvertAny<linalg::BroadcastOp>,
       ConvertAny<linalg::GenericOp>,
@@ -798,7 +789,7 @@ void FieldToModArith::runOnOperation() {
       affine::AffineYieldOp,
       bufferization::AllocTensorOp,
       bufferization::MaterializeInDestinationOp,
-      bufferization::ToMemrefOp,
+      bufferization::ToBufferOp,
       bufferization::ToTensorOp,
       linalg::BroadcastOp,
       linalg::GenericOp,
