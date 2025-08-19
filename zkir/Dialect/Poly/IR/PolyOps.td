@@ -1,6 +1,7 @@
 #ifndef ZKIR_DIALECT_POLY_IR_POLYOPS_TD_
 #define ZKIR_DIALECT_POLY_IR_POLYOPS_TD_
 
+include "mlir/IR/BuiltinAttributes.td"
 include "zkir/Dialect/Poly/IR/PolyAttributes.td"
 include "zkir/Dialect/Poly/IR/PolyDialect.td"
 include "zkir/Dialect/Poly/IR/PolyTypes.td"
@@ -171,6 +172,8 @@ def Poly_NTTOp : Poly_Op<"ntt", [DestinationStyleOpInterface, SameOperandsAndRes
     RankedTensorOf<[Field_PrimeFieldType]>:$dest,
     Optional<RankedTensorOf<[Field_PrimeFieldType]>>:$twiddles,
     OptionalAttr<Field_RootOfUnityAttr>:$root,
+    OptionalAttr<Builtin_IntegerAttr>:$tileX,
+    OptionalAttr<Builtin_IntegerAttr>:$gridSize,
     DefaultValuedAttr<BoolAttr, "true">:$bitReverse,
     DefaultValuedAttr<BoolAttr, "false">:$inverse
   );

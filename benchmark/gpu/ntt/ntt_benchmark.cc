@@ -84,12 +84,8 @@ void BM_ntt_benchmark(::benchmark::State &state) {
     _mlir_ciface_intt_cpu(&*hTemp);
   }
 
-  // FIXME(batzor): The NTT benchmark is not working on GPU because the
-  // `cuLaunchKernel` fails with `CUDA_ERROR_INVALID_VALUE`.
-  if constexpr (!kIsGPU) {
-    for (int i = 0; i < NUM_COEFFS; i++) {
-      EXPECT_EQ((*hTemp)[i], (*hInput)[i]);
-    }
+  for (int i = 0; i < NUM_COEFFS; i++) {
+    EXPECT_EQ((*hTemp)[i], (*hInput)[i]);
   }
 }
 
@@ -106,17 +102,17 @@ BENCHMARK_TEMPLATE(BM_ntt_benchmark, /*kIsGPU=*/true)
 // clang-format off
 // NOLINTBEGIN(whitespace/line_length)
 //
-// 2025-08-21T10:12:26+00:00
+// 2025-08-19T06:33:51+00:00
 // Run on AMD Ryzen 9 9950X3D (32 X 624 MHz CPU s)
 // CPU Caches:
 //   L1 Data 48 KiB (x16)
 //   L1 Instruction 32 KiB (x16)
 //   L2 Unified 1024 KiB (x16)
 //   L3 Unified 98304 KiB (x2)
-// Load Average: 4.21, 3.76, 5.38
+// Load Average: 2.59, 8.78, 16.10
 // -----------------------------------------------------
 // Benchmark           Time             CPU   Iterations
 // -----------------------------------------------------
-// ntt_cpu          10.4 ms         9.70 ms           71
-// ntt_gpu          ---- ms         ---- ms          ---
+// ntt_cpu          11.7 ms         11.6 ms           69
+// ntt_gpu          3.83 ms         3.83 ms          183
 // NOLINTEND()

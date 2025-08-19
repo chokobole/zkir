@@ -6,14 +6,32 @@
 
 func.func @ntt_gpu(%arg0 : memref<1048576x!PFm>) attributes { llvm.emit_c_interface } {
   %t = bufferization.to_tensor %arg0 restrict writable : memref<1048576x!PFm> to tensor<1048576x!PFm>
-  %res = poly.ntt %t into %t {root=#root_of_unity} : tensor<1048576x!PFm>
+  %res = poly.ntt %t into %t {
+    root=#root_of_unity,
+    tileX=256,
+    ntt_gpu_mapping = [
+      #gpu.loop_dim_map<processor = block_x,  map = (d0) -> (d0), bound = (d0) -> (d0)>,
+      #gpu.loop_dim_map<processor = block_y,  map = (d0) -> (d0), bound = (d0) -> (d0)>,
+      #gpu.loop_dim_map<processor = thread_x, map = (d0) -> (d0), bound = (d0) -> (d0)>,
+      #gpu.loop_dim_map<processor = thread_y, map = (d0) -> (d0), bound = (d0) -> (d0)>
+    ]
+  }: tensor<1048576x!PFm>
   bufferization.materialize_in_destination %res in writable %arg0 : (tensor<1048576x!PFm>, memref<1048576x!PFm>) -> ()
   return
 }
 
 func.func @intt_gpu(%arg0 : memref<1048576x!PFm>) attributes { llvm.emit_c_interface } {
   %t = bufferization.to_tensor %arg0 restrict writable : memref<1048576x!PFm> to tensor<1048576x!PFm>
-  %res = poly.ntt %t into %t {root=#root_of_unity} inverse=true : tensor<1048576x!PFm>
+  %res = poly.ntt %t into %t {
+    root=#root_of_unity,
+    tileX=256,
+    ntt_gpu_mapping = [
+      #gpu.loop_dim_map<processor = block_x,  map = (d0) -> (d0), bound = (d0) -> (d0)>,
+      #gpu.loop_dim_map<processor = block_y,  map = (d0) -> (d0), bound = (d0) -> (d0)>,
+      #gpu.loop_dim_map<processor = thread_x, map = (d0) -> (d0), bound = (d0) -> (d0)>,
+      #gpu.loop_dim_map<processor = thread_y, map = (d0) -> (d0), bound = (d0) -> (d0)>
+    ]
+  } inverse=true: tensor<1048576x!PFm>
   bufferization.materialize_in_destination %res in writable %arg0 : (tensor<1048576x!PFm>, memref<1048576x!PFm>) -> ()
   return
 }

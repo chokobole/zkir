@@ -12,10 +12,15 @@ func.func @ntt_in_place(%arg0: tensor<4x!PF>) -> tensor<4x!PF> {
   // CHECK: gpu.launch_func @ntt_in_place_kernel
   %1 = poly.ntt %arg0 into %arg0 {
     root=#root_of_unity,
-    ntt_gpu_mapping = [#gpu.loop_dim_map<processor = thread_y, map = (d0) -> (d0), bound = (d0) -> (d0)>,
-                       #gpu.loop_dim_map<processor = thread_x, map = (d0) -> (d0), bound = (d0) -> (d0)>],
+    tileX=256,
+    ntt_gpu_mapping = [
+      #gpu.loop_dim_map<processor = block_x,  map = (d0) -> (d0), bound = (d0) -> (d0)>,
+      #gpu.loop_dim_map<processor = block_y,  map = (d0) -> (d0), bound = (d0) -> (d0)>,
+      #gpu.loop_dim_map<processor = thread_x, map = (d0) -> (d0), bound = (d0) -> (d0)>,
+      #gpu.loop_dim_map<processor = thread_y, map = (d0) -> (d0), bound = (d0) -> (d0)>
+    ],
     bit_reverse_gpu_mapping = [#gpu.loop_dim_map<processor = block_x, map = (d0) -> (d0), bound = (d0) -> (d0)>]
-    } : tensor<4x!PF>
+  } : tensor<4x!PF>
   return %1 : tensor<4x!PF>
 }
 
@@ -27,8 +32,13 @@ func.func @intt_in_place(%arg0: tensor<4x!PF>) -> tensor<4x!PF> {
   // CHECK: gpu.launch_func @intt_in_place_kernel
   %1 = poly.ntt %arg0 into %arg0 {
     root=#root_of_unity,
-    ntt_gpu_mapping = [#gpu.loop_dim_map<processor = thread_y, map = (d0) -> (d0), bound = (d0) -> (d0)>,
-                       #gpu.loop_dim_map<processor = thread_x, map = (d0) -> (d0), bound = (d0) -> (d0)>],
+    tileX=256,
+    ntt_gpu_mapping = [
+      #gpu.loop_dim_map<processor = block_x,  map = (d0) -> (d0), bound = (d0) -> (d0)>,
+      #gpu.loop_dim_map<processor = block_y,  map = (d0) -> (d0), bound = (d0) -> (d0)>,
+      #gpu.loop_dim_map<processor = thread_x, map = (d0) -> (d0), bound = (d0) -> (d0)>,
+      #gpu.loop_dim_map<processor = thread_y, map = (d0) -> (d0), bound = (d0) -> (d0)>
+    ],
     bit_reverse_gpu_mapping = [#gpu.loop_dim_map<processor = block_x, map = (d0) -> (d0), bound = (d0) -> (d0)>]
     } inverse=true : tensor<4x!PF>
   return %1 : tensor<4x!PF>
@@ -43,8 +53,12 @@ func.func @ntt_out_of_place(%arg0: tensor<4x!PF> {bufferization.writable = false
   %tmp = bufferization.alloc_tensor() : tensor<4x!PF>
   %1 = poly.ntt %arg0 into %tmp {
     root=#root_of_unity,
-    ntt_gpu_mapping = [#gpu.loop_dim_map<processor = thread_y, map = (d0) -> (d0), bound = (d0) -> (d0)>,
-                       #gpu.loop_dim_map<processor = thread_x, map = (d0) -> (d0), bound = (d0) -> (d0)>],
+    ntt_gpu_mapping = [
+      #gpu.loop_dim_map<processor = block_x,  map = (d0) -> (d0), bound = (d0) -> (d0)>,
+      #gpu.loop_dim_map<processor = block_y,  map = (d0) -> (d0), bound = (d0) -> (d0)>,
+      #gpu.loop_dim_map<processor = thread_x, map = (d0) -> (d0), bound = (d0) -> (d0)>,
+      #gpu.loop_dim_map<processor = thread_y, map = (d0) -> (d0), bound = (d0) -> (d0)>
+    ],
     bit_reverse_gpu_mapping = [#gpu.loop_dim_map<processor = block_x, map = (d0) -> (d0), bound = (d0) -> (d0)>]
     } : tensor<4x!PF>
   return %1 : tensor<4x!PF>
@@ -59,8 +73,12 @@ func.func @intt_out_of_place(%arg0: tensor<4x!PF>) -> tensor<4x!PF> {
   %tmp = bufferization.alloc_tensor() : tensor<4x!PF>
   %1 = poly.ntt %arg0 into %tmp {
     root=#root_of_unity,
-    ntt_gpu_mapping = [#gpu.loop_dim_map<processor = thread_y, map = (d0) -> (d0), bound = (d0) -> (d0)>,
-                       #gpu.loop_dim_map<processor = thread_x, map = (d0) -> (d0), bound = (d0) -> (d0)>],
+    ntt_gpu_mapping = [
+      #gpu.loop_dim_map<processor = block_x,  map = (d0) -> (d0), bound = (d0) -> (d0)>,
+      #gpu.loop_dim_map<processor = block_y,  map = (d0) -> (d0), bound = (d0) -> (d0)>,
+      #gpu.loop_dim_map<processor = thread_x, map = (d0) -> (d0), bound = (d0) -> (d0)>,
+      #gpu.loop_dim_map<processor = thread_y, map = (d0) -> (d0), bound = (d0) -> (d0)>
+    ],
     bit_reverse_gpu_mapping = [#gpu.loop_dim_map<processor = block_x, map = (d0) -> (d0), bound = (d0) -> (d0)>]
     } inverse=true : tensor<4x!PF>
   return %1 : tensor<4x!PF>
