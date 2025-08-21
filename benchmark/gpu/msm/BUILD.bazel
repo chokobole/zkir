@@ -1,0 +1,39 @@
+load("@rules_cuda//cuda:defs.bzl", "requires_cuda")
+load("//benchmark:benchmark.bzl", "zkir_benchmark", "zkir_mlir_cc_import")
+
+zkir_mlir_cc_import(
+    name = "msm_cpu_ciface",
+    mlir_src = "msm_cpu.mlir",
+    zkir_opt_flags = [
+        "-elliptic-curve-to-field",
+        "-field-to-llvm=enable-openmp=true",
+    ],
+)
+
+zkir_mlir_cc_import(
+    name = "msm_gpu_ciface",
+    mlir_src = "msm_gpu.mlir",
+    target_compatible_with = requires_cuda(),
+    zkir_opt_flags = [
+        "-elliptic-curve-to-field",
+        "-field-to-gpu=parallelize-affine=true",
+    ],
+)
+
+zkir_benchmark(
+    name = "msm_benchmark_test",
+    srcs = ["msm_benchmark.cc"],
+    target_compatible_with = requires_cuda(),
+    deps = [
+        ":msm_cpu_ciface",
+        ":msm_gpu_ciface",
+        "//benchmark:BenchmarkUtils",
+        "//benchmark:CudaUtils",
+        "@cuda//:cuda_headers",
+        "@cuda//:cuda_runtime",
+        "@llvm-project//mlir:ExecutionEngine",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:mlir_cuda_runtime",
+        "@local_config_omp//:omp",
+    ],
+)
