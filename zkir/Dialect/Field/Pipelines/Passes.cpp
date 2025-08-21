@@ -60,6 +60,9 @@ void buildFieldToLLVM(OpPassManager &pm, const FieldToLLVMOptions &options) {
   }
 
   pm.addNestedPass<func::FuncOp>(memref::createExpandStridedMetadataPass());
+  // Expand strided metadata can introduce affine ops so we need to lower them
+  // again.
+  pm.addPass(createLowerAffinePass());
   pm.addPass(createFinalizeMemRefToLLVMConversionPass());
   pm.addPass(createSCFToControlFlowPass());
   pm.addPass(createConvertToLLVMPass());
@@ -108,6 +111,9 @@ void buildFieldToGPU(OpPassManager &pm, const FieldToGPUOptions &options) {
   pm.addPass(createLowerAffinePass());
   pm.addPass(createGpuDecomposeMemrefsPass());
   pm.addPass(memref::createExpandStridedMetadataPass());
+  // Expand strided metadata can introduce affine ops so we need to lower them
+  // again.
+  pm.addPass(createLowerAffinePass());
   pm.addPass(memref::createNormalizeMemRefsPass());
 
   pm.addNestedPass<gpu::GPUModuleOp>(
