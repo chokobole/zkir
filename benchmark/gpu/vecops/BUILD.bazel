@@ -14,7 +14,13 @@ zkir_mlir_cc_import(
     mlir_src = "vecops_gpu.mlir",
     target_compatible_with = requires_cuda(),
     zkir_opt_flags = [
-        "-field-to-gpu",
+        # FIXME(batzor): Converting affine loops to GPU directly is causing
+        # fully parallel reduction, resulting in wrong values. By enabling
+        # `parallelize-affine`, the affine is first lowered to SCF and then to
+        # GPU so only the outer loop is parallelized and mapped to gridX.
+        # Tiling should improve the performance but we have to decide how to
+        # make tiling more automated.
+        "-field-to-gpu=parallelize-affine=true",
     ],
 )
 
