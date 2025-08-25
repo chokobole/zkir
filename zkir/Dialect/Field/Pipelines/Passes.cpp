@@ -60,6 +60,9 @@ void buildFieldToLLVM(OpPassManager &pm, const FieldToLLVMOptions &options) {
   }
 
   pm.addNestedPass<func::FuncOp>(memref::createExpandStridedMetadataPass());
+  // Expand strided metadata can introduce affine ops so we need to lower them
+  // again.
+  pm.addPass(createLowerAffinePass());
   pm.addPass(createFinalizeMemRefToLLVMConversionPass());
   pm.addPass(createSCFToControlFlowPass());
   pm.addPass(createConvertToLLVMPass());
@@ -96,6 +99,7 @@ void buildFieldToGPU(OpPassManager &pm, const FieldToGPUOptions &options) {
   // VecOps will not be lowered to GPU dialect.
   if (options.parallelizeAffine) {
     pm.addPass(affine::createAffineParallelize());
+    pm.addPass(createLowerAffinePass());
   }
   pm.addNestedPass<func::FuncOp>(createLoopInvariantCodeMotionPass());
   pm.addNestedPass<func::FuncOp>(createConvertAffineForToGPUPass());
@@ -107,6 +111,9 @@ void buildFieldToGPU(OpPassManager &pm, const FieldToGPUOptions &options) {
   pm.addPass(createLowerAffinePass());
   pm.addPass(createGpuDecomposeMemrefsPass());
   pm.addPass(memref::createExpandStridedMetadataPass());
+  // Expand strided metadata can introduce affine ops so we need to lower them
+  // again.
+  pm.addPass(createLowerAffinePass());
   pm.addPass(memref::createNormalizeMemRefsPass());
 
   pm.addNestedPass<gpu::GPUModuleOp>(
@@ -123,10 +130,10 @@ void buildFieldToGPU(OpPassManager &pm, const FieldToGPUOptions &options) {
   pm.addPass(createGpuToLLVMConversionPass(opt));
   pm.addPass(createSCFToControlFlowPass());
   pm.addPass(createConvertControlFlowToLLVMPass());
-  pm.addPass(
-      createGpuModuleToBinaryPass(options.gpuModuleToBinaryPassOptions()));
   pm.addPass(createConvertToLLVMPass());
   pm.addPass(createCanonicalizerPass());
+  pm.addPass(
+      createGpuModuleToBinaryPass(options.gpuModuleToBinaryPassOptions()));
 }
 
 //===----------------------------------------------------------------------===//

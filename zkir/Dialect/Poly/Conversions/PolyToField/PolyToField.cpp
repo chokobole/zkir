@@ -289,12 +289,36 @@ static Value fastNTT(ImplicitLocOpBuilder &b, NTTOpAdaptor adaptor,
         Value batchNum = b.create<arith::DivUIOp>(cDegree, batchSize);
         Value bflyNum = b.create<arith::DivUIOp>(batchSize, c2);
 
+        Value tileX, tileY;
+        // Adaptive tiling if `tileCap` is provided. Otherwise, don't tile.
+        if (adaptor.getTileX()) {
+          Value cTileXCap = b.create<arith::ConstantIndexOp>(
+              adaptor.getTileX().value().getValue().getSExtValue());
+          Value cGridSize =
+              adaptor.getGridSize()
+                  ? b.create<arith::ConstantIndexOp>(
+                        adaptor.getGridSize().value().getValue().getSExtValue())
+                  : b.create<arith::ConstantIndexOp>(1024);
+
+          // Adaptive tiles.
+          tileX = b.create<arith::MinUIOp>(bflyNum, cTileXCap);
+          Value tileYCap = b.create<arith::DivUIOp>(cGridSize, tileX);
+          tileY = b.create<arith::MinUIOp>(batchNum, tileYCap);
+        } else {
+          tileX = bflyNum;
+          tileY = batchNum;
+        }
+
+        // Grid sizes.
+        Value gridX = b.create<arith::CeilDivUIOp>(batchNum, tileY);
+        Value gridY = b.create<arith::CeilDivUIOp>(bflyNum, tileX);
+
         // The inner loop processes groups of coefficients defined by the
-        // current batchSize.
+        // current batchSize with a tile size of (tileX, tileY).
         auto parallelLoop = b.create<scf::ParallelOp>(
-            /*lowerBounds=*/ValueRange{c0, c0},
-            /*upperBounds=*/ValueRange{batchNum, bflyNum},
-            /*steps=*/ValueRange{c1, c1});
+            /*lowerBounds=*/ValueRange{c0, c0, c0, c0},
+            /*upperBounds=*/ValueRange{gridX, gridY, tileX, tileY},
+            /*steps=*/ValueRange{c1, c1, c1, c1});
 
         // Build the body of the parallel loop.
         {
@@ -303,55 +327,82 @@ static Value fastNTT(ImplicitLocOpBuilder &b, NTTOpAdaptor adaptor,
           ImplicitLocOpBuilder pb(parallelBlock.getArgument(0).getLoc(),
                                   parallelBuilder);
 
-          Value indexK = parallelBlock.getArgument(0);
-          Value indexJ = parallelBlock.getArgument(1);
+          Value bx = parallelBlock.getArgument(0);
+          Value by = parallelBlock.getArgument(1);
+          Value tx = parallelBlock.getArgument(2);
+          Value ty = parallelBlock.getArgument(3);
 
-          // `indexBfly` calculates the starting index of the current butterfly
-          // group.
-          Value indexBfly = pb.create<arith::MulIOp>(batchSize, indexK);
+          // Global indices:
+          //   indexK = bx*tileY + ty
+          //   indexJ = by*tileX + tx
+          Value kOuter = pb.create<arith::MulIOp>(bx, tileY);
+          Value jOuter = pb.create<arith::MulIOp>(by, tileX);
+          Value indexK = pb.create<arith::AddIOp>(kOuter, ty);
+          Value indexJ = pb.create<arith::AddIOp>(jOuter, tx);
 
-          // ---------------------------------------------------------
-          // Compute the indices for the butterfly pair:
-          //   - `A` is the coefficient from the upper half of the
-          //   butterfly.
-          //   - `B` is the coefficient from the lower half.
-          // ---------------------------------------------------------
+          // Tail guards for partial tiles.
+          Value kOk = pb.create<arith::CmpIOp>(arith::CmpIPredicate::ult,
+                                               indexK, batchNum);
+          Value jOk = pb.create<arith::CmpIOp>(arith::CmpIPredicate::ult,
+                                               indexJ, bflyNum);
+          Value ok = pb.create<arith::AndIOp>(kOk, jOk);
 
-          // `indexA` is computed by combining the local index
-          // `indexJ` with the base `indexBfly`.
-          Value indexA = pb.create<arith::AddIOp>(indexJ, indexBfly);
-          // `indexB` is calculated by shifting `indexA` by half the
-          // batch size.
-          Value halfBatchSize = pb.create<arith::DivUIOp>(batchSize, c2);
-          Value indexB = pb.create<arith::AddIOp>(indexA, halfBatchSize);
+          pb.create<scf::IfOp>(
+              ok,
+              /*thenBuilder=*/
+              [&](OpBuilder &thenB, Location thenLoc) {
+                ImplicitLocOpBuilder t(thenLoc, thenB);
 
-          // Load values from previous stage output.
-          Value A = pb.create<memref::LoadOp>(stageMemref, ValueRange{indexA});
-          Value B = pb.create<memref::LoadOp>(stageMemref, ValueRange{indexB});
+                // `indexBfly` calculates the starting index of the current
+                // butterfly group.
+                Value indexBfly = t.create<arith::MulIOp>(batchSize, indexK);
 
-          // ---------------------------------------------------------
-          // Compute the twiddle factor for the butterfly.
-          // The appropriate twiddle factor is selected from the
-          // precomputed `roots` tensor. The index is computed via an
-          // affine map using the current butterfly index `indexJ` and
-          // the current `rootExp` value
-          // ---------------------------------------------------------
-          Value rootIndex = pb.create<arith::MulIOp>(indexJ, rootExp);
-          Value root = pb.create<tensor::ExtractOp>(roots, rootIndex);
+                // Compute the indices for the butterfly pair:
+                //   - `A` is the coefficient from the upper half of the
+                //   butterfly.
+                //   - `B` is the coefficient from the lower half.
+                // ---------------------------------------------------------
 
-          // ---------------------------------------------------------
-          // Apply the butterfly operation.
-          // Use either the Cooley-Tukey (bflyCT) or Gentleman-Sande
-          // (bflyGS) variant, depending on whether we are performing
-          // an inverse transform.
-          // ---------------------------------------------------------
-          auto bflyResult =
-              kInverse ? bflyGS(pb, A, B, root) : bflyCT(pb, A, B, root);
+                // `indexA` is computed by combining the local index
+                // `indexJ` with the base `indexBfly`.
+                Value indexA = t.create<arith::AddIOp>(indexJ, indexBfly);
+                // `indexB` is calculated by shifting `indexA` by half the
+                // batch size.
+                Value halfBatch = t.create<arith::DivUIOp>(batchSize, c2);
+                Value indexB = t.create<arith::AddIOp>(indexA, halfBatch);
 
-          pb.create<memref::StoreOp>(bflyResult.first, destMemref,
-                                     ValueRange{indexA});
-          pb.create<memref::StoreOp>(bflyResult.second, destMemref,
-                                     ValueRange{indexB});
+                // Load values from previous stage output.
+                Value A =
+                    t.create<memref::LoadOp>(stageMemref, ValueRange{indexA});
+                Value B =
+                    t.create<memref::LoadOp>(stageMemref, ValueRange{indexB});
+
+                // ---------------------------------------------------------
+                // Compute the twiddle factor for the butterfly.
+                // The appropriate twiddle factor is selected from the
+                // precomputed `roots` tensor. The index is computed via an
+                // affine map using the current butterfly index `indexJ` and
+                // the current `rootExp` value
+                // ---------------------------------------------------------
+                Value rootIndex = t.create<arith::MulIOp>(indexJ, rootExp);
+                Value root = t.create<tensor::ExtractOp>(roots, rootIndex);
+
+                // ---------------------------------------------------------
+                // Apply the butterfly operation.
+                // Use either the Cooley-Tukey (bflyCT) or Gentleman-Sande
+                // (bflyGS) variant, depending on whether we are performing
+                // an inverse transform.
+                // ---------------------------------------------------------
+                auto bflyResult =
+                    kInverse ? bflyGS(t, A, B, root) : bflyCT(t, A, B, root);
+
+                t.create<memref::StoreOp>(bflyResult.first, destMemref,
+                                          ValueRange{indexA});
+                t.create<memref::StoreOp>(bflyResult.second, destMemref,
+                                          ValueRange{indexB});
+
+                t.create<scf::YieldOp>(ValueRange{});
+              });
         }
 
         // Forward GPU mapping attribute if present.
