@@ -25,11 +25,15 @@ jobs:
 
       - name: Run `bazel build`
         run: |
-          bazel build --remote_cache=grpc://127.0.0.1:9092 --test_output=errors //...
+          bazel --bazelrc=.bazelrc.ci build \
+            --config ci \
+            //...
 
       - name: Run `bazel test`
         run: |
-          bazel test --config ci --remote_cache=grpc://127.0.0.1:9092 --test_output=errors //...
+          bazel --bazelrc=.bazelrc.ci test \
+            --config ci \
+            //...
 
   pre-commit-style:
     runs-on: [self-hosted, zkir]
