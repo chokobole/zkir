@@ -6,6 +6,19 @@
 #include "zkir/Dialect/EllipticCurve/IR/EllipticCurveTypes.h"
 
 namespace mlir::zkir::elliptic_curve {
+namespace {
+template <typename OpType>
+LogicalResult verifyMSMPointTypes(OpType op, Type inputType, Type outputType) {
+  if (isa<JacobianType>(inputType) && isa<AffineType>(outputType)) {
+    return op.emitError()
+           << "jacobian input points require a jacobian or xyzz output type";
+  } else if (isa<XYZZType>(inputType) &&
+             (isa<AffineType>(outputType) || isa<JacobianType>(outputType))) {
+    return op.emitError() << "xyzz input points require an xyzz output type";
+  }
+  return success();
+}
+} // namespace
 
 /////////////// VERIFY OPS /////////////////
 
@@ -78,13 +91,8 @@ LogicalResult MSMOp::verify() {
   }
   Type inputType = pointsType.getElementType();
   Type outputType = getOutput().getType();
-  if (isa<JacobianType>(inputType) && isa<AffineType>(outputType)) {
-    return emitError() << "jacobian input points require a jacobian or xyzz "
-                          "output type for msm";
-  } else if (isa<XYZZType>(inputType) &&
-             (isa<AffineType>(outputType) || isa<JacobianType>(outputType))) {
-    return emitError()
-           << "xyzz input points require an xyzz output type for msm";
+  if (failed(verifyMSMPointTypes(*this, inputType, outputType))) {
+    return failure();
   }
 
   int32_t degree = getDegree();
