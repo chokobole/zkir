@@ -598,6 +598,92 @@ struct ConvertMSM : public OpConversionPattern<MSMOp> {
   }
 };
 
+struct ConvertBucketAcc : public OpConversionPattern<BucketAccOp> {
+  explicit ConvertBucketAcc(mlir::MLIRContext *context)
+      : OpConversionPattern<BucketAccOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(BucketAccOp op, OneToNOpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    Value zero = b.create<arith::ConstantIndexOp>(0);
+    Value one = b.create<arith::ConstantIndexOp>(1);
+
+    Value points = op.getPoints();
+    Value sortedPointIndices = op.getSortedPointIndices();
+    Value sortedUniqueBucketIndices = op.getSortedUniqueBucketIndices();
+    Value bucketOffsets = op.getBucketOffsets();
+    TensorType bucketResultsType = op.getBucketResults().getType();
+    Type outputType = bucketResultsType.getElementType();
+
+    // Create buckets and initialize all buckets to zeroPoint
+    MemRefType memrefBucketResultsType =
+        MemRefType::get(bucketResultsType.getShape(), outputType);
+    Value bucketResults = b.create<memref::AllocOp>(memrefBucketResultsType);
+    Value zeroPoint = createZeroPoint(b, outputType);
+    Value nofBuckets = b.create<tensor::DimOp>(op.getBucketResults(), 0);
+    // TODO(ashjeong): Replace with linalg::FillOp once supported on the EC
+    // level
+    b.create<scf::ForOp>(
+        zero, nofBuckets, one, std::nullopt,
+        [&](OpBuilder &builder, Location loc, Value i, ValueRange args) {
+          ImplicitLocOpBuilder b0(loc, builder);
+          b0.create<memref::StoreOp>(zeroPoint, bucketResults, i);
+          b0.create<scf::YieldOp>();
+        });
+
+    // Compute bucket accumulation across all buckets
+    Value nofBucketsToCompute = b.create<arith::ConstantIndexOp>(
+        cast<TensorType>(sortedUniqueBucketIndices.getType()).getNumElements());
+    b.create<scf::ParallelOp>(
+        zero, nofBucketsToCompute, one,
+        [&](OpBuilder &builder, Location loc, ValueRange ivs) {
+          ImplicitLocOpBuilder b0(loc, builder);
+          Value i = ivs[0];
+
+          Value bucketOffsetStart =
+              b0.create<tensor::ExtractOp>(bucketOffsets, i);
+          Value indexPlusOne = b0.create<arith::AddIOp>(i, one);
+          Value bucketOffsetEnd =
+              b0.create<tensor::ExtractOp>(bucketOffsets, indexPlusOne);
+
+          // TODO(ashjeong): Replace with linalg::ReduceOp once supported on the
+          // EC level
+          // Aggregate all points per bucket
+          auto pointLoop = b0.create<scf::ForOp>(
+              /*lowerBound=*/bucketOffsetStart, /*upperBound=*/bucketOffsetEnd,
+              /*step=*/one, zeroPoint,
+              [&](OpBuilder &builder, Location loc, Value j, ValueRange args) {
+                ImplicitLocOpBuilder b1(loc, builder);
+                Value bucketResult = args[0];
+
+                Value pointIndex =
+                    b1.create<tensor::ExtractOp>(sortedPointIndices, j);
+                Value point = b1.create<tensor::ExtractOp>(points, pointIndex);
+                bucketResult = b1.create<elliptic_curve::AddOp>(
+                    outputType, bucketResult, point);
+                b1.create<scf::YieldOp>(bucketResult);
+              });
+
+          Value bucketIndex =
+              b0.create<tensor::ExtractOp>(sortedUniqueBucketIndices, i);
+          b0.create<memref::StoreOp>(pointLoop.getResult(0), bucketResults,
+                                     bucketIndex);
+          b0.create<scf::ReduceOp>();
+        });
+
+    // Convert bucket results to tensor
+    Value bucketResultsTensor =
+        b.create<bufferization::ToTensorOp>(bucketResultsType, bucketResults,
+                                            /*restrict=*/true);
+    rewriter.replaceOp(op, bucketResultsTensor);
+    return success();
+  }
+};
+
 namespace rewrites {
 // In an inner namespace to avoid conflicts with canonicalization patterns
 #include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/EllipticCurveToField.cpp.inc"
@@ -624,6 +710,7 @@ void EllipticCurveToField::runOnOperation() {
   patterns.add<
       // clang-format off
       ConvertAdd,
+      ConvertBucketAcc,
       ConvertConvertPointType,
       ConvertDouble,
       ConvertExtract,

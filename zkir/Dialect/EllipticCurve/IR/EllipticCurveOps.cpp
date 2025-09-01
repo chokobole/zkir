@@ -123,6 +123,32 @@ LogicalResult MSMOp::verify() {
   // TODO(ashjeong): check curves/fields are the same
 }
 
+LogicalResult BucketAccOp::verify() {
+  TensorType sortedUniqueBucketIndices =
+      cast<TensorType>(getSortedUniqueBucketIndices().getType());
+  TensorType bucketOffsets = cast<TensorType>(getBucketOffsets().getType());
+  TensorType bucketResults = cast<TensorType>(getBucketResults().getType());
+  TensorType points = cast<TensorType>(getPoints().getType());
+
+  if (sortedUniqueBucketIndices.getNumElements() !=
+      bucketOffsets.getNumElements() - 1) {
+    return emitError() << "bucket_offsets must have one more element than "
+                          "sorted_unique_bucket_indices";
+  }
+
+  Type inputType = points.getElementType();
+  Type outputType = bucketResults.getElementType();
+  if (failed(verifyMSMPointTypes(*this, inputType, outputType))) {
+    return failure();
+  }
+
+  // TODO(ashjeong): check summed result of all bucket sizes equals to
+  // points.size()
+  // TODO(ashjeong): verify output numElements = number of buckets
+
+  return success();
+}
+
 //////////////// VERIFY POINT CONVERSIONS ////////////////
 
 LogicalResult ConvertPointTypeOp::verify() {
