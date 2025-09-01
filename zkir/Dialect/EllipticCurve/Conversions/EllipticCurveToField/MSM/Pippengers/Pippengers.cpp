@@ -45,8 +45,8 @@ constexpr size_t computeWindowsCount(size_t scalarBitWidth,
 
 } // namespace
 
-Pippengers::Pippengers(Value scalars, Value points, Type baseFieldType,
-                       Type outputType, ImplicitLocOpBuilder &b, int32_t degree,
+Pippengers::Pippengers(Value scalars, Value points, Type outputType,
+                       ImplicitLocOpBuilder &b, int32_t degree,
                        int32_t windowBits)
     : points_(points), outputType_(outputType), b_(b) {
   zero_ = b.create<arith::ConstantIndexOp>(0);

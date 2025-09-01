@@ -587,13 +587,9 @@ struct ConvertMSM : public OpConversionPattern<MSMOp> {
     Value scalars = op.getScalars();
     Value points = op.getPoints();
 
-    Type baseFieldType =
-        cast<RankedTensorType>(adaptor.getPoints()[0].getType())
-            .getElementType();
-
     Type outputType = op.getOutput().getType();
 
-    PippengersGeneric pippengers(scalars, points, baseFieldType, outputType, b,
+    PippengersGeneric pippengers(scalars, points, outputType, b,
                                  adaptor.getParallel(), adaptor.getDegree(),
                                  adaptor.getWindowBits());
 
