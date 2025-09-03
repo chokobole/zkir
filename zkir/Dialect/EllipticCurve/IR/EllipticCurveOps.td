@@ -174,7 +174,7 @@ def EllipticCurve_DoubleOp : EllipticCurve_UnaryOp<"double"> {
 ////////////// MSM FUNCTIONS //////////////
 
 // Elliptic curve point scalar multiplication.
-def EllipticCurve_ScalarMulOp : EllipticCurve_Op<"scalar_mul", [Pure, Commutative, ElementwiseMappable]> {
+def EllipticCurve_ScalarMulOp : EllipticCurve_Op<"scalar_mul", [Pure, ElementwiseMappable]> {
   let summary = "Elliptic curve point scalar multiplication";
   let description = [{
     Computes the product of an elliptic curve point and a scalar prime field value.
