@@ -30,7 +30,8 @@ filegroup(
     testonly = True,
     data = [
         "bn254_ec_utils.mlir",
-        "bn254_field_utils.mlir",
+        "bn254_field_defs.mlir",
+        "default_print_utils.mlir",
         ":lit.cfg.py",
         ":printI256.so",
         "//tools:zkir-opt",
@@ -51,7 +52,8 @@ glob_lit_tests(
     driver = "//tests:run_lit.sh",
     exclude = [
         "bn254_ec_utils.mlir",
-        "bn254_field_utils.mlir",
+        "bn254_field_defs.mlir",
+        "default_print_utils.mlir",
     ],
     test_file_exts = ["mlir"],
 )
