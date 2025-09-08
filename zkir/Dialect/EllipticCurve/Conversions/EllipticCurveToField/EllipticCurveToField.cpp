@@ -624,7 +624,8 @@ struct ConvertBucketAcc : public OpConversionPattern<BucketAccOp> {
         MemRefType::get(bucketResultsType.getShape(), outputType);
     Value bucketResults = b.create<memref::AllocOp>(memrefBucketResultsType);
     Value zeroPoint = createZeroPoint(b, outputType);
-    Value nofBuckets = b.create<tensor::DimOp>(op.getBucketResults(), 0);
+    Value nofBuckets =
+        b.create<arith::ConstantIndexOp>(bucketResultsType.getShape()[0]);
     // TODO(ashjeong): Replace with linalg::FillOp once supported on the EC
     // level
     b.create<scf::ForOp>(
