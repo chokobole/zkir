@@ -289,6 +289,31 @@ def EllipticCurve_BucketAccOp : EllipticCurve_Op<"bucket_acc", []> {
   let assemblyFormat = "operands attr-dict `:` functional-type(operands, results)";
 }
 
+// Elliptic curve MSM bucket reduction.
+def EllipticCurve_BucketReduceOp : EllipticCurve_Op<"bucket_reduce", []> {
+  let summary = "MSM Bucket Reduction";
+  let description = [{
+    Computes the reduction of buckets into windows given all buckets and the scalar field type as an attribute.
+
+    Assumes buckets point inputs will be the same type as the output point type.
+    Buckets are assumed to be in a 2D tensor <#windows x #bucketsPerWindow x pointType>.
+
+    Returns a windows tensor of accumulated buckets for each window.
+
+    Example:
+    ```
+    %windows = elliptic_curve.bucket_reduce %buckets {scalarType = !SF}: (tensor<4x4x!jacobian>) -> tensor<4x!jacobian>
+    ```
+  }];
+  let arguments = (ins
+    RankedTensorOf<[PointType]>:$buckets,
+    TypeAttrOf<Field_PrimeFieldType>: $scalarType
+  );
+  let results = (outs RankedTensorOf<[PointType]>:$windows);
+  let hasVerifier = 1;
+  let assemblyFormat = "operands attr-dict `:` functional-type(operands, results)";
+}
+
 ////////////// POINT CONVERSIONS //////////////
 
 def EllipticCurve_ConvertPointTypeOp : EllipticCurve_UnaryOp<"convert_point_type"> {
