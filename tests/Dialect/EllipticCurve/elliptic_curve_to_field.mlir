@@ -91,26 +91,26 @@ func.func @test_subtraction(%affine1: !affine, %affine2: !affine, %jacobian1: !j
 }
 
 // CHECK-LABEL: @test_scalar_mul
-func.func @test_scalar_mul(%affine1: !affine, %jacobian1: !jacobian, %xyzz1: !xyzz, %var1: !PFm, %var2: !PFm) {
+func.func @test_scalar_mul(%affine1: !affine, %jacobian1: !jacobian, %xyzz1: !xyzz, %var1: !SFm, %var2: !SFm) {
   // CHECK-NOT: elliptic_curve.scalar_mul
-  %jacobian2 = elliptic_curve.scalar_mul %var1, %affine1 : !PFm, !affine -> !jacobian
-  %jacobian3 = elliptic_curve.scalar_mul %var2, %affine1 : !PFm, !affine -> !jacobian
+  %jacobian2 = elliptic_curve.scalar_mul %var1, %affine1 : !SFm, !affine -> !jacobian
+  %jacobian3 = elliptic_curve.scalar_mul %var2, %affine1 : !SFm, !affine -> !jacobian
 
-  %jacobian4 = elliptic_curve.scalar_mul %var1, %jacobian1 : !PFm, !jacobian -> !jacobian
-  %jacobian5 = elliptic_curve.scalar_mul %var2, %jacobian1 : !PFm, !jacobian -> !jacobian
+  %jacobian4 = elliptic_curve.scalar_mul %var1, %jacobian1 : !SFm, !jacobian -> !jacobian
+  %jacobian5 = elliptic_curve.scalar_mul %var2, %jacobian1 : !SFm, !jacobian -> !jacobian
 
-  %xyzz2 = elliptic_curve.scalar_mul %var1, %xyzz1 : !PFm, !xyzz -> !xyzz
-  %xyzz3 = elliptic_curve.scalar_mul %var2, %xyzz1 : !PFm, !xyzz -> !xyzz
+  %xyzz2 = elliptic_curve.scalar_mul %var1, %xyzz1 : !SFm, !xyzz -> !xyzz
+  %xyzz3 = elliptic_curve.scalar_mul %var2, %xyzz1 : !SFm, !xyzz -> !xyzz
   return
 }
 
-func.func @test_msm(%scalars: tensor<3x!PFm>, %points: tensor<3x!affine>) {
-  %msm_result = elliptic_curve.msm %scalars, %points degree=2 : tensor<3x!PFm>, tensor<3x!affine> -> !jacobian
+func.func @test_msm(%scalars: tensor<3x!SFm>, %points: tensor<3x!affine>) {
+  %msm_result = elliptic_curve.msm %scalars, %points degree=2 : tensor<3x!SFm>, tensor<3x!affine> -> !jacobian
   return
 }
 
-func.func @test_g2_msm(%scalars: tensor<3x!PFm>, %points: tensor<3x!g2affine>) {
-  %msm_result = elliptic_curve.msm %scalars, %points degree=2 : tensor<3x!PFm>, tensor<3x!g2affine> -> !g2jacobian
+func.func @test_g2_msm(%scalars: tensor<3x!SFm>, %points: tensor<3x!g2affine>) {
+  %msm_result = elliptic_curve.msm %scalars, %points degree=2 : tensor<3x!SFm>, tensor<3x!g2affine> -> !g2jacobian
   return
 }
 
