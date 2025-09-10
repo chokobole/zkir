@@ -3,13 +3,14 @@
 // RUN:   | FileCheck %s -enable-var-scope
 
 // CHECK-LABEL: @test_affine_to_jacobian_double
-// CHECK-SAME: (%[[ARG0:.*]]: [[MOD_INT:.*]], %[[ARG1:.*]]: [[MOD_INT]]) -> ([[MOD_INT]], [[MOD_INT]], [[MOD_INT]]) {
+// CHECK-SAME: (%[[ARG0:.*]]: [[AFFINE:.*]]) -> [[JACOBIAN:.*]] {
 func.func @test_affine_to_jacobian_double(%point: !affine) -> !jacobian {
-  // CHECK: %[[A0:.*]] = mod_arith.square %[[ARG0]] : [[MOD_INT]]
-  // CHECK: %[[A1:.*]] = mod_arith.square %[[ARG1]] : [[MOD_INT]]
+  // CHECK: %[[COORDS:.*]]:2 = elliptic_curve.extract %[[ARG0]] : [[AFFINE]] -> [[MOD_INT:.*]], [[MOD_INT]]
+  // CHECK: %[[A0:.*]] = mod_arith.square %[[COORDS]]#0 : [[MOD_INT]]
+  // CHECK: %[[A1:.*]] = mod_arith.square %[[COORDS]]#1 : [[MOD_INT]]
   // CHECK: %[[A2:.*]] = mod_arith.square %[[A1]] : [[MOD_INT]]
-  // CHECK: %[[A3:.*]] = mod_arith.add %[[ARG0]], %[[A1]] : [[MOD_INT]]
-  // CHECK: %[[A4:.*]] = mod_arith.add %[[A3]], %[[ARG0]] : [[MOD_INT]]
+  // CHECK: %[[A3:.*]] = mod_arith.add %[[COORDS]]#0, %[[A1]] : [[MOD_INT]]
+  // CHECK: %[[A4:.*]] = mod_arith.add %[[A3]], %[[COORDS]]#0 : [[MOD_INT]]
   // CHECK: %[[A5:.*]] = mod_arith.mul %[[A1]], %[[A4]] : [[MOD_INT]]
   // CHECK: %[[A6:.*]] = mod_arith.sub %[[A5]], %[[A2]] : [[MOD_INT]]
   // CHECK: %[[A7:.*]] = mod_arith.double %[[A6]] : [[MOD_INT]]
@@ -24,21 +25,23 @@ func.func @test_affine_to_jacobian_double(%point: !affine) -> !jacobian {
   // CHECK: %[[A16:.*]] = mod_arith.double %[[A15]] : [[MOD_INT]]
   // CHECK: %[[A17:.*]] = mod_arith.double %[[A16]] : [[MOD_INT]]
   // CHECK: %[[A18:.*]] = mod_arith.sub %[[A14]], %[[A17]] : [[MOD_INT]]
-  // CHECK: %[[A19:.*]] = mod_arith.double %[[ARG1]] : [[MOD_INT]]
+  // CHECK: %[[A19:.*]] = mod_arith.double %[[COORDS]]#1 : [[MOD_INT]]
+  // CHECK: %[[RESULT:.*]] = elliptic_curve.point %[[A12]], %[[A18]], %[[A19]] : ([[MOD_INT]], [[MOD_INT]], [[MOD_INT]]) -> [[JACOBIAN]]
   %double = elliptic_curve.double %point : !affine -> !jacobian
-  // CHECK: return %[[A12]], %[[A18]], %[[A19]] : [[MOD_INT]], [[MOD_INT]], [[MOD_INT]]
+  // CHECK: return %[[RESULT]] : [[JACOBIAN]]
   return %double : !jacobian
 }
 
 // CHECK-LABEL: @test_jacobian_to_jacobian_double
-// CHECK-SAME: (%[[ARG0:.*]]: [[MOD_INT:.*]], %[[ARG1:.*]]: [[MOD_INT]], %[[ARG2:.*]]: [[MOD_INT]]) -> ([[MOD_INT]], [[MOD_INT]], [[MOD_INT]]) {
+// CHECK-SAME: (%[[ARG0:.*]]: [[JACOBIAN:.*]]) -> [[JACOBIAN:.*]] {
 func.func @test_jacobian_to_jacobian_double(%point: !jacobian) -> !jacobian {
-  // CHECK: %[[J0:.*]] = mod_arith.square %[[ARG0]] : [[MOD_INT]]
-  // CHECK: %[[J1:.*]] = mod_arith.square %[[ARG1]] : [[MOD_INT]]
+  // CHECK: %[[COORDS:.*]]:3 = elliptic_curve.extract %[[ARG0]] : [[JACOBIAN]] -> [[MOD_INT:.*]], [[MOD_INT]], [[MOD_INT]]
+  // CHECK: %[[J0:.*]] = mod_arith.square %[[COORDS]]#0 : [[MOD_INT]]
+  // CHECK: %[[J1:.*]] = mod_arith.square %[[COORDS]]#1 : [[MOD_INT]]
   // CHECK: %[[J2:.*]] = mod_arith.square %[[J1]] : [[MOD_INT]]
-  // CHECK: %[[J3:.*]] = mod_arith.square %[[ARG2]] : [[MOD_INT]]
-  // CHECK: %[[J4:.*]] = mod_arith.add %[[ARG0]], %[[J1]] : [[MOD_INT]]
-  // CHECK: %[[J5:.*]] = mod_arith.add %[[J4]], %[[ARG0]] : [[MOD_INT]]
+  // CHECK: %[[J3:.*]] = mod_arith.square %[[COORDS]]#2 : [[MOD_INT]]
+  // CHECK: %[[J4:.*]] = mod_arith.add %[[COORDS]]#0, %[[J1]] : [[MOD_INT]]
+  // CHECK: %[[J5:.*]] = mod_arith.add %[[J4]], %[[COORDS]]#0 : [[MOD_INT]]
   // CHECK: %[[J6:.*]] = mod_arith.mul %[[J1]], %[[J5]] : [[MOD_INT]]
   // CHECK: %[[J7:.*]] = mod_arith.sub %[[J6]], %[[J2]] : [[MOD_INT]]
   // CHECK: %[[J8:.*]] = mod_arith.double %[[J7]] : [[MOD_INT]]
@@ -53,23 +56,25 @@ func.func @test_jacobian_to_jacobian_double(%point: !jacobian) -> !jacobian {
   // CHECK: %[[J17:.*]] = mod_arith.double %[[J16]] : [[MOD_INT]]
   // CHECK: %[[J18:.*]] = mod_arith.double %[[J17]] : [[MOD_INT]]
   // CHECK: %[[J19:.*]] = mod_arith.sub %[[J15]], %[[J18]] : [[MOD_INT]]
-  // CHECK: %[[J20:.*]] = mod_arith.add %[[ARG1]], %[[ARG2]] : [[MOD_INT]]
-  // CHECK: %[[J21:.*]] = mod_arith.add %[[J20]], %[[ARG1]] : [[MOD_INT]]
-  // CHECK: %[[J22:.*]] = mod_arith.mul %[[ARG2]], %[[J21]] : [[MOD_INT]]
+  // CHECK: %[[J20:.*]] = mod_arith.add %[[COORDS]]#1, %[[COORDS]]#2 : [[MOD_INT]]
+  // CHECK: %[[J21:.*]] = mod_arith.add %[[J20]], %[[COORDS]]#1 : [[MOD_INT]]
+  // CHECK: %[[J22:.*]] = mod_arith.mul %[[COORDS]]#2, %[[J21]] : [[MOD_INT]]
   // CHECK: %[[J23:.*]] = mod_arith.sub %[[J22]], %[[J3]] : [[MOD_INT]]
+  // CHECK: %[[RESULT:.*]] = elliptic_curve.point %[[J13]], %[[J19]], %[[J23]] : ([[MOD_INT]], [[MOD_INT]], [[MOD_INT]]) -> [[JACOBIAN]]
   %double = elliptic_curve.double %point : !jacobian -> !jacobian
-  // CHECK: return %[[J13]], %[[J19]], %[[J23]] : [[MOD_INT]], [[MOD_INT]], [[MOD_INT]]
+  // CHECK: return %[[RESULT]] : [[JACOBIAN]]
   return %double : !jacobian
 }
 
 // CHECK-LABEL: @test_affine_to_xyzz_double
-// CHECK-SAME: (%[[ARG0:.*]]: [[MOD_INT:.*]], %[[ARG1:.*]]: [[MOD_INT]]) -> ([[MOD_INT]], [[MOD_INT]], [[MOD_INT]], [[MOD_INT]]) {
+// CHECK-SAME: (%[[ARG0:.*]]: [[AFFINE:.*]]) -> [[XYZZ:.*]] {
 func.func @test_affine_to_xyzz_double(%point: !affine) -> !xyzz {
-  // CHECK: %[[X0:.*]] = mod_arith.double %[[ARG1]] : [[MOD_INT]]
+  // CHECK: %[[COORDS:.*]]:2 = elliptic_curve.extract %[[ARG0]] : [[AFFINE]] -> [[MOD_INT:.*]], [[MOD_INT]]
+  // CHECK: %[[X0:.*]] = mod_arith.double %[[COORDS]]#1 : [[MOD_INT]]
   // CHECK: %[[X1:.*]] = mod_arith.square %[[X0]] : [[MOD_INT]]
   // CHECK: %[[X2:.*]] = mod_arith.mul %[[X0]], %[[X1]] : [[MOD_INT]]
-  // CHECK: %[[X3:.*]] = mod_arith.mul %[[ARG0]], %[[X1]] : [[MOD_INT]]
-  // CHECK: %[[X4:.*]] = mod_arith.square %[[ARG0]] : [[MOD_INT]]
+  // CHECK: %[[X3:.*]] = mod_arith.mul %[[COORDS]]#0, %[[X1]] : [[MOD_INT]]
+  // CHECK: %[[X4:.*]] = mod_arith.square %[[COORDS]]#0 : [[MOD_INT]]
   // CHECK: %[[X5:.*]] = mod_arith.double %[[X4]] : [[MOD_INT]]
   // CHECK: %[[X6:.*]] = mod_arith.add %[[X5]], %[[X4]] : [[MOD_INT]]
   // CHECK: %[[X7:.*]] = mod_arith.square %[[X6]] : [[MOD_INT]]
@@ -77,21 +82,23 @@ func.func @test_affine_to_xyzz_double(%point: !affine) -> !xyzz {
   // CHECK: %[[X9:.*]] = mod_arith.sub %[[X7]], %[[X8]] : [[MOD_INT]]
   // CHECK: %[[X10:.*]] = mod_arith.sub %[[X3]], %[[X9]] : [[MOD_INT]]
   // CHECK: %[[X11:.*]] = mod_arith.mul %[[X6]], %[[X10]] : [[MOD_INT]]
-  // CHECK: %[[X12:.*]] = mod_arith.mul %[[X2]], %[[ARG1]] : [[MOD_INT]]
+  // CHECK: %[[X12:.*]] = mod_arith.mul %[[X2]], %[[COORDS]]#1 : [[MOD_INT]]
   // CHECK: %[[X13:.*]] = mod_arith.sub %[[X11]], %[[X12]] : [[MOD_INT]]
+  // CHECK: %[[RESULT:.*]] = elliptic_curve.point %[[X9]], %[[X13]], %[[X1]], %[[X2]] : ([[MOD_INT]], [[MOD_INT]], [[MOD_INT]], [[MOD_INT]]) -> [[XYZZ]]
   %double = elliptic_curve.double %point : !affine -> !xyzz
-  // CHECK: return %[[X9]], %[[X13]], %[[X1]], %[[X2]] : [[MOD_INT]], [[MOD_INT]], [[MOD_INT]], [[MOD_INT]]
+  // CHECK: return %[[RESULT]] : [[XYZZ]]
   return %double : !xyzz
 }
 
 // CHECK-LABEL: @test_xyzz_to_xyzz_double
-// CHECK-SAME: (%[[ARG0:.*]]: [[MOD_INT:.*]], %[[ARG1:.*]]: [[MOD_INT]], %[[ARG2:.*]]: [[MOD_INT]], %[[ARG3:.*]]: [[MOD_INT]]) -> ([[MOD_INT]], [[MOD_INT]], [[MOD_INT]], [[MOD_INT]]) {
+// CHECK-SAME: (%[[ARG0:.*]]: [[XYZZ:.*]]) -> [[XYZZ:.*]] {
 func.func @test_xyzz_to_xyzz_double(%point: !xyzz) -> !xyzz {
-  // CHECK: %[[X0:.*]] = mod_arith.double %[[ARG1]] : [[MOD_INT]]
+  // CHECK: %[[COORDS:.*]]:4 = elliptic_curve.extract %[[ARG0]] : [[XYZZ]] -> [[MOD_INT:.*]], [[MOD_INT]], [[MOD_INT]], [[MOD_INT]]
+  // CHECK: %[[X0:.*]] = mod_arith.double %[[COORDS]]#1 : [[MOD_INT]]
   // CHECK: %[[X1:.*]] = mod_arith.square %[[X0]] : [[MOD_INT]]
   // CHECK: %[[X2:.*]] = mod_arith.mul %[[X0]], %[[X1]] : [[MOD_INT]]
-  // CHECK: %[[X3:.*]] = mod_arith.mul %[[ARG0]], %[[X1]] : [[MOD_INT]]
-  // CHECK: %[[X4:.*]] = mod_arith.square %[[ARG0]] : [[MOD_INT]]
+  // CHECK: %[[X3:.*]] = mod_arith.mul %[[COORDS]]#0, %[[X1]] : [[MOD_INT]]
+  // CHECK: %[[X4:.*]] = mod_arith.square %[[COORDS]]#0 : [[MOD_INT]]
   // CHECK: %[[X5:.*]] = mod_arith.double %[[X4]] : [[MOD_INT]]
   // CHECK: %[[X6:.*]] = mod_arith.add %[[X5]], %[[X4]] : [[MOD_INT]]
   // CHECK: %[[X7:.*]] = mod_arith.square %[[X6]] : [[MOD_INT]]
@@ -99,11 +106,12 @@ func.func @test_xyzz_to_xyzz_double(%point: !xyzz) -> !xyzz {
   // CHECK: %[[X9:.*]] = mod_arith.sub %[[X7]], %[[X8]] : [[MOD_INT]]
   // CHECK: %[[X10:.*]] = mod_arith.sub %[[X3]], %[[X9]] : [[MOD_INT]]
   // CHECK: %[[X11:.*]] = mod_arith.mul %[[X6]], %[[X10]] : [[MOD_INT]]
-  // CHECK: %[[X12:.*]] = mod_arith.mul %[[X2]], %[[ARG1]] : [[MOD_INT]]
+  // CHECK: %[[X12:.*]] = mod_arith.mul %[[X2]], %[[COORDS]]#1 : [[MOD_INT]]
   // CHECK: %[[X13:.*]] = mod_arith.sub %[[X11]], %[[X12]] : [[MOD_INT]]
-  // CHECK: %[[X14:.*]] = mod_arith.mul %[[X1]], %[[ARG2]] : [[MOD_INT]]
-  // CHECK: %[[X15:.*]] = mod_arith.mul %[[X2]], %[[ARG3]] : [[MOD_INT]]
+  // CHECK: %[[X14:.*]] = mod_arith.mul %[[X1]], %[[COORDS]]#2 : [[MOD_INT]]
+  // CHECK: %[[X15:.*]] = mod_arith.mul %[[X2]], %[[COORDS]]#3 : [[MOD_INT]]
+  // CHECK: %[[RESULT:.*]] = elliptic_curve.point %[[X9]], %[[X13]], %[[X14]], %[[X15]] : ([[MOD_INT]], [[MOD_INT]], [[MOD_INT]], [[MOD_INT]]) -> [[XYZZ]]
   %double = elliptic_curve.double %point : !xyzz -> !xyzz
-  // CHECK: return %[[X9]], %[[X13]], %[[X14]], %[[X15]] : [[MOD_INT]], [[MOD_INT]], [[MOD_INT]], [[MOD_INT]]
+  // CHECK: return %[[RESULT]] : [[XYZZ]]
   return %double : !xyzz
 }

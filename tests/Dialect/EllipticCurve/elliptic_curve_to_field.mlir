@@ -18,12 +18,14 @@ func.func @test_intialization_and_conversion() {
   %g2_var1 = field.constant 1, 1 : !QFm
   %affine_g2 = elliptic_curve.point %g2_var1, %g2_var1 : (!QFm, !QFm) -> !g2affine
 
-  // CHECK-NOT: elliptic_curve.point
+  // CHECK: elliptic_curve.point
   %affine1 = elliptic_curve.point %var1, %var5 : (!PFm, !PFm) -> !affine
   %jacobian1 = elliptic_curve.point %var1, %var5, %var2 : (!PFm, !PFm, !PFm) -> !jacobian
   %xyzz1 = elliptic_curve.point %var1, %var5, %var4, %var8 : (!PFm, !PFm, !PFm, !PFm) -> !xyzz
 
   // CHECK-NOT: elliptic_curve.convert_point_type
+  // CHECK: elliptic_curve.extract
+  // CHECK: elliptic_curve.point
   %jacobian2 = elliptic_curve.convert_point_type %affine1 : !affine -> !jacobian
   %xyzz2 = elliptic_curve.convert_point_type %affine1 : !affine -> !xyzz
   %affine2 = elliptic_curve.convert_point_type %jacobian1 : !jacobian -> !affine
