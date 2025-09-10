@@ -17,6 +17,7 @@
 #include "mlir/Dialect/MemRef/Transforms/Passes.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Transforms/Passes.h"
+#include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToLLVM/EllipticCurveToLLVM.h"
 #include "zkir/Dialect/Field/Conversions/FieldToModArith/FieldToModArith.h"
 #include "zkir/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.h"
 #include "zkir/Dialect/TensorExt/Conversions/TensorExtToTensor/TensorExtToTensor.h"
@@ -106,6 +107,7 @@ void buildFieldToGPU(OpPassManager &pm, const FieldToGPUOptions &options) {
   // it's not already mapped.
   pm.addPass(createGpuMapParallelLoopsPass());
   pm.addNestedPass<func::FuncOp>(createConvertParallelLoopToGpuPass());
+  pm.addPass(elliptic_curve::createEllipticCurveToLLVM());
   pm.addPass(createGpuKernelOutliningPass());
   pm.addPass(createLowerAffinePass());
   pm.addPass(createGpuDecomposeMemrefsPass());
