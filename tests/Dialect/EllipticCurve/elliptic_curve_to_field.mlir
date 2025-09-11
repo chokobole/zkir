@@ -129,3 +129,9 @@ func.func @test_bucket_acc(%points: tensor<3x!affine>, %sorted_point_indices: te
   %msm_result = elliptic_curve.bucket_acc %points, %sorted_point_indices, %sorted_unique_bucket_indices, %bucket_offsets: (tensor<3x!affine>, tensor<6xindex>, tensor<4xindex>, tensor<5xindex>) -> tensor<8x!jacobian>
   return
 }
+
+// input buckets = <#windows x #bucketsPerWindow x pointType>
+func.func @test_bucket_reduce(%buckets: tensor<?x?x!jacobian>) {
+  %msm_result = elliptic_curve.bucket_reduce %buckets {scalarType = !SF}: (tensor<?x?x!jacobian>) -> tensor<?x!jacobian>
+  return
+}
