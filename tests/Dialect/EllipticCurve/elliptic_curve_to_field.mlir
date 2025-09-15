@@ -135,3 +135,10 @@ func.func @test_bucket_reduce(%buckets: tensor<?x?x!jacobian>) {
   %msm_result = elliptic_curve.bucket_reduce %buckets {scalarType = !SF}: (tensor<?x?x!jacobian>) -> tensor<?x!jacobian>
   return
 }
+
+// input windows = <#windows x pointType>
+// CHECK-LABEL: @test_window_reduce
+func.func @test_window_reduce(%windows: tensor<128x!jacobian>) {
+  %msm_result = elliptic_curve.window_reduce %windows {bitsPerWindow = 2 : i16, scalarType = !SF}: (tensor<128x!jacobian>) -> !jacobian
+  return
+}
