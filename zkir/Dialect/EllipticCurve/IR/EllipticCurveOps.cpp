@@ -171,14 +171,8 @@ LogicalResult BucketAccOp::verify() {
 }
 
 LogicalResult BucketReduceOp::verify() {
-  RankedTensorType bucketsType = cast<RankedTensorType>(getBuckets().getType());
-  RankedTensorType windowsType = cast<RankedTensorType>(getWindows().getType());
-  if (bucketsType.getRank() != 2)
-    return emitError() << "buckets must be a matrix of rank 2";
-  if (windowsType.getRank() != 1) {
-    return emitError() << "windows must be a vector of rank 1";
-  }
-
+  TensorType bucketsType = getBuckets().getType();
+  TensorType windowsType = getWindows().getType();
   if (bucketsType.getShape()[0] != windowsType.getShape()[0]) {
     return emitError() << "dimension 0 of buckets and windows must be the same";
   }

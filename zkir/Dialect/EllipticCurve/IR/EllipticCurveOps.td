@@ -279,12 +279,12 @@ def EllipticCurve_BucketAccOp : EllipticCurve_Op<"bucket_acc", []> {
     xyzz      |   xyzz
   }];
   let arguments = (ins
-    RankedTensorOf<[PointType]>:$points,
-    RankedTensorOf<[Index]>:$sortedPointIndices,
-    RankedTensorOf<[Index]>:$sortedUniqueBucketIndices,
-    RankedTensorOf<[Index]>:$bucketOffsets
+    1DTensorOf<[PointType]>:$points,
+    1DTensorOf<[Index]>:$sortedPointIndices,
+    1DTensorOf<[Index]>:$sortedUniqueBucketIndices,
+    1DTensorOf<[Index]>:$bucketOffsets
   );
-  let results = (outs RankedTensorOf<[PointType]>:$bucketResults);
+  let results = (outs 1DTensorOf<[PointType]>:$bucketResults);
   let hasVerifier = 1;
   let assemblyFormat = "operands attr-dict `:` functional-type(operands, results)";
 }
@@ -298,7 +298,7 @@ def EllipticCurve_BucketReduceOp : EllipticCurve_Op<"bucket_reduce", []> {
     Assumes buckets point inputs will be the same type as the output point type.
     Buckets are assumed to be in a 2D tensor <#windows x #bucketsPerWindow x pointType>.
 
-    Returns a windows tensor of accumulated buckets for each window.
+    Returns a 1D windows tensor of accumulated buckets for each window.
 
     Example:
     ```
@@ -306,10 +306,10 @@ def EllipticCurve_BucketReduceOp : EllipticCurve_Op<"bucket_reduce", []> {
     ```
   }];
   let arguments = (ins
-    RankedTensorOf<[PointType]>:$buckets,
+    2DTensorOf<[PointType]>:$buckets,
     TypeAttrOf<Field_PrimeFieldType>: $scalarType
   );
-  let results = (outs RankedTensorOf<[PointType]>:$windows);
+  let results = (outs 1DTensorOf<[PointType]>:$windows);
   let hasVerifier = 1;
   let assemblyFormat = "operands attr-dict `:` functional-type(operands, results)";
 }
