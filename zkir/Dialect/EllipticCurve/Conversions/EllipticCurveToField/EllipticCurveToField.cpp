@@ -684,10 +684,10 @@ void EllipticCurveToField::runOnOperation() {
       ConvertPointTypeOp,
       DoubleOp,
       IsZeroOp,
+      linalg::MatvecOp,
       MSMOp,
       ScalarMulOp,
-      SubOp,
-      linalg::MatvecOp
+      SubOp
       // clang-format on
       >();
 
