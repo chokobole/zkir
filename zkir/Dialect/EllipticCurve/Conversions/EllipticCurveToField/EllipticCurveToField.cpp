@@ -660,6 +660,60 @@ struct ConvertBucketReduce : public OpConversionPattern<BucketReduceOp> {
   }
 };
 
+struct ConvertWindowReduce : public OpConversionPattern<WindowReduceOp> {
+  explicit ConvertWindowReduce(mlir::MLIRContext *context)
+      : OpConversionPattern<WindowReduceOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(WindowReduceOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    Value windows = op.getWindows();
+    Type pointType = cast<RankedTensorType>(windows.getType()).getElementType();
+    Type scalarType = getStandardFormType(op.getScalarType());
+    Type integerScalarType = b.getIntegerType(
+        op.getScalarType().getModulus().getValue().getBitWidth());
+
+    // Create output 0D tensor
+    Value zeroPoint = createZeroPoint(b, pointType);
+    Value outputTensor = b.create<tensor::FromElementsOp>(
+        RankedTensorType::get({}, pointType), zeroPoint);
+
+    // Calculate weighted windows reduction
+    SmallVector<int64_t, 1> reductionDims = {0};
+    Value c = b.create<arith::ConstantIntOp>(integerScalarType,
+                                             op.getBitsPerWindow());
+    Value base = b.create<field::ConstantOp>(scalarType, 2);
+    // TODO(ashjeong): Try benchmarking against creating a separate weights
+    // tensor & dot product. We want to test whether calculating  2ᶜⁱ in
+    // parallel and reducing is faster than two loops of calculating 2ᶜⁱ
+    // iteratively then reducing.
+    auto total = b.create<linalg::ReduceOp>(
+        windows, outputTensor, reductionDims,
+        [&](OpBuilder &builder, Location loc, ValueRange args) {
+          ImplicitLocOpBuilder b0(loc, builder);
+          // Current point (args[0]) and accumulator (args[1]).
+          Value i = b0.create<linalg::IndexOp>(0);
+          Value arithI = b0.create<arith::IndexCastOp>(integerScalarType, i);
+          Value exp = b0.create<arith::MulIOp>(c, arithI);
+          Value weight = b0.create<field::PowUIOp>(base, exp);
+          Value weightedValue = b0.create<elliptic_curve::ScalarMulOp>(
+              pointType, weight, args[0]);
+
+          Value sum = b0.create<elliptic_curve::AddOp>(pointType, args[1],
+                                                       weightedValue);
+          b0.create<linalg::YieldOp>(sum);
+        });
+
+    auto result = b.create<tensor::ExtractOp>(total.getResult(0));
+    rewriter.replaceOp(op, result);
+    return success();
+  }
+};
+
 namespace rewrites {
 // In an inner namespace to avoid conflicts with canonicalization patterns
 #include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/EllipticCurveToField.cpp.inc"
@@ -687,7 +741,8 @@ void EllipticCurveToField::runOnOperation() {
       linalg::MatvecOp,
       MSMOp,
       ScalarMulOp,
-      SubOp
+      SubOp,
+      WindowReduceOp
       // clang-format on
       >();
 
@@ -724,7 +779,8 @@ void EllipticCurveToField::runOnOperation() {
       ConvertMSM,
       ConvertNegate,
       ConvertScalarMul,
-      ConvertSub
+      ConvertSub,
+      ConvertWindowReduce
       // clang-format on
       >(context);
 

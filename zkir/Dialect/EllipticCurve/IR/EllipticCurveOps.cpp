@@ -179,6 +179,22 @@ LogicalResult BucketReduceOp::verify() {
   return success();
 }
 
+LogicalResult WindowReduceOp::verify() {
+  unsigned scalarBitWidth =
+      getScalarType().getModulus().getValue().getBitWidth();
+  int16_t bitsPerWindow = getBitsPerWindow();
+  TensorType windowsType = getWindows().getType();
+
+  unsigned numWindows = (scalarBitWidth + bitsPerWindow - 1) / bitsPerWindow;
+  if (numWindows != windowsType.getNumElements()) {
+    return emitError() << "number of calculated windows (" << numWindows
+                       << ") must be the same as the number of windows in the "
+                          "windows tensor ("
+                       << windowsType.getNumElements() << ")";
+  }
+  return success();
+}
+
 //////////////// VERIFY POINT CONVERSIONS ////////////////
 
 LogicalResult ConvertPointTypeOp::verify() {

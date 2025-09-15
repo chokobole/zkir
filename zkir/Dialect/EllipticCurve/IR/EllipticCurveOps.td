@@ -11,6 +11,8 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 include "zkir/Dialect/Field/IR/FieldAttributes.td"
 include "zkir/Dialect/Field/IR/FieldTypes.td"
 include "zkir/Dialect/ModArith/IR/ModArithTypes.td"
+include "zkir/Utils/CommonTraits.td"
+include "zkir/Utils/CommonTypeConstraints.td"
 
 // Base class for elliptic curve operations.
 class EllipticCurve_Op<string mnemonic, list<Trait> traits = []> :
@@ -310,6 +312,35 @@ def EllipticCurve_BucketReduceOp : EllipticCurve_Op<"bucket_reduce", [SameOperan
     TypeAttrOf<Field_PrimeFieldType>: $scalarType
   );
   let results = (outs 1DTensorOf<[PointType]>:$windows);
+  let hasVerifier = 1;
+  let assemblyFormat = "operands attr-dict `:` functional-type(operands, results)";
+}
+
+// Elliptic curve MSM window reduction.
+def EllipticCurve_WindowReduceOp : EllipticCurve_Op<"window_reduce", [TypesMatchWith<
+  "output type must be the same as the element type of the windows",
+  "windows", "output", "::mlir::getElementTypeOrSelf($_self)">,
+  VarPositiveAndBounded<"getBitsPerWindow()", "getScalarType().getModulus().getValue().getBitWidth()">]> {
+  let summary = "MSM Window Reduction";
+  let description = [{
+    Computes the weighted reduction of windows into a point given all windows, the number of bits per window, and the scalar field type.
+
+    Assumes windows point inputs will be the same type as the output point type.
+    Windows are assumed to be in a 1D tensor <#windows x pointType>.
+
+    Returns a singular point.
+
+    Example:
+    ```
+    %result = elliptic_curve.window_reduce %windows {bitsPerWindow = 2 : i16, scalarType = !SF}: (tensor<4x!jacobian>) -> !jacobian
+    ```
+  }];
+  let arguments = (ins
+    Static1DTensorOf<[PointType]>:$windows,
+    I16Attr: $bitsPerWindow,
+    TypeAttrOf<Field_PrimeFieldType>: $scalarType
+  );
+  let results = (outs PointType:$output);
   let hasVerifier = 1;
   let assemblyFormat = "operands attr-dict `:` functional-type(operands, results)";
 }
