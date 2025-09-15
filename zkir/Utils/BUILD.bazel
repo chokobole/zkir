@@ -1,3 +1,4 @@
+load("@llvm-project//mlir:tblgen.bzl", "td_library")
 load("@rules_cc//cc:defs.bzl", "cc_library")
 
 package(
@@ -11,6 +12,12 @@ cc_library(
     deps = [
         "@llvm-project//llvm:Support",
     ],
+)
+
+td_library(
+    name = "CommonTypeConstraints",
+    srcs = ["CommonTypeConstraints.td"],
+    deps = ["@llvm-project//mlir:BuiltinDialectTdFiles"],
 )
 
 cc_library(
