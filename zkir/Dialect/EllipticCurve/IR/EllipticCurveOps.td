@@ -13,8 +13,8 @@ include "zkir/Dialect/Field/IR/FieldTypes.td"
 include "zkir/Dialect/ModArith/IR/ModArithTypes.td"
 
 // Base class for elliptic curve operations.
-class EllipticCurve_Op<string mnemonic, list<Trait> traits = [Pure]> :
-  Op<EllipticCurve_Dialect, mnemonic, traits> {
+class EllipticCurve_Op<string mnemonic, list<Trait> traits = []> :
+  Op<EllipticCurve_Dialect, mnemonic, traits # [Pure]> {
   let cppNamespace = "::mlir::zkir::elliptic_curve";
 }
 
@@ -175,7 +175,7 @@ def EllipticCurve_DoubleOp : EllipticCurve_UnaryOp<"double"> {
 ////////////// MSM FUNCTIONS //////////////
 
 // Elliptic curve point scalar multiplication.
-def EllipticCurve_ScalarMulOp : EllipticCurve_Op<"scalar_mul", [Pure, ElementwiseMappable]> {
+def EllipticCurve_ScalarMulOp : EllipticCurve_Op<"scalar_mul", [ElementwiseMappable]> {
   let summary = "Elliptic curve point scalar multiplication";
   let description = [{
     Computes the product of an elliptic curve point and a scalar prime field value.
