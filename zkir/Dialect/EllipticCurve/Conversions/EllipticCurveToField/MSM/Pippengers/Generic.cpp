@@ -39,9 +39,7 @@ ValueRange PippengersGeneric::scalarIsOneBranch(Value point, Value windowOffset,
 Value PippengersGeneric::scalarDecomposition(Value scalar,
                                              Value windowOffsetIndex,
                                              ImplicitLocOpBuilder &b) {
-  size_t scalarBitWidth =
-      scalarFieldType_.getModulus().getValue().getBitWidth();
-  auto scalarIntType = IntegerType::get(b.getContext(), scalarBitWidth);
+  auto scalarIntType = scalarFieldType_.getStorageType();
   Value windowOffset =
       b.create<arith::IndexCastOp>(scalarIntType, windowOffsetIndex);
 

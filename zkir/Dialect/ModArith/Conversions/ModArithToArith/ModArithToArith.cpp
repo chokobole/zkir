@@ -460,7 +460,7 @@ struct ConvertDouble : public OpConversionPattern<DoubleOp> {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     ModArithType modType = getResultModArithType(op);
-    auto intType = modType.getModulus().getType();
+    auto intType = modType.getStorageType();
 
     Value cmod = b.create<arith::ConstantOp>(modulusAttr(op));
     Value one = b.create<arith::ConstantIntOp>(intType, 1);
@@ -764,7 +764,7 @@ struct ConvertSquare : public OpConversionPattern<SquareOp> {
     Value lowExt = b.create<arith::ExtUIOp>(mulResultType, result.lo);
     Value highExt = b.create<arith::ExtUIOp>(mulResultType, result.hi);
     Value shift = b.create<arith::ConstantIntOp>(
-        mulResultType, resultType.getModulus().getValue().getBitWidth());
+        mulResultType, resultType.getStorageBitWidth());
     highExt = b.create<arith::ShLIOp>(highExt, shift);
     Value squared = b.create<arith::OrIOp>(lowExt, highExt);
 

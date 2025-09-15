@@ -67,7 +67,7 @@ getCommonConversionInfo(Operation *op, const TypeConverter *typeConverter) {
     return failure();
   }
   info.tensorType = cast<RankedTensorType>(typeConverter->convertType(polyTy));
-  info.coefficientStorageType = info.coefficientType.getModulus().getType();
+  info.coefficientStorageType = info.coefficientType.getStorageType();
   return std::move(info);
 }
 
@@ -167,7 +167,7 @@ static Value fastNTT(ImplicitLocOpBuilder &b, NTTOpAdaptor adaptor,
   auto tensorType = cast<RankedTensorType>(adaptor.getDest().getType());
   auto coeffType = cast<field::PrimeFieldType>(tensorType.getElementType());
 
-  auto coeffStorageType = coeffType.getModulus().getType();
+  auto coeffStorageType = coeffType.getStorageType();
   auto intTensorType =
       RankedTensorType::get(tensorType.getShape(), coeffStorageType);
 

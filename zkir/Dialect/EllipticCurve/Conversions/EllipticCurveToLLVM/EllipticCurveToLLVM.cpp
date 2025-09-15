@@ -130,7 +130,7 @@ template <typename T>
 Type convertPointType(T type) {
   Type baseFieldType = type.getCurve().getBaseField();
   Type integerType =
-      cast<field::PrimeFieldType>(baseFieldType).getModulus().getType();
+      cast<field::PrimeFieldType>(baseFieldType).getStorageType();
   if constexpr (std::is_same_v<T, AffineType>) {
     return LLVM::LLVMStructType::getLiteral(type.getContext(),
                                             {integerType, integerType});

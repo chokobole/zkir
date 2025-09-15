@@ -320,7 +320,7 @@ def EllipticCurve_BucketReduceOp : EllipticCurve_Op<"bucket_reduce", [SameOperan
 def EllipticCurve_WindowReduceOp : EllipticCurve_Op<"window_reduce", [TypesMatchWith<
   "output type must be the same as the element type of the windows",
   "windows", "output", "::mlir::getElementTypeOrSelf($_self)">,
-  VarPositiveAndBounded<"getBitsPerWindow()", "getScalarType().getModulus().getValue().getBitWidth()">]> {
+  VarPositiveAndBounded<"getBitsPerWindow()", "getScalarType().getStorageBitWidth()">]> {
   let summary = "MSM Window Reduction";
   let description = [{
     Computes the weighted reduction of windows into a point given all windows, the number of bits per window, and the scalar field type.

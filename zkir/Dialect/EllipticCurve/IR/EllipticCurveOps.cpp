@@ -180,8 +180,7 @@ LogicalResult BucketReduceOp::verify() {
 }
 
 LogicalResult WindowReduceOp::verify() {
-  unsigned scalarBitWidth =
-      getScalarType().getModulus().getValue().getBitWidth();
+  unsigned scalarBitWidth = getScalarType().getStorageBitWidth();
   int16_t bitsPerWindow = getBitsPerWindow();
   TensorType windowsType = getWindows().getType();
 

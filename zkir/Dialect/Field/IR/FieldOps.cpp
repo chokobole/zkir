@@ -122,7 +122,7 @@ ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
       return failure();
     }
 
-    auto outputBitWidth = pfType.getModulus().getValue().getBitWidth();
+    auto outputBitWidth = pfType.getStorageBitWidth();
     if (parsedInt[0].getActiveBits() > outputBitWidth)
       return parser.emitError(
           parser.getCurrentLocation(),
@@ -149,8 +149,7 @@ ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
       return failure();
     }
 
-    auto outputBitWidth =
-        f2Type.getBaseField().getModulus().getValue().getBitWidth();
+    auto outputBitWidth = f2Type.getBaseField().getStorageBitWidth();
     for (const auto &value : parsedInt) {
       if (value.getActiveBits() > outputBitWidth)
         return parser.emitError(
@@ -239,10 +238,10 @@ LogicalResult ExtractOp::verify() {
              << resultTypes.size();
     }
     auto intType = cast<IntegerType>(resultTypes[0]);
-    if (intType.getWidth() != pfType.getModulus().getValue().getBitWidth()) {
+    if (intType.getWidth() != pfType.getStorageBitWidth()) {
       return emitOpError() << "result integer bitwidth " << intType.getWidth()
                            << " does not match prime field modulus bitwidth "
-                           << pfType.getModulus().getValue().getBitWidth();
+                           << pfType.getStorageBitWidth();
     }
   } else if (auto f2Type = dyn_cast<QuadraticExtFieldType>(inputType)) {
     if (isa<ShapedType>(inputType)) {
@@ -256,7 +255,7 @@ LogicalResult ExtractOp::verify() {
     }
 
     auto baseField = f2Type.getBaseField();
-    unsigned modBitWidth = baseField.getModulus().getValue().getBitWidth();
+    unsigned modBitWidth = baseField.getStorageBitWidth();
     for (int i = 0; i < 2; i++) {
       auto intType = cast<IntegerType>((resultTypes[i]));
       if (intType.getWidth() != modBitWidth) {
@@ -282,10 +281,10 @@ LogicalResult EncapsulateOp::verify() {
              << inputTypes.size();
     }
     auto intType = cast<IntegerType>(inputTypes[0]);
-    if (intType.getWidth() != pfType.getModulus().getValue().getBitWidth()) {
+    if (intType.getWidth() != pfType.getStorageBitWidth()) {
       return emitOpError() << "input integer bitwidth " << intType.getWidth()
                            << " does not match prime field modulus bitwidth "
-                           << pfType.getModulus().getValue().getBitWidth();
+                           << pfType.getStorageBitWidth();
     }
   } else if (auto f2Type = dyn_cast<QuadraticExtFieldType>(resultType)) {
     if (inputTypes.size() != 2) {
@@ -295,7 +294,7 @@ LogicalResult EncapsulateOp::verify() {
     }
 
     auto baseField = f2Type.getBaseField();
-    unsigned modBitWidth = baseField.getModulus().getValue().getBitWidth();
+    unsigned modBitWidth = baseField.getStorageBitWidth();
     for (int i = 0; i < 2; i++) {
       auto intType = cast<IntegerType>((inputTypes[i]));
       if (intType.getWidth() != modBitWidth) {

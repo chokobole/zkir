@@ -405,10 +405,7 @@ struct ConvertScalarMul : public OpConversionPattern<ScalarMulOp> {
     Type outputType = op.getOutput().getType();
 
     auto scalarFieldType = cast<field::PrimeFieldType>(scalarPF.getType());
-    unsigned scalarBitWidth =
-        scalarFieldType.getModulus().getValue().getBitWidth();
-    auto scalarIntType =
-        IntegerType::get(b.getContext(), scalarBitWidth, IntegerType::Signless);
+    auto scalarIntType = scalarFieldType.getStorageType();
     Value scalarReduced =
         scalarFieldType.isMontgomery()
             ? b.create<field::FromMontOp>(
@@ -614,8 +611,7 @@ struct ConvertBucketReduce : public OpConversionPattern<BucketReduceOp> {
     RankedTensorType bucketsType = cast<RankedTensorType>(buckets.getType());
     Type pointType = bucketsType.getElementType();
     Type standardScalarType = field::getStandardFormType(op.getScalarType());
-    Type scalarIntType = b.getIntegerType(
-        op.getScalarType().getModulus().getValue().getBitWidth());
+    Type scalarIntType = op.getScalarType().getStorageType();
 
     // Create bucket weights vector
     int64_t numBucketsPerWindow = bucketsType.getShape()[1];
@@ -674,8 +670,7 @@ struct ConvertWindowReduce : public OpConversionPattern<WindowReduceOp> {
     Value windows = op.getWindows();
     Type pointType = cast<RankedTensorType>(windows.getType()).getElementType();
     Type standardScalarType = getStandardFormType(op.getScalarType());
-    Type scalarIntType = b.getIntegerType(
-        op.getScalarType().getModulus().getValue().getBitWidth());
+    Type scalarIntType = op.getScalarType().getStorageType();
 
     // Create output 0D tensor
     Value zeroPoint = createZeroPoint(b, pointType);

@@ -68,7 +68,7 @@ LogicalResult verifyModArithType(OpType op, ModArithType type) {
 template <typename OpType>
 LogicalResult verifySameWidth(OpType op, ModArithType modArithType,
                               IntegerType integerType) {
-  unsigned bitWidth = modArithType.getModulus().getValue().getBitWidth();
+  unsigned bitWidth = modArithType.getStorageBitWidth();
   unsigned intWidth = integerType.getWidth();
   if (intWidth != bitWidth)
     return op.emitOpError()
@@ -96,7 +96,7 @@ LogicalResult MontReduceOp::verify() {
       cast<IntegerType>(getElementTypeOrSelf(this->getLow().getType()));
   ModArithType modArithType = getResultModArithType(*this);
   unsigned intWidth = integerType.getWidth();
-  unsigned modWidth = modArithType.getModulus().getValue().getBitWidth();
+  unsigned modWidth = modArithType.getStorageBitWidth();
   if (intWidth != modWidth)
     return emitOpError() << "Expected operand width to be " << modWidth
                          << ", but got " << intWidth << " instead.";
@@ -420,7 +420,7 @@ ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
     return failure();
   }
 
-  auto outputBitWidth = modArithType.getModulus().getValue().getBitWidth();
+  auto outputBitWidth = modArithType.getStorageBitWidth();
   if (parsedInt.getActiveBits() > outputBitWidth) {
     parser.emitError(parser.getCurrentLocation(),
                      "constant value is too large for the underlying type");
@@ -430,8 +430,7 @@ ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
   // zero-extend or truncate to the correct bitwidth
   parsedInt = parsedInt.zextOrTrunc(outputBitWidth).urem(modulus);
   result.addAttribute(
-      "value",
-      IntegerAttr::get(modArithType.getModulus().getType(), parsedInt));
+      "value", IntegerAttr::get(modArithType.getStorageType(), parsedInt));
   result.addTypes(parsedType);
   return success();
 }
