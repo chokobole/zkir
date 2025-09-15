@@ -15,6 +15,7 @@ namespace mlir::zkir::field {
 class PrimeFieldAttr;
 
 bool isMontgomery(Type type);
+unsigned getIntOrPrimeFieldBitWidth(Type type);
 
 } // namespace mlir::zkir::field
 

@@ -307,6 +307,14 @@ LogicalResult EncapsulateOp::verify() {
   return success();
 }
 
+bool BitcastOp::areCastCompatible(TypeRange inputs, TypeRange outputs) {
+  Type inputType = getElementTypeOrSelf(inputs.front());
+  Type outputType = getElementTypeOrSelf(outputs.front());
+
+  return getIntOrPrimeFieldBitWidth(inputType) ==
+         getIntOrPrimeFieldBitWidth(outputType);
+}
+
 LogicalResult ExtToCoeffsOp::verify() {
   Type inputType = getInput().getType();
   if (auto f2Type = dyn_cast<QuadraticExtFieldType>(inputType)) {

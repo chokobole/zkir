@@ -57,6 +57,26 @@ func.func @test_lower_extract_vec(%lhs : tensor<4x!PF1>) -> tensor<4xi32> {
   return %res : tensor<4xi32>
 }
 
+// CHECK-LABEL: @test_lower_bitcast
+// CHECK-SAME: (%[[LHS:.*]]: [[T:.*]]) -> [[F:.*]] {
+func.func @test_lower_bitcast(%lhs : !PF1) -> i32 {
+  // CHECK-NOT: field.bitcast
+  // CHECK: %[[RES:.*]] = mod_arith.bitcast %[[LHS]] : [[T]] -> [[F]]
+  %res = field.bitcast %lhs : !PF1 -> i32
+  // CHECK: return %[[RES]] : [[F]]
+  return %res : i32
+}
+
+// CHECK-LABEL: @test_lower_bitcast_vec
+// CHECK-SAME: (%[[LHS:.*]]: [[T:.*]]) -> [[F:.*]] {
+func.func @test_lower_bitcast_vec(%lhs : !PFv) -> tensor<4xi32> {
+  // CHECK-NOT: field.bitcast
+  // CHECK: %[[RES:.*]] = mod_arith.bitcast %[[LHS]] : [[T]] -> [[F]]
+  %res = field.bitcast %lhs : !PFv -> tensor<4xi32>
+  // CHECK: return %[[RES]] : [[F]]
+  return %res : tensor<4xi32>
+}
+
 // CHECK-LABEL: @test_lower_to_mont
 // CHECK-SAME: (%[[LHS:.*]]: [[T:.*]]) -> [[Tm:.*]] {
 func.func @test_lower_to_mont(%lhs : !PF1) -> !PF1m {

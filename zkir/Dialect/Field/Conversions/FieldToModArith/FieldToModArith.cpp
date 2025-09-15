@@ -193,6 +193,24 @@ struct ConvertExtract : public OpConversionPattern<ExtractOp> {
   }
 };
 
+struct ConvertBitcast : public OpConversionPattern<BitcastOp> {
+  explicit ConvertBitcast(MLIRContext *context)
+      : OpConversionPattern<BitcastOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(BitcastOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    auto bitcast = b.create<mod_arith::BitcastOp>(
+        typeConverter->convertType(op.getType()), adaptor.getInput());
+    rewriter.replaceOp(op, bitcast);
+    return success();
+  }
+};
+
 struct ConvertToMont : public OpConversionPattern<ToMontOp> {
   explicit ConvertToMont(MLIRContext *context)
       : OpConversionPattern<ToMontOp>(context) {}
@@ -729,6 +747,7 @@ void FieldToModArith::runOnOperation() {
   patterns.add<
       // clang-format off
       ConvertAdd,
+      ConvertBitcast,
       ConvertConstant,
       ConvertCmp,
       ConvertDouble,

@@ -7,6 +7,7 @@ include "zkir/Dialect/Field/IR/FieldTypes.td"
 include "zkir/Dialect/ModArith/IR/ModArithAttributes.td"
 include "zkir/Dialect/ModArith/IR/ModArithTypes.td"
 include "mlir/Dialect/Arith/IR/ArithBase.td"
+include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/IR/OpBase.td"
@@ -140,6 +141,33 @@ def Field_ExtractOp : Op<Field_Dialect, "extract", [Pure]> {
   let results = (outs Variadic<SignlessIntegerLike>:$output);
   let assemblyFormat = "operands attr-dict `:` type($input) `->` type($output)";
   let hasVerifier = 1;
+}
+
+def Field_BitcastOp : Op<Field_Dialect, "bitcast", [Pure,
+ SameOperandsAndResultShape, DeclareOpInterfaceMethods<CastOpInterface>]> {
+  let summary = "Bitcast between prime field types and to/from integer types";
+  let description = [{
+    Bitcasts between prime field types and to/from integer types.
+
+    The storage bitwidth of the input type is required to be the same storage
+    bitwidth of the output type. Integer to integer bitcast is disallowed as it
+    should be handled by `arith.bitcast`.
+
+    Currently, this operation only supports prime field. In the future, when the
+    use case is clear, we could support bitcasting between other field types and
+    integer type.
+
+    Example:
+    ```
+    !PF = field.pf<7 : i32>
+    %c0 = field.bitcast %f0 : !PF -> i32
+    %f1 = field.bitcast %c0 : i32 -> !PF
+    %f2 = field.bitcast %f0 : !PF -> !PF2
+    ```
+  }];
+  let arguments = (ins AnyTypeOf<[PrimeFieldLike, SignlessIntegerLike]>:$input);
+  let results = (outs AnyTypeOf<[PrimeFieldLike, SignlessIntegerLike]>:$output);
+  let assemblyFormat = "operands attr-dict `:` type($input) `->` type($output)";
 }
 
 def Field_CmpOp : Field_Op<"cmp", [SameTypeOperands, TypesMatchWith<
