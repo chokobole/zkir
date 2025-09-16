@@ -8,6 +8,7 @@ package(
 GPU_TESTS = [
     "bucket_acc_runner.mlir",
     "bucket_reduce_runner.mlir",
+    "window_reduce_runner.mlir",
 ]
 
 glob_lit_tests(
@@ -30,4 +31,7 @@ run_lit_tests(
     ],
     target_compatible_with = requires_cuda(),
     tests = GPU_TESTS,
+    timeout_override = {
+        "bucket_reduce_runner.mlir": "moderate",
+    },
 )

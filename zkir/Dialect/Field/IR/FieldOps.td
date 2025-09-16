@@ -14,8 +14,7 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 
 // Base class for field operations.
 class Field_Op<string mnemonic, list<Trait> traits = []> :
-  Op<Field_Dialect, mnemonic, traits #
-   [NoMemoryEffect, Pure] # ElementwiseMappable.traits>;
+  Op<Field_Dialect, mnemonic, traits #[Pure] # ElementwiseMappable.traits>;
 
 // Base class for field arithmetic ops. All ops have one result,
 // and the result type is the same as the operand type.
@@ -317,7 +316,7 @@ def Field_PowUIOp : Field_Op<"powui", [TypesMatchWith<
 
     Example:
     ```
-    %power = field.pow %a, %b : field.pf<primeModulus>, i32
+    %power = field.powui %a, %b : field.pf<primeModulus>, i32
     ```
   }];
   let arguments = (ins FieldLike:$base, SignlessIntegerLike:$exp);

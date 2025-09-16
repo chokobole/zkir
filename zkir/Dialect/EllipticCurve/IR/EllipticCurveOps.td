@@ -11,10 +11,12 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 include "zkir/Dialect/Field/IR/FieldAttributes.td"
 include "zkir/Dialect/Field/IR/FieldTypes.td"
 include "zkir/Dialect/ModArith/IR/ModArithTypes.td"
+include "zkir/Utils/CommonTraits.td"
+include "zkir/Utils/CommonTypeConstraints.td"
 
 // Base class for elliptic curve operations.
-class EllipticCurve_Op<string mnemonic, list<Trait> traits = [Pure]> :
-  Op<EllipticCurve_Dialect, mnemonic, traits> {
+class EllipticCurve_Op<string mnemonic, list<Trait> traits = []> :
+  Op<EllipticCurve_Dialect, mnemonic, traits # [Pure]> {
   let cppNamespace = "::mlir::zkir::elliptic_curve";
 }
 
@@ -175,7 +177,7 @@ def EllipticCurve_DoubleOp : EllipticCurve_UnaryOp<"double"> {
 ////////////// MSM FUNCTIONS //////////////
 
 // Elliptic curve point scalar multiplication.
-def EllipticCurve_ScalarMulOp : EllipticCurve_Op<"scalar_mul", [Pure, ElementwiseMappable]> {
+def EllipticCurve_ScalarMulOp : EllipticCurve_Op<"scalar_mul", [ElementwiseMappable]> {
   let summary = "Elliptic curve point scalar multiplication";
   let description = [{
     Computes the product of an elliptic curve point and a scalar prime field value.
@@ -279,18 +281,18 @@ def EllipticCurve_BucketAccOp : EllipticCurve_Op<"bucket_acc", []> {
     xyzz      |   xyzz
   }];
   let arguments = (ins
-    RankedTensorOf<[PointType]>:$points,
-    RankedTensorOf<[Index]>:$sortedPointIndices,
-    RankedTensorOf<[Index]>:$sortedUniqueBucketIndices,
-    RankedTensorOf<[Index]>:$bucketOffsets
+    1DTensorOf<[PointType]>:$points,
+    1DTensorOf<[Index]>:$sortedPointIndices,
+    1DTensorOf<[Index]>:$sortedUniqueBucketIndices,
+    1DTensorOf<[Index]>:$bucketOffsets
   );
-  let results = (outs RankedTensorOf<[PointType]>:$bucketResults);
+  let results = (outs 1DTensorOf<[PointType]>:$bucketResults);
   let hasVerifier = 1;
   let assemblyFormat = "operands attr-dict `:` functional-type(operands, results)";
 }
 
 // Elliptic curve MSM bucket reduction.
-def EllipticCurve_BucketReduceOp : EllipticCurve_Op<"bucket_reduce", []> {
+def EllipticCurve_BucketReduceOp : EllipticCurve_Op<"bucket_reduce", [SameOperandsAndResultElementType]> {
   let summary = "MSM Bucket Reduction";
   let description = [{
     Computes the reduction of buckets into windows given all buckets and the scalar field type as an attribute.
@@ -298,7 +300,7 @@ def EllipticCurve_BucketReduceOp : EllipticCurve_Op<"bucket_reduce", []> {
     Assumes buckets point inputs will be the same type as the output point type.
     Buckets are assumed to be in a 2D tensor <#windows x #bucketsPerWindow x pointType>.
 
-    Returns a windows tensor of accumulated buckets for each window.
+    Returns a 1D windows tensor of accumulated buckets for each window.
 
     Example:
     ```
@@ -306,10 +308,39 @@ def EllipticCurve_BucketReduceOp : EllipticCurve_Op<"bucket_reduce", []> {
     ```
   }];
   let arguments = (ins
-    RankedTensorOf<[PointType]>:$buckets,
+    2DTensorOf<[PointType]>:$buckets,
     TypeAttrOf<Field_PrimeFieldType>: $scalarType
   );
-  let results = (outs RankedTensorOf<[PointType]>:$windows);
+  let results = (outs 1DTensorOf<[PointType]>:$windows);
+  let hasVerifier = 1;
+  let assemblyFormat = "operands attr-dict `:` functional-type(operands, results)";
+}
+
+// Elliptic curve MSM window reduction.
+def EllipticCurve_WindowReduceOp : EllipticCurve_Op<"window_reduce", [TypesMatchWith<
+  "output type must be the same as the element type of the windows",
+  "windows", "output", "::mlir::getElementTypeOrSelf($_self)">,
+  VarPositiveAndBounded<"getBitsPerWindow()", "getScalarType().getModulus().getValue().getBitWidth()">]> {
+  let summary = "MSM Window Reduction";
+  let description = [{
+    Computes the weighted reduction of windows into a point given all windows, the number of bits per window, and the scalar field type.
+
+    Assumes windows point inputs will be the same type as the output point type.
+    Windows are assumed to be in a 1D tensor <#windows x pointType>.
+
+    Returns a singular point.
+
+    Example:
+    ```
+    %result = elliptic_curve.window_reduce %windows {bitsPerWindow = 2 : i16, scalarType = !SF}: (tensor<4x!jacobian>) -> !jacobian
+    ```
+  }];
+  let arguments = (ins
+    Static1DTensorOf<[PointType]>:$windows,
+    I16Attr: $bitsPerWindow,
+    TypeAttrOf<Field_PrimeFieldType>: $scalarType
+  );
+  let results = (outs PointType:$output);
   let hasVerifier = 1;
   let assemblyFormat = "operands attr-dict `:` functional-type(operands, results)";
 }

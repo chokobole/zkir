@@ -99,8 +99,8 @@ ______________________________________________________________________
 ## Comment Style
 
 - Non-trivial code changes must be accompanied by comments.
-- Comments should explain **why** a change or design decision was made, not just
-  what the code does.
+- Comments explain **why** a change or design decision was made or explain the
+  code for better readability.
 - Use full sentences with proper punctuation.
 
 ______________________________________________________________________

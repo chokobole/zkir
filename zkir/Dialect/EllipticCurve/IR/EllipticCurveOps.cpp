@@ -105,8 +105,8 @@ LogicalResult ScalarMulOp::verify() {
 }
 
 LogicalResult MSMOp::verify() {
-  TensorType scalarsType = cast<TensorType>(getScalars().getType());
-  TensorType pointsType = cast<TensorType>(getPoints().getType());
+  TensorType scalarsType = getScalars().getType();
+  TensorType pointsType = getPoints().getType();
   if (scalarsType.getRank() != pointsType.getRank()) {
     return emitError() << "scalars and points must have the same rank";
   }
@@ -146,10 +146,10 @@ LogicalResult MSMOp::verify() {
 
 LogicalResult BucketAccOp::verify() {
   TensorType sortedUniqueBucketIndices =
-      cast<TensorType>(getSortedUniqueBucketIndices().getType());
-  TensorType bucketOffsets = cast<TensorType>(getBucketOffsets().getType());
-  TensorType bucketResults = cast<TensorType>(getBucketResults().getType());
-  TensorType points = cast<TensorType>(getPoints().getType());
+      getSortedUniqueBucketIndices().getType();
+  TensorType bucketOffsets = getBucketOffsets().getType();
+  TensorType bucketResults = getBucketResults().getType();
+  TensorType points = getPoints().getType();
 
   if (sortedUniqueBucketIndices.getNumElements() !=
       bucketOffsets.getNumElements() - 1) {
@@ -171,24 +171,27 @@ LogicalResult BucketAccOp::verify() {
 }
 
 LogicalResult BucketReduceOp::verify() {
-  RankedTensorType bucketsType = cast<RankedTensorType>(getBuckets().getType());
-  RankedTensorType windowsType = cast<RankedTensorType>(getWindows().getType());
-  if (bucketsType.getRank() != 2)
-    return emitError() << "buckets must be a matrix of rank 2";
-  if (windowsType.getRank() != 1) {
-    return emitError() << "windows must be a vector of rank 1";
-  }
-
+  TensorType bucketsType = getBuckets().getType();
+  TensorType windowsType = getWindows().getType();
   if (bucketsType.getShape()[0] != windowsType.getShape()[0]) {
     return emitError() << "dimension 0 of buckets and windows must be the same";
   }
+  return success();
+}
 
-  Type inputPointType = bucketsType.getElementType();
-  Type outputPointType = windowsType.getElementType();
-  if (inputPointType != outputPointType) {
-    return emitError() << "input and output point types must be the same";
+LogicalResult WindowReduceOp::verify() {
+  unsigned scalarBitWidth =
+      getScalarType().getModulus().getValue().getBitWidth();
+  int16_t bitsPerWindow = getBitsPerWindow();
+  TensorType windowsType = getWindows().getType();
+
+  unsigned numWindows = (scalarBitWidth + bitsPerWindow - 1) / bitsPerWindow;
+  if (numWindows != windowsType.getNumElements()) {
+    return emitError() << "number of calculated windows (" << numWindows
+                       << ") must be the same as the number of windows in the "
+                          "windows tensor ("
+                       << windowsType.getNumElements() << ")";
   }
-
   return success();
 }
 

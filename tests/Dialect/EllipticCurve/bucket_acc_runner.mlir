@@ -34,7 +34,7 @@ func.func @test_bucket_acc() {
 
   %points = tensor.from_elements %affine1, %affine2, %affine3 : tensor<3x!affine>
 
-  %msm_result = elliptic_curve.bucket_acc %points, %sorted_point_indices, %sorted_unique_bucket_indices, %offsets: (tensor<3x!affine>, tensor<6xindex>, tensor<4xindex>, tensor<5xindex>) -> tensor<8x!jacobian>
+  %result = elliptic_curve.bucket_acc %points, %sorted_point_indices, %sorted_unique_bucket_indices, %offsets: (tensor<3x!affine>, tensor<6xindex>, tensor<4xindex>, tensor<5xindex>) -> tensor<8x!jacobian>
 
   %jacobian_sum_13 = elliptic_curve.add %affine1, %affine3 : !affine, !affine -> !jacobian
   func.call @printAffineFromJacobian(%jacobian_sum_13) : (!jacobian) -> ()
@@ -46,7 +46,7 @@ func.func @test_bucket_acc() {
   func.call @printAffine(%affine3) : (!affine) -> ()
 
   scf.for %i = %c0 to %c8 step %c1 {
-    %point = tensor.extract %msm_result[%i] : tensor<8x!jacobian>
+    %point = tensor.extract %result[%i] : tensor<8x!jacobian>
     func.call @printAffineFromJacobian(%point) : (!jacobian) -> ()
     scf.yield
   }

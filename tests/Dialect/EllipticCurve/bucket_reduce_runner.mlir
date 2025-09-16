@@ -40,34 +40,34 @@ func.func @test_bucket_reduce() {
 
   // Expected output:
   // [(1*2 + 2*3)G, 2*2G, 1*3G, (2*2 + 3*1)G] = [8G, 4G, 3G, 7G]
-  %msm_result = elliptic_curve.bucket_reduce %points {scalarType = !SF}: (tensor<4x4x!jacobian>) -> tensor<4x!jacobian>
+  %result = elliptic_curve.bucket_reduce %points {scalarType = !SF}: (tensor<4x4x!jacobian>) -> tensor<4x!jacobian>
 
   // 8G
   %k8 = field.constant 8 : !SF
-  %msm_result0 = func.call @getGeneratorMultiple(%k8) : (!SF) -> (!affine)
-  func.call @printAffine(%msm_result0) : (!affine) -> ()
-  %msm_result_zero = tensor.extract %msm_result[%i0] : tensor<4x!jacobian>
-  func.call @printAffineFromJacobian(%msm_result_zero) : (!jacobian) -> ()
+  %result0 = func.call @getGeneratorMultiple(%k8) : (!SF) -> (!affine)
+  func.call @printAffine(%result0) : (!affine) -> ()
+  %result_zero = tensor.extract %result[%i0] : tensor<4x!jacobian>
+  func.call @printAffineFromJacobian(%result_zero) : (!jacobian) -> ()
 
   // 4G
   %k4 = field.constant 4 : !SF
-  %msm_result1 = func.call @getGeneratorMultiple(%k4) : (!SF) -> (!affine)
-  func.call @printAffine(%msm_result1) : (!affine) -> ()
-  %msm_result_one = tensor.extract %msm_result[%i1] : tensor<4x!jacobian>
-  func.call @printAffineFromJacobian(%msm_result_one) : (!jacobian) -> ()
+  %result1 = func.call @getGeneratorMultiple(%k4) : (!SF) -> (!affine)
+  func.call @printAffine(%result1) : (!affine) -> ()
+  %result_one = tensor.extract %result[%i1] : tensor<4x!jacobian>
+  func.call @printAffineFromJacobian(%result_one) : (!jacobian) -> ()
 
   // 3G
-  %msm_result2 = func.call @getGeneratorMultiple(%k3) : (!SF) -> (!affine)
-  func.call @printAffine(%msm_result2) : (!affine) -> ()
-  %msm_result_two = tensor.extract %msm_result[%i2] : tensor<4x!jacobian>
-  func.call @printAffineFromJacobian(%msm_result_two) : (!jacobian) -> ()
+  %result2 = func.call @getGeneratorMultiple(%k3) : (!SF) -> (!affine)
+  func.call @printAffine(%result2) : (!affine) -> ()
+  %result_two = tensor.extract %result[%i2] : tensor<4x!jacobian>
+  func.call @printAffineFromJacobian(%result_two) : (!jacobian) -> ()
 
   // 7G
   %k7 = field.constant 7 : !SF
-  %msm_result3 = func.call @getGeneratorMultiple(%k7) : (!SF) -> (!affine)
-  func.call @printAffine(%msm_result3) : (!affine) -> ()
-  %msm_result_three = tensor.extract %msm_result[%i3] : tensor<4x!jacobian>
-  func.call @printAffineFromJacobian(%msm_result_three) : (!jacobian) -> ()
+  %result3 = func.call @getGeneratorMultiple(%k7) : (!SF) -> (!affine)
+  func.call @printAffine(%result3) : (!affine) -> ()
+  %result_three = tensor.extract %result[%i3] : tensor<4x!jacobian>
+  func.call @printAffineFromJacobian(%result_three) : (!jacobian) -> ()
   return
 }
 
