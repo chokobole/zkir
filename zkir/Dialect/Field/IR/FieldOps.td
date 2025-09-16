@@ -5,6 +5,7 @@ include "zkir/Dialect/Field/IR/FieldAttributes.td"
 include "zkir/Dialect/Field/IR/FieldDialect.td"
 include "zkir/Dialect/Field/IR/FieldTypes.td"
 include "zkir/Dialect/ModArith/IR/ModArithAttributes.td"
+include "zkir/Dialect/ModArith/IR/ModArithTypes.td"
 include "mlir/Dialect/Arith/IR/ArithBase.td"
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/CommonTypeConstraints.td"
@@ -322,6 +323,42 @@ def Field_PowUIOp : Field_Op<"powui", [TypesMatchWith<
   let arguments = (ins FieldLike:$base, SignlessIntegerLike:$exp);
   let results = (outs FieldLike:$output);
   let assemblyFormat = "operands attr-dict `:` type($base) `,` type($exp)";
+  let hasVerifier = 1;
+}
+
+def Field_ExtToCoeffsOp : Field_Op<"ext_to_coeffs", [Pure]> {
+  let summary = "Get the coefficients of an extension field element";
+  let description = [{
+    Gets the coefficient representation of an extension field element.
+    This operation does NOT accept tensors since it cannot be applied elementwise.
+
+    Example:
+    ```
+    !QF = field.f2<!PF, #beta>
+    %c0, %c1 = field.ext_to_coeffs %qf : !QF -> !PF, !PF
+    ```
+  }];
+  let arguments = (ins Field_QuadraticExtFieldType:$input);
+  let results = (outs Variadic<AnyTypeOf<[Field_PrimeFieldType, ModArith_ModArithType, AnySignlessInteger]>>:$output);
+  let assemblyFormat = "operands attr-dict `:` functional-type(operands, results)";
+  let hasVerifier = 1;
+}
+
+def Field_ExtFromCoeffsOp : Field_Op<"ext_from_coeffs", [Pure]> {
+  let summary = "Constructs extension field element from the coefficients";
+  let description = [{
+    Constructs extension field element from the coefficients.
+    This operation does NOT accept tensors since it cannot be applied elementwise.
+
+    Example:
+    ```
+    !QF = field.f2<!PF, #beta>
+    %qf = field.ext_from_coeffs %c0, %c1 : !PF, !PF -> !QF
+    ```
+  }];
+  let arguments = (ins Variadic<AnyTypeOf<[Field_PrimeFieldType, ModArith_ModArithType, AnySignlessInteger]>>:$input);
+  let results = (outs Field_QuadraticExtFieldType:$output);
+  let assemblyFormat = "operands attr-dict `:` functional-type(operands, results)";
   let hasVerifier = 1;
 }
 

@@ -307,6 +307,37 @@ LogicalResult EncapsulateOp::verify() {
   return success();
 }
 
+LogicalResult ExtToCoeffsOp::verify() {
+  Type inputType = getInput().getType();
+  if (auto f2Type = dyn_cast<QuadraticExtFieldType>(inputType)) {
+    if (getOutput().size() == 2) {
+      return success();
+    } else {
+      return emitOpError() << "expected two output types for quadratic "
+                              "extension field input, but got "
+                           << getOutput().size();
+    }
+  }
+
+  return emitOpError() << "input type must be a extension field; got "
+                       << inputType;
+}
+
+LogicalResult ExtFromCoeffsOp::verify() {
+  Type outputType = getType();
+  if (auto f2Type = dyn_cast<QuadraticExtFieldType>(outputType)) {
+    if (getInput().size() == 2) {
+      return success();
+    } else {
+      return emitOpError() << "expected two input types for quadratic "
+                              "extension field output, but got "
+                           << getInput().size();
+    }
+  }
+  return emitOpError() << "output type must be a extension field; got "
+                       << outputType;
+}
+
 namespace {
 #include "zkir/Dialect/Field/IR/FieldCanonicalization.cpp.inc"
 }

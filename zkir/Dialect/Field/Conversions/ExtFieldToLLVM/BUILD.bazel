@@ -1,0 +1,55 @@
+load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+package(
+    default_visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "ExtFieldToLLVM",
+    srcs = ["ExtFieldToLLVM.cpp"],
+    hdrs = [
+        "ExtFieldToLLVM.h",
+    ],
+    deps = [
+        ":pass_inc_gen",
+        "//zkir/Dialect/Field/IR:Field",
+        "//zkir/Utils:SimpleStructBuilder",
+        "@llvm-project//mlir:ConvertToLLVMInterface",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LLVMCommonConversion",
+        "@llvm-project//mlir:LLVMDialect",
+        "@llvm-project//mlir:MemRefDialect",
+        "@llvm-project//mlir:MemRefToLLVM",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+gentbl_cc_library(
+    name = "pass_inc_gen",
+    tbl_outs = [
+        (
+            [
+                "-gen-pass-decls",
+                "-name=ExtFieldToLLVM",
+            ],
+            "ExtFieldToLLVM.h.inc",
+        ),
+        (
+            ["-gen-rewriters"],
+            "ExtFieldToLLVM.cpp.inc",
+        ),
+        (
+            ["-gen-pass-doc"],
+            "ExtFieldToLLVM.md",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "ExtFieldToLLVM.td",
+    deps = [
+        "//zkir/Dialect/Field/IR:td_files",
+        "@llvm-project//mlir:OpBaseTdFiles",
+        "@llvm-project//mlir:PassBaseTdFiles",
+    ],
+)
