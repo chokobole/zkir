@@ -412,8 +412,7 @@ struct ConvertScalarMul : public OpConversionPattern<ScalarMulOp> {
                   field::getStandardFormType(scalarFieldType), scalarPF)
             : scalarPF;
     Value scalarInt =
-        b.create<field::ExtractOp>(TypeRange{scalarIntType}, scalarReduced)
-            .getResult(0);
+        b.create<field::BitcastOp>(TypeRange{scalarIntType}, scalarReduced);
 
     Value zeroPoint = createZeroPoint(b, outputType);
 
@@ -630,8 +629,7 @@ struct ConvertBucketReduce : public OpConversionPattern<BucketReduceOp> {
           b0.create<tensor::YieldOp>(arithScalar);
         });
     RankedTensorType weightsType = arithWeightsType.clone(standardScalarType);
-    Value fieldWeights =
-        b.create<field::EncapsulateOp>(weightsType, arithWeights);
+    Value fieldWeights = b.create<field::BitcastOp>(weightsType, arithWeights);
 
     // Create output windows tensor
     int64_t numWindows = bucketsType.getShape()[0];

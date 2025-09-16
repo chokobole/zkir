@@ -215,7 +215,7 @@ static Value fastNTT(ImplicitLocOpBuilder &b, NTTOpAdaptor adaptor,
                                               primitiveRootsAttr.getInvRoots());
 
     // Wrap the roots in a field encapsulation for further field operations.
-    roots = b.create<field::EncapsulateOp>(tensorType, roots);
+    roots = b.create<field::BitcastOp>(tensorType, roots);
   }
 
   // -------------------------------------------------------------------------

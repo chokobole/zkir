@@ -46,7 +46,7 @@ Value PippengersGeneric::scalarDecomposition(Value scalar,
   // We right-shift by `windowOffset`, thus getting rid
   // of the lower bits.
   Value signlessScalar =
-      b.create<field::ExtractOp>(TypeRange{scalarIntType}, scalar).getResult(0);
+      b.create<field::BitcastOp>(TypeRange{scalarIntType}, scalar);
   auto upperBitsScalar = b.create<arith::ShRUIOp>(signlessScalar, windowOffset);
 
   auto windowBitIntType = IntegerType::get(b.getContext(), bitsPerWindow_);
