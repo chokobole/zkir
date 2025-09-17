@@ -92,7 +92,7 @@ bool BitcastOp::areCastCompatible(TypeRange inputs, TypeRange outputs) {
 
 LogicalResult MontReduceOp::verify() {
   IntegerType integerType =
-      cast<IntegerType>(getElementTypeOrSelf(this->getLow().getType()));
+      cast<IntegerType>(getElementTypeOrSelf(getLow().getType()));
   ModArithType modArithType = getResultModArithType(*this);
   unsigned intWidth = integerType.getWidth();
   unsigned modWidth = modArithType.getStorageBitWidth();

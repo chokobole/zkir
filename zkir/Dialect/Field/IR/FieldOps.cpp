@@ -205,20 +205,20 @@ LogicalResult InverseOp::verify() {
   return disallowShapedTypeOfExtField(*this);
 }
 LogicalResult FromMontOp::verify() {
-  bool isMont = isMontgomery(this->getType());
+  bool isMont = isMontgomery(getType());
   if (isMont) {
     return emitOpError()
            << "FromMontOp result should be a standard type, but got "
-           << getElementTypeOrSelf(this->getType()) << ".";
+           << getElementTypeOrSelf(getType()) << ".";
   }
   return disallowShapedTypeOfExtField(*this);
 }
 LogicalResult ToMontOp::verify() {
-  bool isMont = isMontgomery(this->getType());
+  bool isMont = isMontgomery(getType());
   if (!isMont) {
     return emitOpError()
            << "ToMontOp result should be a Montgomery type, but got "
-           << getElementTypeOrSelf(this->getType()) << ".";
+           << getElementTypeOrSelf(getType()) << ".";
   }
   return disallowShapedTypeOfExtField(*this);
 }
