@@ -92,11 +92,10 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     mod_arith::ModArithType modType;
-    if (auto pfType = dyn_cast<PrimeFieldType>(op.getOutput().getType())) {
+    if (auto pfType = dyn_cast<PrimeFieldType>(op.getType())) {
       modType =
           cast<mod_arith::ModArithType>(typeConverter->convertType(pfType));
-    } else if (auto f2Type =
-                   dyn_cast<QuadraticExtFieldType>(op.getOutput().getType())) {
+    } else if (auto f2Type = dyn_cast<QuadraticExtFieldType>(op.getType())) {
       modType = cast<mod_arith::ModArithType>(
           typeConverter->convertType(f2Type.getBaseField()));
     } else {
@@ -156,7 +155,7 @@ struct ConvertToMont : public OpConversionPattern<ToMontOp> {
 
     Type fieldType = getElementTypeOrSelf(op.getOutput());
     if (isa<PrimeFieldType>(fieldType)) {
-      Type modArithType = typeConverter->convertType(op.getResult().getType());
+      Type modArithType = typeConverter->convertType(op.getType());
       auto extracted =
           b.create<mod_arith::ToMontOp>(modArithType, adaptor.getInput());
       rewriter.replaceOp(op, extracted);
@@ -189,7 +188,7 @@ struct ConvertFromMont : public OpConversionPattern<FromMontOp> {
 
     Type fieldType = getElementTypeOrSelf(op.getOutput());
     if (isa<PrimeFieldType>(fieldType)) {
-      Type resultType = typeConverter->convertType(op.getResult().getType());
+      Type resultType = typeConverter->convertType(op.getType());
       auto extracted =
           b.create<mod_arith::FromMontOp>(resultType, adaptor.getInput());
       rewriter.replaceOp(op, extracted);

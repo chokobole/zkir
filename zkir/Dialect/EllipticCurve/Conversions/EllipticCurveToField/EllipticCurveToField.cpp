@@ -97,7 +97,7 @@ struct ConvertConvertPointType
 
     Operation::result_range coords = extractCoords(b, op.getInput());
     Type inputType = op.getInput().getType();
-    Type outputType = op.getOutput().getType();
+    Type outputType = op.getType();
     Type baseFieldType = getCurveFromPointLike(inputType).getBaseField();
     Value zeroBF = b.create<field::ConstantOp>(baseFieldType, 0);
     // TODO(chokobole): Fix below after attaching montgomery information to
@@ -251,7 +251,7 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
     Operation::result_range p2Coords = extractCoords(b, op.getRhs());
     Type p1Type = p1.getType();
     Type p2Type = p2.getType();
-    Type outputType = op.getOutput().getType();
+    Type outputType = op.getType();
 
     // check p1 == zero point
     Value p1IsZero = b.create<elliptic_curve::IsZeroOp>(p1);
@@ -301,8 +301,8 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
                 } else {
                   llvm_unreachable("Unsupported point types for addition");
                 }
-                Value outputPt = b.create<elliptic_curve::PointOp>(
-                    op.getOutput().getType(), sum);
+                Value outputPt =
+                    b.create<elliptic_curve::PointOp>(op.getType(), sum);
                 b.create<scf::YieldOp>(outputPt);
               });
           b.create<scf::YieldOp>(output.getResults());
@@ -323,7 +323,7 @@ struct ConvertDouble : public OpConversionPattern<DoubleOp> {
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    Type outputType = op.getOutput().getType();
+    Type outputType = op.getType();
     Operation::result_range coords = extractCoords(b, op.getInput());
     SmallVector<Value> doubled;
 
@@ -358,8 +358,8 @@ struct ConvertNegate : public OpConversionPattern<NegateOp> {
     SmallVector<Value> outputCoords(coords);
     outputCoords[1] = negatedY;
 
-    auto outputPt = b.create<elliptic_curve::PointOp>(op.getOutput().getType(),
-                                                      outputCoords);
+    auto outputPt =
+        b.create<elliptic_curve::PointOp>(op.getType(), outputCoords);
     rewriter.replaceOp(op, outputPt);
     return success();
   }
@@ -377,8 +377,8 @@ struct ConvertSub : public OpConversionPattern<SubOp> {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     Value negP2 = b.create<elliptic_curve::NegateOp>(op.getRhs());
-    Value result = b.create<elliptic_curve::AddOp>(op.getOutput().getType(),
-                                                   op.getLhs(), negP2);
+    Value result =
+        b.create<elliptic_curve::AddOp>(op.getType(), op.getLhs(), negP2);
 
     rewriter.replaceOp(op, result);
     return success();
@@ -402,7 +402,7 @@ struct ConvertScalarMul : public OpConversionPattern<ScalarMulOp> {
     Value scalarPF = op.getScalar();
 
     Type pointType = op.getPoint().getType();
-    Type outputType = op.getOutput().getType();
+    Type outputType = op.getType();
 
     auto scalarFieldType = cast<field::PrimeFieldType>(scalarPF.getType());
     auto scalarIntType = scalarFieldType.getStorageType();
@@ -507,7 +507,7 @@ struct ConvertMSM : public OpConversionPattern<MSMOp> {
     Value scalars = op.getScalars();
     Value points = op.getPoints();
 
-    Type outputType = op.getOutput().getType();
+    Type outputType = op.getType();
 
     PippengersGeneric pippengers(scalars, points, outputType, b,
                                  adaptor.getParallel(), adaptor.getDegree(),

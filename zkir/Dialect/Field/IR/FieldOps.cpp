@@ -177,7 +177,7 @@ void ConstantOp::print(OpAsmPrinter &p) {
   p << " ";
   p.printAttributeWithoutType(getValue());
   p << " : ";
-  p.printType(getOutput().getType());
+  p.printType(getType());
 }
 
 template <typename OpType>
@@ -185,7 +185,7 @@ static LogicalResult disallowShapedTypeOfExtField(OpType op) {
   // FIXME(batzor): In the prime field case, we rely on elementwise trait but in
   // the quadratic extension case, `linalg.generic` introduced by the
   // elementwise pass will be ill-formed due to the 1:N conversion.
-  auto resultType = op.getResult().getType();
+  auto resultType = op.getType();
   if (isa<ShapedType>(resultType)) {
     auto elementType = cast<ShapedType>(resultType).getElementType();
     if (isa<QuadraticExtFieldType>(elementType)) {
@@ -205,20 +205,20 @@ LogicalResult InverseOp::verify() {
   return disallowShapedTypeOfExtField(*this);
 }
 LogicalResult FromMontOp::verify() {
-  bool isMont = isMontgomery(this->getOutput().getType());
+  bool isMont = isMontgomery(this->getType());
   if (isMont) {
     return emitOpError()
            << "FromMontOp result should be a standard type, but got "
-           << getElementTypeOrSelf(this->getOutput().getType()) << ".";
+           << getElementTypeOrSelf(this->getType()) << ".";
   }
   return disallowShapedTypeOfExtField(*this);
 }
 LogicalResult ToMontOp::verify() {
-  bool isMont = isMontgomery(this->getOutput().getType());
+  bool isMont = isMontgomery(this->getType());
   if (!isMont) {
     return emitOpError()
            << "ToMontOp result should be a Montgomery type, but got "
-           << getElementTypeOrSelf(this->getOutput().getType()) << ".";
+           << getElementTypeOrSelf(this->getType()) << ".";
   }
   return disallowShapedTypeOfExtField(*this);
 }

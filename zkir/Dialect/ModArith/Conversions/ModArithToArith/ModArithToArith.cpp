@@ -69,7 +69,7 @@ private:
 // before applying a remainder operation
 template <typename Op>
 static TypedAttr modulusAttr(Op op, bool mul = false) {
-  auto type = op.getResult().getType();
+  auto type = op.getType();
   auto modArithType = getResultModArithType(op);
   APInt modulus = modArithType.getModulus().getValue();
 
@@ -297,7 +297,7 @@ struct ConvertToMont : public OpConversionPattern<ToMontOp> {
     ModArithType resultType = getResultModArithType(op);
     MontgomeryAttr montAttr = resultType.getMontgomeryAttr();
     TypedAttr rSquaredAttr = montAttr.getRSquared();
-    if (auto shapedType = dyn_cast<ShapedType>(op.getOutput().getType())) {
+    if (auto shapedType = dyn_cast<ShapedType>(op.getType())) {
       auto intShapedType = shapedType.cloneWith(
           std::nullopt, typeConverter->convertType(resultType));
       rSquaredAttr = SplatElementsAttr::get(intShapedType, rSquaredAttr);
@@ -327,7 +327,7 @@ struct ConvertFromMont : public OpConversionPattern<FromMontOp> {
     ModArithType resultType = getResultModArithType(op);
     TypedAttr zeroAttr =
         b.getIntegerAttr(typeConverter->convertType(resultType), 0);
-    if (auto shapedType = dyn_cast<ShapedType>(op.getOutput().getType())) {
+    if (auto shapedType = dyn_cast<ShapedType>(op.getType())) {
       auto intShapedType = shapedType.cloneWith(
           std::nullopt, typeConverter->convertType(resultType));
       zeroAttr = SplatElementsAttr::get(intShapedType, zeroAttr);

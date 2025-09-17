@@ -170,7 +170,7 @@ Operation *ModArithDialect::materializeConstant(OpBuilder &builder,
 
 OpFoldResult ToMontOp::fold(FoldAdaptor adaptor) {
   if (auto input = dyn_cast_if_present<IntegerAttr>(adaptor.getInput())) {
-    auto modArithType = cast<ModArithType>(getOutput().getType());
+    auto modArithType = cast<ModArithType>(getType());
     MontgomeryAttr montAttr = modArithType.getMontgomeryAttr();
 
     APInt modulus = modArithType.getModulus().getValue();
@@ -183,7 +183,7 @@ OpFoldResult ToMontOp::fold(FoldAdaptor adaptor) {
 
 OpFoldResult FromMontOp::fold(FoldAdaptor adaptor) {
   if (auto input = dyn_cast_if_present<IntegerAttr>(adaptor.getInput())) {
-    auto modArithType = cast<ModArithType>(getOutput().getType());
+    auto modArithType = cast<ModArithType>(getType());
     MontgomeryAttr montAttr = modArithType.getMontgomeryAttr();
 
     APInt modulus = modArithType.getModulus().getValue();
@@ -231,7 +231,7 @@ OpFoldResult CmpOp::fold(FoldAdaptor adaptor) {
 
 OpFoldResult NegateOp::fold(FoldAdaptor adaptor) {
   if (auto input = dyn_cast_if_present<IntegerAttr>(adaptor.getInput())) {
-    auto modArithType = cast<ModArithType>(getOutput().getType());
+    auto modArithType = cast<ModArithType>(getType());
     APInt modulus = modArithType.getModulus().getValue();
     APInt resultValue = modulus - input.getValue();
     return IntegerAttr::get(input.getType(), resultValue);
@@ -241,7 +241,7 @@ OpFoldResult NegateOp::fold(FoldAdaptor adaptor) {
 
 OpFoldResult DoubleOp::fold(FoldAdaptor adaptor) {
   if (auto input = dyn_cast_if_present<IntegerAttr>(adaptor.getInput())) {
-    auto modArithType = cast<ModArithType>(getOutput().getType());
+    auto modArithType = cast<ModArithType>(getType());
     APInt modulus = modArithType.getModulus().getValue();
     assert(modulus.getBitWidth() > modulus.getActiveBits());
     APInt resultValue = input.getValue().shl(1);
@@ -255,7 +255,7 @@ OpFoldResult DoubleOp::fold(FoldAdaptor adaptor) {
 
 OpFoldResult SquareOp::fold(FoldAdaptor adaptor) {
   if (auto input = dyn_cast_if_present<IntegerAttr>(adaptor.getInput())) {
-    auto modArithType = cast<ModArithType>(getOutput().getType());
+    auto modArithType = cast<ModArithType>(getType());
     APInt modulus = modArithType.getModulus().getValue();
     APInt resultValue = mulMod(input.getValue(), input.getValue(), modulus);
     if (modArithType.isMontgomery()) {
@@ -269,7 +269,7 @@ OpFoldResult SquareOp::fold(FoldAdaptor adaptor) {
 
 OpFoldResult MontSquareOp::fold(FoldAdaptor adaptor) {
   if (auto input = dyn_cast_if_present<IntegerAttr>(adaptor.getInput())) {
-    auto modArithType = cast<ModArithType>(getOutput().getType());
+    auto modArithType = cast<ModArithType>(getType());
     APInt modulus = modArithType.getModulus().getValue();
     APInt resultValue = mulMod(input.getValue(), input.getValue(), modulus);
     MontgomeryAttr montAttr = modArithType.getMontgomeryAttr();
@@ -281,7 +281,7 @@ OpFoldResult MontSquareOp::fold(FoldAdaptor adaptor) {
 
 OpFoldResult InverseOp::fold(FoldAdaptor adaptor) {
   if (auto input = dyn_cast_if_present<IntegerAttr>(adaptor.getInput())) {
-    auto modArithType = cast<ModArithType>(getOutput().getType());
+    auto modArithType = cast<ModArithType>(getType());
     APInt modulus = modArithType.getModulus().getValue();
     APInt resultValue = multiplicativeInverse(input.getValue(), modulus);
     if (modArithType.isMontgomery()) {
@@ -296,7 +296,7 @@ OpFoldResult InverseOp::fold(FoldAdaptor adaptor) {
 
 OpFoldResult MontInverseOp::fold(FoldAdaptor adaptor) {
   if (auto input = dyn_cast_if_present<IntegerAttr>(adaptor.getInput())) {
-    auto modArithType = cast<ModArithType>(getOutput().getType());
+    auto modArithType = cast<ModArithType>(getType());
     MontgomeryAttr montAttr = modArithType.getMontgomeryAttr();
 
     APInt modulus = modArithType.getModulus().getValue();
@@ -314,7 +314,7 @@ OpFoldResult AddOp::fold(FoldAdaptor adaptor) {
       return getLhs();
     }
     if (auto lhs = dyn_cast_if_present<IntegerAttr>(adaptor.getLhs())) {
-      auto modArithType = cast<ModArithType>(getOutput().getType());
+      auto modArithType = cast<ModArithType>(getType());
       APInt modulus = modArithType.getModulus().getValue();
       APInt resultValue = lhs.getValue() + rhs.getValue();
       if (resultValue.uge(modulus)) {
@@ -332,7 +332,7 @@ OpFoldResult SubOp::fold(FoldAdaptor adaptor) {
       return getLhs();
     }
     if (auto lhs = dyn_cast_if_present<IntegerAttr>(adaptor.getLhs())) {
-      auto modArithType = cast<ModArithType>(getOutput().getType());
+      auto modArithType = cast<ModArithType>(getType());
       APInt modulus = modArithType.getModulus().getValue();
       APInt rhsValue = rhs.getValue();
       APInt lhsValue = lhs.getValue();
@@ -350,7 +350,7 @@ OpFoldResult SubOp::fold(FoldAdaptor adaptor) {
 
 OpFoldResult MulOp::fold(FoldAdaptor adaptor) {
   if (auto rhs = dyn_cast_if_present<IntegerAttr>(adaptor.getRhs())) {
-    auto modArithType = cast<ModArithType>(getOutput().getType());
+    auto modArithType = cast<ModArithType>(getType());
     if (rhs.getValue().isZero()) {
       return getRhs();
     } else if (!modArithType.isMontgomery() && rhs.getValue().isOne()) {
@@ -377,7 +377,7 @@ OpFoldResult MulOp::fold(FoldAdaptor adaptor) {
 
 OpFoldResult MontMulOp::fold(FoldAdaptor adaptor) {
   if (auto rhs = dyn_cast_if_present<IntegerAttr>(adaptor.getRhs())) {
-    auto modArithType = cast<ModArithType>(getOutput().getType());
+    auto modArithType = cast<ModArithType>(getType());
     if (rhs.getValue().isZero()) {
       return getRhs();
     }
@@ -438,7 +438,7 @@ void ConstantOp::print(OpAsmPrinter &p) {
   p << " ";
   p.printAttributeWithoutType(getValue());
   p << " : ";
-  p.printType(getOutput().getType());
+  p.printType(getType());
 }
 
 namespace {

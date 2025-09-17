@@ -81,7 +81,7 @@ struct ConvertPolyBinOp : public OpConversionPattern<SourceOp> {
   LogicalResult
   matchAndRewrite(SourceOp op, typename SourceOp::Adaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    if (PolyType poly_ty = dyn_cast<PolyType>(op.getResult().getType())) {
+    if (PolyType poly_ty = dyn_cast<PolyType>(op.getType())) {
       ImplicitLocOpBuilder b(op.getLoc(), rewriter);
       auto result = b.create<TargetFieldOp>(adaptor.getLhs(), adaptor.getRhs());
       rewriter.replaceOp(op, result);

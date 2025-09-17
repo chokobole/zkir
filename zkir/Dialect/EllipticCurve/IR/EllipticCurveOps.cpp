@@ -80,7 +80,7 @@ LogicalResult verifyPointCoordTypes(OpType op, Type pointType, Type coordType) {
 /////////////// VERIFY OPS /////////////////
 
 LogicalResult PointOp::verify() {
-  Type outputType = getOutput().getType();
+  Type outputType = getType();
   if (getNumCoordsFromPointLike(outputType) != getCoords().size()) {
     return emitError() << outputType << " should have "
                        << getNumCoordsFromPointLike(outputType)
@@ -112,7 +112,7 @@ template <typename OpType>
 LogicalResult verifyBinaryOp(OpType op) {
   Type lhsType = op.getLhs().getType();
   Type rhsType = op.getRhs().getType();
-  Type outputType = op.getOutput().getType();
+  Type outputType = op.getType();
   if (isa<AffineType>(lhsType) || isa<AffineType>(rhsType)) {
     if (lhsType == rhsType &&
         (isa<JacobianType>(outputType) || isa<XYZZType>(outputType))) {
@@ -140,7 +140,7 @@ LogicalResult SubOp::verify() { return verifyBinaryOp(*this); }
 
 LogicalResult DoubleOp::verify() {
   Type inputType = getInput().getType();
-  Type outputType = getOutput().getType();
+  Type outputType = getType();
   if ((isa<AffineType>(inputType) &&
        (isa<JacobianType>(outputType) || isa<XYZZType>(outputType))) ||
       inputType == outputType)
@@ -151,7 +151,7 @@ LogicalResult DoubleOp::verify() {
 
 LogicalResult ScalarMulOp::verify() {
   Type pointType = getPoint().getType();
-  Type outputType = getOutput().getType();
+  Type outputType = getType();
   if ((isa<AffineType>(pointType) &&
        (isa<JacobianType>(outputType) || isa<XYZZType>(outputType))) ||
       pointType == outputType)
@@ -167,7 +167,7 @@ LogicalResult MSMOp::verify() {
     return emitError() << "scalars and points must have the same rank";
   }
   Type inputType = pointsType.getElementType();
-  Type outputType = getOutput().getType();
+  Type outputType = getType();
   if (failed(verifyMSMPointTypes(*this, inputType, outputType))) {
     return failure();
   }
@@ -254,7 +254,7 @@ LogicalResult WindowReduceOp::verify() {
 
 LogicalResult ConvertPointTypeOp::verify() {
   Type inputType = getInput().getType();
-  Type outputType = getOutput().getType();
+  Type outputType = getType();
   if (inputType == outputType)
     return emitError() << "Converting on same types";
   // TODO(ashjeong): check curves are the same
