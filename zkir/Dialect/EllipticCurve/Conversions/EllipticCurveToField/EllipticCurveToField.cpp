@@ -614,13 +614,13 @@ struct ConvertBucketReduce : public OpConversionPattern<BucketReduceOp> {
     RankedTensorType bucketsType = cast<RankedTensorType>(buckets.getType());
     Type pointType = bucketsType.getElementType();
     Type standardScalarType = field::getStandardFormType(op.getScalarType());
-    Type integerScalarType = b.getIntegerType(
+    Type scalarIntType = b.getIntegerType(
         op.getScalarType().getModulus().getValue().getBitWidth());
 
     // Create bucket weights vector
     int64_t numBucketsPerWindow = bucketsType.getShape()[1];
     RankedTensorType arithWeightsType =
-        bucketsType.clone({numBucketsPerWindow}, integerScalarType);
+        bucketsType.clone({numBucketsPerWindow}, scalarIntType);
     SmallVector<Value> weightDims =
         numBucketsPerWindow == ShapedType::kDynamic
             ? SmallVector<Value>{b.create<tensor::DimOp>(buckets, 1)}
@@ -630,7 +630,7 @@ struct ConvertBucketReduce : public OpConversionPattern<BucketReduceOp> {
         [&](OpBuilder &builder, Location loc, ValueRange args) {
           ImplicitLocOpBuilder b0(loc, builder);
           Value arithScalar =
-              b0.create<arith::IndexCastOp>(integerScalarType, args[0]);
+              b0.create<arith::IndexCastOp>(scalarIntType, args[0]);
           b0.create<tensor::YieldOp>(arithScalar);
         });
     RankedTensorType weightsType = arithWeightsType.clone(standardScalarType);
@@ -673,8 +673,8 @@ struct ConvertWindowReduce : public OpConversionPattern<WindowReduceOp> {
 
     Value windows = op.getWindows();
     Type pointType = cast<RankedTensorType>(windows.getType()).getElementType();
-    Type scalarType = getStandardFormType(op.getScalarType());
-    Type integerScalarType = b.getIntegerType(
+    Type standardScalarType = getStandardFormType(op.getScalarType());
+    Type scalarIntType = b.getIntegerType(
         op.getScalarType().getModulus().getValue().getBitWidth());
 
     // Create output 0D tensor
@@ -684,9 +684,9 @@ struct ConvertWindowReduce : public OpConversionPattern<WindowReduceOp> {
 
     // Calculate weighted windows reduction
     SmallVector<int64_t, 1> reductionDims = {0};
-    Value c = b.create<arith::ConstantIntOp>(integerScalarType,
-                                             op.getBitsPerWindow());
-    Value base = b.create<field::ConstantOp>(scalarType, 2);
+    Value c =
+        b.create<arith::ConstantIntOp>(scalarIntType, op.getBitsPerWindow());
+    Value base = b.create<field::ConstantOp>(standardScalarType, 2);
     // TODO(ashjeong): Try benchmarking against creating a separate weights
     // tensor & dot product. We want to test whether calculating  2ᶜⁱ in
     // parallel and reducing is faster than two loops of calculating 2ᶜⁱ
@@ -697,7 +697,7 @@ struct ConvertWindowReduce : public OpConversionPattern<WindowReduceOp> {
           ImplicitLocOpBuilder b0(loc, builder);
           // Current point (args[0]) and accumulator (args[1]).
           Value i = b0.create<linalg::IndexOp>(0);
-          Value arithI = b0.create<arith::IndexCastOp>(integerScalarType, i);
+          Value arithI = b0.create<arith::IndexCastOp>(scalarIntType, i);
           Value exp = b0.create<arith::MulIOp>(c, arithI);
           Value weight = b0.create<field::PowUIOp>(base, exp);
           Value weightedValue = b0.create<elliptic_curve::ScalarMulOp>(
