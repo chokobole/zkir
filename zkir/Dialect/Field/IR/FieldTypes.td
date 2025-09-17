@@ -16,7 +16,7 @@ class Field_Type<string name, string typeMnemonic, list<Trait> traits = []>
 
 // Prime field type definition.
 // This type represents an element in a prime field parameterized by a prime modulus.
-def Field_PrimeFieldType : Field_Type<"PrimeField", "pf", [MemRefElementTypeInterface]> {
+def Field_PrimeFieldType : Field_Type<"PrimeField", "pf", [MemRefElementTypeInterface, VectorElementTypeInterface]> {
   let summary = "Prime field element type";
   let description = [{
     `field.pf<p>` represents an element in a prime field where arithmetic operations

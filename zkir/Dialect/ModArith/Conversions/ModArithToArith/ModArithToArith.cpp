@@ -53,6 +53,15 @@ public:
         return convertShapedType(type, type.getShape(),
                                  convertModArithType(modArithType));
       }
+      if (auto vectorType = dyn_cast<VectorType>(type.getElementType())) {
+        if (auto modArithType =
+                dyn_cast<ModArithType>(vectorType.getElementType())) {
+          return convertShapedType(
+              type, type.getShape(),
+              vectorType.cloneWith(vectorType.getShape(),
+                                   convertModArithType(modArithType)));
+        }
+      }
       return type;
     });
   }
