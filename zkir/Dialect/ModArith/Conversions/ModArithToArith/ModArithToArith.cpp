@@ -22,6 +22,7 @@
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "zkir/Dialect/EllipticCurve/IR/EllipticCurveOps.h"
+#include "zkir/Dialect/Field/IR/FieldOps.h"
 #include "zkir/Dialect/ModArith/Conversions/ModArithToArith/Inverter/BYInverter.h"
 #include "zkir/Dialect/ModArith/IR/ModArithDialect.h"
 #include "zkir/Dialect/ModArith/IR/ModArithOps.h"
@@ -874,6 +875,8 @@ void ModArithToArith::runOnOperation() {
       ConvertAny<bufferization::ToTensorOp>,
       ConvertAny<elliptic_curve::ExtractOp>,
       ConvertAny<elliptic_curve::PointOp>,
+      ConvertAny<field::ExtFromCoeffsOp>,
+      ConvertAny<field::ExtToCoeffsOp>,
       ConvertAny<linalg::BroadcastOp>,
       ConvertAny<linalg::GenericOp>,
       ConvertAny<linalg::MapOp>,
@@ -919,6 +922,8 @@ void ModArithToArith::runOnOperation() {
       bufferization::ToTensorOp,
       elliptic_curve::ExtractOp,
       elliptic_curve::PointOp,
+      field::ExtFromCoeffsOp,
+      field::ExtToCoeffsOp,
       linalg::BroadcastOp,
       linalg::GenericOp,
       linalg::MapOp,

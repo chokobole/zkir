@@ -36,9 +36,9 @@ func.func @test_power() {
   %U2 = memref.cast %6 : memref<1xi32> to memref<*xi32>
   func.call @printMemrefI32(%U2) : (memref<*xi32>) -> ()
 
-  %base_f2 = field.encapsulate %base, %base : i32, i32 -> !QF
+  %base_f2 = field.ext_from_coeffs %base, %base: (i32, i32) -> !QF
   %res2 = field.powui %base_f2, %exp : !QF, i64
-  %9, %10 = field.extract %res2 : !QF -> i32, i32
+  %9, %10 = field.ext_to_coeffs %res2 : (!QF) -> (i32, i32)
   %11 = tensor.from_elements %9, %10 : tensor<2xi32>
   %12 = bufferization.to_buffer %11 : tensor<2xi32> to memref<2xi32>
   %U3 = memref.cast %12 : memref<2xi32> to memref<*xi32>
@@ -47,7 +47,7 @@ func.func @test_power() {
   %base_f2_mont = field.to_mont %base_f2 : !QFm
   %res2_mont = field.powui %base_f2_mont, %exp : !QFm, i64
   %res2_standard = field.from_mont %res2_mont : !QF
-  %13, %14 = field.extract %res2_standard : !QF -> i32, i32
+  %13, %14 = field.ext_to_coeffs %res2_standard : (!QF) -> (i32, i32)
   %15 = tensor.from_elements %13, %14 : tensor<2xi32>
   %16 = bufferization.to_buffer %15 : tensor<2xi32> to memref<2xi32>
   %U4 = memref.cast %16 : memref<2xi32> to memref<*xi32>

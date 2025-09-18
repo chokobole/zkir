@@ -99,50 +99,6 @@ def Field_F2ConstantOp : Op<Field_Dialect, "f2.constant", [Pure, TypesMatchWith<
   let assemblyFormat = "$low `,` $high attr-dict `:` type($output)";
 }
 
-def Field_EncapsulateOp : Op<Field_Dialect, "encapsulate", [Pure]> {
-  let summary = "Encapsulate an integer into a field type";
-  let description = [{
-    Converts the integer to be of field type.
-
-    The bitwidth of the input integer type is required to have the same bitwidth
-    as the storage type of the output field type.
-
-    Example:
-    ```
-    !PF = field.pf<7 : i32>
-    %f0 = field.encapsulate %c0 : i32 -> !PF
-    !QF = field.f2<!PF, #beta>
-    %f1, %f2 = field.encapsulate %c1, %c2 : i32, i32 -> !QF
-    ```
-  }];
-  let arguments = (ins Variadic<SignlessIntegerLike>:$input);
-  let results = (outs FieldLike:$output);
-  let assemblyFormat = "operands attr-dict `:` type($input) `->` type($output)";
-  let hasVerifier = 1;
-}
-
-def Field_ExtractOp : Op<Field_Dialect, "extract", [Pure]> {
-  let summary = "Extract the integer stored inside field type";
-  let description = [{
-    Extracts the integer inside the field type.
-
-    The bitwidth of the output integer type is required to have the same
-    bitwidth as the storage type of the input field type.
-
-    Example:
-    ```
-    !PF = field.pf<7 : i32>
-    %c0 = field.extract %f0 : !PF -> i32
-    !QF = field.f2<!PF, #beta>
-    %c1, %c2 = field.extract %f1 : !QF -> i32, i32
-    ```
-  }];
-  let arguments = (ins FieldLike:$input);
-  let results = (outs Variadic<SignlessIntegerLike>:$output);
-  let assemblyFormat = "operands attr-dict `:` type($input) `->` type($output)";
-  let hasVerifier = 1;
-}
-
 def Field_BitcastOp : Op<Field_Dialect, "bitcast", [Pure,
  SameOperandsAndResultShape, DeclareOpInterfaceMethods<CastOpInterface>]> {
   let summary = "Bitcast between prime field types and to/from integer types";
