@@ -6,6 +6,7 @@ include "zkir/Dialect/Field/IR/FieldDialect.td"
 include "zkir/Dialect/Field/IR/FieldTypes.td"
 include "zkir/Dialect/ModArith/IR/ModArithAttributes.td"
 include "zkir/Dialect/ModArith/IR/ModArithTypes.td"
+include "zkir/Utils/CommonTraits.td"
 include "mlir/Dialect/Arith/IR/ArithBase.td"
 include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/IR/BuiltinAttributes.td"
@@ -100,7 +101,8 @@ def Field_F2ConstantOp : Op<Field_Dialect, "f2.constant", [Pure, TypesMatchWith<
 }
 
 def Field_BitcastOp : Op<Field_Dialect, "bitcast", [Pure,
- SameOperandsAndResultShape, DeclareOpInterfaceMethods<CastOpInterface>]> {
+ SameOperandsAndResultShape, AllSameTensorDims<["input", "output"]>,
+ DeclareOpInterfaceMethods<CastOpInterface>]> {
   let summary = "Bitcast between prime field types and to/from integer types";
   let description = [{
     Bitcasts between prime field types and to/from integer types.

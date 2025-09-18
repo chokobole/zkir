@@ -4,6 +4,7 @@
 include "zkir/Dialect/ModArith/IR/ModArithAttributes.td"
 include "zkir/Dialect/ModArith/IR/ModArithDialect.td"
 include "zkir/Dialect/ModArith/IR/ModArithTypes.td"
+include "zkir/Utils/CommonTraits.td"
 include "mlir/Dialect/Arith/IR/ArithBase.td"
 include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/IR/BuiltinAttributes.td"
@@ -60,7 +61,8 @@ def ModArith_ConstantOp : Op<ModArith_Dialect, "constant", [ConstantLike, Pure]>
 }
 
 def ModArith_BitcastOp : Op<ModArith_Dialect, "bitcast", [Pure,
- SameOperandsAndResultShape, DeclareOpInterfaceMethods<CastOpInterface>]> {
+ SameOperandsAndResultShape, AllSameTensorDims<["input", "output"]>,
+ DeclareOpInterfaceMethods<CastOpInterface>]> {
   let summary = "Bitcast between modular types and to/from integer types";
   let description = [{
     Bitcasts between modular types and to/from integer types.
