@@ -49,7 +49,7 @@ def EllipticCurve_PointOp : EllipticCurve_Op<"point"> {
     %2 = elliptic_curve.point %x, %y, %zz, %zzz : elliptic_curve.xyzz<#curve>
     ```
   }];
-  let arguments = (ins Variadic<AnyTypeOf<[Field_AnyFieldType, ModArith_ModArithType, LLVMStructType, SignlessIntegerLike]>>:$coords);
+  let arguments = (ins Variadic<AnyTypeOf<[Field_AnyFieldType, ModArith_ModArithType, LLVMStructType, AnySignlessInteger]>>:$coords);
   let results = (outs PointLike:$output);
   let assemblyFormat = "operands attr-dict `:` functional-type(operands, results)";
   let hasVerifier = 1;
@@ -89,7 +89,7 @@ def EllipticCurve_ExtractOp : EllipticCurve_Op<"extract"> {
   }];
 
   let arguments = (ins PointLike:$input);
-  let results = (outs Variadic<AnyTypeOf<[Field_AnyFieldType, ModArith_ModArithType, LLVMStructType, SignlessIntegerLike]>>:$output);
+  let results = (outs Variadic<AnyTypeOf<[Field_AnyFieldType, ModArith_ModArithType, LLVMStructType, AnySignlessInteger]>>:$output);
   let assemblyFormat = "operands attr-dict `:` type($input) `->` type($output)";
   let hasVerifier = 1;
 }
