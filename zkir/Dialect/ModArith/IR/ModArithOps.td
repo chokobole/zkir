@@ -81,21 +81,6 @@ def ModArith_BitcastOp : Op<ModArith_Dialect, "bitcast", [Pure,
   let assemblyFormat = "operands attr-dict `:` type($input) `->` type($output)";
 }
 
-def ModArith_ModSwitchOp : ModArith_Op<"mod_switch"> {
-  let summary = "Change the modulus";
-  let description = [{
-    Switches the modulus of a modular type integer.
-
-    Example:
-    ```
-    `mod_arith.mod_switch %c0 : mod_arith.int<65537 : i32> to mod_arith.int<65539 : i32>`
-    ```
-  }];
-  let arguments = (ins ModArith_ModArithType:$input);
-  let results = (outs ModArith_ModArithType:$output);
-  let assemblyFormat = "$input attr-dict `:` type($input) `to` type($output)";
-}
-
 def ModArith_MontReduceOp : ModArith_Op<"mont_reduce", [SameTypeOperands]> {
   let summary = "Montgomery reduction";
   let description = [{
