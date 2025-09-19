@@ -27,7 +27,7 @@ glob_lit_tests(
 run_lit_tests(
     data = [
         "//tests:test_utilities",
-        "@llvm-project//mlir:libmlir_cuda_runtime.so",
+        "//tests:test_utilities_cuda",
     ],
     target_compatible_with = requires_cuda(),
     tests = GPU_TESTS,
