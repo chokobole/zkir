@@ -3,12 +3,12 @@
 #include <random>
 
 #include "benchmark/BenchmarkUtils.h"
-#include "benchmark/CudaUtils.h"
 #include "benchmark/benchmark.h"
 #include "cuda_runtime_api.h" // NOLINT(build/include_subdir)
 #include "gtest/gtest.h"
 #include "mlir/ExecutionEngine/MemRefUtils.h"
 #include "mlir/Support/LLVM.h"
+#include "utils/cuda/CudaUtils.h"
 
 #define NUM_COEFFS (1 << 20)
 
@@ -45,8 +45,8 @@ void BM_ntt_benchmark(::benchmark::State &state) {
   const size_t bytes = sizeof(i256) * NUM_COEFFS;
 
   if constexpr (kIsGPU) {
-    auto dInputBuf = makeCudaUnique<i256>(NUM_COEFFS);
-    auto dTmpBuf = makeCudaUnique<i256>(NUM_COEFFS);
+    auto dInputBuf = ::zkir::utils::makeCudaUnique<i256>(NUM_COEFFS);
+    auto dTmpBuf = ::zkir::utils::makeCudaUnique<i256>(NUM_COEFFS);
 
     CHECK_CUDA_ERROR(cudaMemcpy(dInputBuf.get(), hInput->data, bytes,
                                 cudaMemcpyHostToDevice));

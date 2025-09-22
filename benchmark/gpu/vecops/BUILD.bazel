@@ -32,7 +32,7 @@ zkir_benchmark(
         ":vecops_cpu_ciface",
         ":vecops_gpu_ciface",
         "//benchmark:BenchmarkUtils",
-        "//benchmark:CudaUtils",
+        "//utils/cuda:CudaUtils",
         "@cuda//:cuda_headers",
         "@cuda//:cuda_runtime",
         "@llvm-project//mlir:ExecutionEngine",

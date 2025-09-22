@@ -1,5 +1,5 @@
-#ifndef BENCHMARK_CUDAUTILS_H_
-#define BENCHMARK_CUDAUTILS_H_
+#ifndef UTILS_CUDA_CUDAUTILS_H_
+#define UTILS_CUDA_CUDAUTILS_H_
 
 #include <cstdio>
 #include <cstdlib>
@@ -7,7 +7,7 @@
 
 #include "cuda_runtime_api.h" // NOLINT(build/include_subdir)
 
-namespace mlir::zkir::benchmark {
+namespace zkir::utils {
 
 #define CHECK_CUDA_ERROR(call)                                                 \
   do {                                                                         \
@@ -49,6 +49,6 @@ CudaUniquePtr<T> makeCudaUnique(size_t count) {
   return CudaUniquePtr<T>(ptr);
 }
 
-} // namespace mlir::zkir::benchmark
+} // namespace zkir::utils
 
-#endif // BENCHMARK_CUDAUTILS_H_
+#endif // UTILS_CUDA_CUDAUTILS_H_

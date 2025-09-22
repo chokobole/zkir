@@ -2,11 +2,11 @@
 #include <random>
 
 #include "benchmark/BenchmarkUtils.h"
-#include "benchmark/CudaUtils.h"
 #include "benchmark/benchmark.h"
 #include "cuda_runtime_api.h" // NOLINT(build/include_subdir)
 #include "mlir/ExecutionEngine/MemRefUtils.h"
 #include "mlir/Support/LLVM.h"
+#include "utils/cuda/CudaUtils.h"
 
 #define NUM_SCALARMULS (1 << 20)
 
@@ -53,8 +53,8 @@ void BM_msm_benchmark(::benchmark::State &state) {
   const size_t pointBytes = sizeof(i256) * NUM_SCALARMULS * 2;
 
   if constexpr (kIsGPU) {
-    auto dScalarBuf = makeCudaUnique<i256>(NUM_SCALARMULS);
-    auto dPointBuf = makeCudaUnique<i256>(NUM_SCALARMULS * 2);
+    auto dScalarBuf = ::zkir::utils::makeCudaUnique<i256>(NUM_SCALARMULS);
+    auto dPointBuf = ::zkir::utils::makeCudaUnique<i256>(NUM_SCALARMULS * 2);
 
     // Stage host input to device once
     CHECK_CUDA_ERROR(cudaMemcpy(dScalarBuf.get(), hScalars->data, scalarBytes,
