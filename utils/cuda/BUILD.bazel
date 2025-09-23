@@ -1,9 +1,33 @@
-load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 load("@rules_cuda//cuda:defs.bzl", "requires_cuda")
 
 package(
     default_visibility = ["//visibility:public"],
     licenses = ["notice"],
+)
+
+cc_binary(
+    name = "cudaRuntimeUtils.so",
+    linkshared = True,
+    linkstatic = False,
+    deps = [":CudaRuntimeUtils"],
+)
+
+cc_library(
+    name = "CudaRuntimeUtils",
+    srcs = ["CudaRuntimeUtils.cu"],
+    # By default, arch is sm_35 with clang 18.1.3.
+    # "--cuda-gpu-arch=native" yields arch=sm_120.
+    # Neither are supported by CUDA 12.9.
+    copts = ["--cuda-gpu-arch=sm_80"],
+    target_compatible_with = requires_cuda(),
+    deps = [
+        ":CudaUtils",
+        "@cuda//:cub",
+        "@cuda//:cuda_runtime",
+        "@llvm-project//mlir:mlir_runner_utils",
+    ],
+    alwayslink = True,
 )
 
 cc_library(
