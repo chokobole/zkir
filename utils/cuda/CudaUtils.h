@@ -1,13 +1,14 @@
-#ifndef BENCHMARK_CUDAUTILS_H_
-#define BENCHMARK_CUDAUTILS_H_
+#ifndef UTILS_CUDA_CUDAUTILS_H_
+#define UTILS_CUDA_CUDAUTILS_H_
 
 #include <cstdio>
 #include <cstdlib>
 #include <memory>
 
 #include "cuda_runtime_api.h" // NOLINT(build/include_subdir)
+#include "llvm/Support/raw_ostream.h"
 
-namespace mlir::zkir::benchmark {
+namespace zkir::utils {
 
 #define CHECK_CUDA_ERROR(call)                                                 \
   do {                                                                         \
@@ -28,9 +29,8 @@ struct CudaDeleter {
       // cleanup of other objects. Handle errors gracefully instead.
       cudaError_t error = cudaFree(ptr);
       if (error != cudaSuccess) {
-        std::fprintf(stderr,
-                     "CUDA error in destructor - cudaFree failed: %s (%d)\n",
-                     cudaGetErrorString(error), error);
+        llvm::errs() << "CUDA error in destructor - cudaAsync failed: "
+                     << cudaGetErrorString(error) << " (" << error << ")\n";
       }
     }
   }
@@ -49,6 +49,34 @@ CudaUniquePtr<T> makeCudaUnique(size_t count) {
   return CudaUniquePtr<T>(ptr);
 }
 
-} // namespace mlir::zkir::benchmark
+// CUDA device memory async deleter for use with unique_ptr
+struct CudaAsyncDeleter {
+  cudaStream_t stream{nullptr}; // store stream inside the deleter
 
-#endif // BENCHMARK_CUDAUTILS_H_
+  void operator()(void *ptr) const noexcept {
+    if (ptr) {
+      // In destructor context, we can't abort() as it would prevent proper
+      // cleanup of other objects. Handle errors gracefully instead.
+      cudaError_t error = cudaFreeAsync(ptr, stream);
+      if (error != cudaSuccess) {
+        llvm::errs() << "CUDA error in destructor - cudaFreeAsync failed: "
+                     << cudaGetErrorString(error) << " (" << error << ")\n";
+      }
+    }
+  }
+};
+
+template <typename T>
+using CudaAsyncUniquePtr = std::unique_ptr<T, CudaAsyncDeleter>;
+
+template <typename T>
+CudaAsyncUniquePtr<T> makeCudaAsyncUnique(size_t count, cudaStream_t stream) {
+  T *ptr = nullptr;
+  CHECK_CUDA_ERROR(cudaMallocAsync(reinterpret_cast<void **>(&ptr),
+                                   count * sizeof(T), stream));
+  return CudaAsyncUniquePtr<T>(ptr, CudaAsyncDeleter{stream});
+}
+
+} // namespace zkir::utils
+
+#endif // UTILS_CUDA_CUDAUTILS_H_

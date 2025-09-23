@@ -3,12 +3,12 @@
 #include <random>
 
 #include "benchmark/BenchmarkUtils.h"
-#include "benchmark/CudaUtils.h"
 #include "benchmark/benchmark.h"
 #include "cuda_runtime_api.h" // NOLINT(build/include_subdir)
 #include "gtest/gtest.h"
 #include "mlir/ExecutionEngine/MemRefUtils.h"
 #include "mlir/Support/LLVM.h"
+#include "utils/cuda/CudaUtils.h"
 
 #define NUM_COEFFS (1 << 20)
 
@@ -47,9 +47,9 @@ void BM_matvec_benchmark(::benchmark::State &state) {
   const size_t bytesOut = NUM_COEFFS * sizeof(i64);
 
   if constexpr (kIsGPU) {
-    auto dMatBuf = makeCudaUnique<i64>(NUM_COEFFS * 100);
-    auto dVecBuf = makeCudaUnique<i64>(100);
-    auto dOutBuf = makeCudaUnique<i64>(NUM_COEFFS);
+    auto dMatBuf = ::zkir::utils::makeCudaUnique<i64>(NUM_COEFFS * 100);
+    auto dVecBuf = ::zkir::utils::makeCudaUnique<i64>(100);
+    auto dOutBuf = ::zkir::utils::makeCudaUnique<i64>(NUM_COEFFS);
 
     CHECK_CUDA_ERROR(cudaMemcpy(dMatBuf.get(), hMat->data, bytesMat,
                                 cudaMemcpyHostToDevice));

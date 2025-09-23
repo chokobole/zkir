@@ -8,6 +8,7 @@ package(
 
 cc_binary(
     name = "printI256.so",
+    testonly = True,
     linkshared = True,
     linkstatic = False,
     deps = [":printI256"],
@@ -15,6 +16,7 @@ cc_binary(
 
 cc_library(
     name = "printI256",
+    testonly = True,
     srcs = ["printI256.cpp"],
     deps = [
         "@llvm-project//llvm:Support",
@@ -43,6 +45,15 @@ filegroup(
         "@llvm-project//llvm:not",
         "@llvm-project//mlir:libmlir_runner_utils.so",
         "@llvm-project//mlir:mlir-runner",
+    ],
+)
+
+filegroup(
+    name = "test_utilities_cuda",
+    testonly = True,
+    data = [
+        "//utils/cuda:cudaRuntimeUtils.so",
+        "@llvm-project//mlir:libmlir_cuda_runtime.so",
     ],
 )
 

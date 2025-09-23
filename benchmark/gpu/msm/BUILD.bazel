@@ -28,7 +28,7 @@ zkir_benchmark(
         ":msm_cpu_ciface",
         ":msm_gpu_ciface",
         "//benchmark:BenchmarkUtils",
-        "//benchmark:CudaUtils",
+        "//utils/cuda:CudaUtils",
         "@cuda//:cuda_headers",
         "@cuda//:cuda_runtime",
         "@llvm-project//mlir:ExecutionEngine",

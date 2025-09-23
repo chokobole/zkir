@@ -1,18 +1,8 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
-load("@rules_cuda//cuda:defs.bzl", "requires_cuda")
 
 package(
     default_visibility = ["//visibility:public"],
     licenses = ["notice"],
-)
-
-cc_library(
-    name = "CudaUtils",
-    hdrs = ["CudaUtils.h"],
-    target_compatible_with = requires_cuda(),
-    deps = [
-        "@cuda//:cuda_runtime",
-    ],
 )
 
 cc_library(
