@@ -190,7 +190,7 @@ struct ConvertMontReduce : public OpConversionPattern<MontReduceOp> {
 
     // Retrieve the modulus bitwidth.
     const unsigned modBitWidth =
-        cast<IntegerType>(modAttr.getType()).getWidth();
+        cast<IntegerType>(getElementTypeOrSelf(modAttr.getType())).getWidth();
 
     // Compute number of limbs.
     const unsigned limbWidth = nPrimeAttr.getType().getIntOrFloatBitWidth();
@@ -219,7 +219,9 @@ struct ConvertMontReduce : public OpConversionPattern<MontReduceOp> {
       limbWidthAttr = SplatElementsAttr::get(shapedType, limbWidthAttr);
       limbMaskAttr = SplatElementsAttr::get(shapedType, limbMaskAttr);
       limbShiftAttr = SplatElementsAttr::get(shapedType, limbShiftAttr);
-      modAttr = SplatElementsAttr::get(shapedType, modAttr);
+      modAttr = isa<VectorType>(modAttr.getType())
+                    ? modAttr
+                    : SplatElementsAttr::get(shapedType, modAttr);
       bInvAttr = SplatElementsAttr::get(shapedType, bInvAttr);
     }
 
