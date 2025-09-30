@@ -53,6 +53,15 @@ public:
         return convertShapedType(type, type.getShape(),
                                  convertModArithType(modArithType));
       }
+      if (auto vectorType = dyn_cast<VectorType>(type.getElementType())) {
+        if (auto modArithType =
+                dyn_cast<ModArithType>(vectorType.getElementType())) {
+          return convertShapedType(
+              type, type.getShape(),
+              vectorType.cloneWith(vectorType.getShape(),
+                                   convertModArithType(modArithType)));
+        }
+      }
       return type;
     });
   }
@@ -181,7 +190,7 @@ struct ConvertMontReduce : public OpConversionPattern<MontReduceOp> {
 
     // Retrieve the modulus bitwidth.
     const unsigned modBitWidth =
-        cast<IntegerType>(modAttr.getType()).getWidth();
+        cast<IntegerType>(getElementTypeOrSelf(modAttr.getType())).getWidth();
 
     // Compute number of limbs.
     const unsigned limbWidth = nPrimeAttr.getType().getIntOrFloatBitWidth();
@@ -196,6 +205,7 @@ struct ConvertMontReduce : public OpConversionPattern<MontReduceOp> {
                          APInt::getAllOnes(limbWidth).zext(modBitWidth));
     TypedAttr limbShiftAttr = b.getIntegerAttr(getElementTypeOrSelf(tLow),
                                                (numLimbs - 1) * limbWidth);
+    TypedAttr oneAttr = b.getIntegerAttr(getElementTypeOrSelf(tLow), 1);
 
     arith::IntegerOverflowFlags overflowFlag(arith::IntegerOverflowFlags::nuw &
                                              arith::IntegerOverflowFlags::nsw);
@@ -210,8 +220,11 @@ struct ConvertMontReduce : public OpConversionPattern<MontReduceOp> {
       limbWidthAttr = SplatElementsAttr::get(shapedType, limbWidthAttr);
       limbMaskAttr = SplatElementsAttr::get(shapedType, limbMaskAttr);
       limbShiftAttr = SplatElementsAttr::get(shapedType, limbShiftAttr);
-      modAttr = SplatElementsAttr::get(shapedType, modAttr);
+      modAttr = isa<VectorType>(modAttr.getType())
+                    ? modAttr
+                    : SplatElementsAttr::get(shapedType, modAttr);
       bInvAttr = SplatElementsAttr::get(shapedType, bInvAttr);
+      oneAttr = SplatElementsAttr::get(shapedType, oneAttr);
     }
 
     // Create constants for the Montgomery reduction.
@@ -221,6 +234,35 @@ struct ConvertMontReduce : public OpConversionPattern<MontReduceOp> {
     auto limbShiftConst = b.create<arith::ConstantOp>(limbShiftAttr);
     auto modConst = b.create<arith::ConstantOp>(modAttr);
     auto bInvConst = b.create<arith::ConstantOp>(bInvAttr);
+    auto oneConst = b.create<arith::ConstantOp>(oneAttr);
+
+    // If the number of limbs is 1, the 2ʷ is larger than the modulus, so we
+    // can use `nInv` instead of `nPrime` and avoid carry check.
+    if (numLimbs == 1) {
+      TypedAttr nInvAttr = montAttr.getNInv();
+      if (isa<ShapedType>(tLow.getType())) {
+        nInvAttr = SplatElementsAttr::get(cast<ShapedType>(limbType), nInvAttr);
+      }
+      auto nInvConst = b.create<arith::ConstantOp>(nInvAttr);
+      // Compute `m` = `tLow` * `nInv` (mod `base`)
+      auto m = b.create<arith::MulIOp>(tLow, nInvConst);
+      // Compute `m` * `n`
+      auto mN = b.create<arith::MulUIExtendedOp>(m, modConst);
+
+      // Calculate `T` - `mN`, which should result in zeroed low limb since it
+      // should be divisible by `base`. The low part subtraction cannot
+      // underflow since if `tLow` < `mN.getLow()`, then `tLow` -
+      // `mN.getLow()` cannot result in zero low limb. This means, `tLow` is
+      // always equal to `mN.getLow()` so we can skip the low subtractions.
+      // The reduction result will be just `tHigh` - `mN.getHigh()` mod n.
+      auto underflow = b.create<arith::CmpIOp>(arith::CmpIPredicate::ult, tHigh,
+                                               mN.getHigh());
+      auto sub = b.create<arith::SubIOp>(tHigh, mN.getHigh());
+      auto addIfUnderflow = b.create<arith::AddIOp>(sub, modConst);
+      auto result = b.create<arith::SelectOp>(underflow, addIfUnderflow, sub);
+      rewriter.replaceOp(op, result);
+      return success();
+    }
 
     // Because the number of limbs (`numLimbs`) is known at compile time, we can
     // unroll the loop as a straight-line chain of operations.
@@ -235,41 +277,31 @@ struct ConvertMontReduce : public OpConversionPattern<MontReduceOp> {
 
       // Compute `m` = `freeCoeff` * (b⁻¹ mod n) and add to `T`.
       auto m = b.create<arith::MulUIExtendedOp>(freeCoeff, bInvConst);
-      auto sum = b.create<arith::AddUIExtendedOp>(tLow, m.getLow());
-      tLow = sum.getSum();
+      tLow = b.create<arith::AddIOp>(tLow, m.getLow());
+      Value carry =
+          b.create<arith::CmpIOp>(arith::CmpIPredicate::ult, tLow, m.getLow());
       tHigh = b.create<arith::AddIOp>(tHigh, m.getHigh(), noOverflow);
-      auto carryExt =
-          b.create<arith::ExtUIOp>(tHigh.getType(), sum.getOverflow());
-      tHigh = b.create<arith::AddIOp>(tHigh, carryExt, noOverflow);
+      auto tHighPlusOne = b.create<arith::AddIOp>(tHigh, oneConst, noOverflow);
+      tHigh = b.create<arith::SelectOp>(carry, tHighPlusOne, tHigh);
     }
     // The last iteration is the same as normal Montgomery reduction.
-    Value freeCoeff = tLow;
-    if (numLimbs > 1) {
-      freeCoeff = b.create<arith::TruncIOp>(limbType, tLow);
-    }
+    Value freeCoeff = b.create<arith::TruncIOp>(limbType, tLow);
     // Compute `m` = `freeCoeff` * `nPrime` (mod `base`)
     auto m = b.create<arith::MulIOp>(freeCoeff, nPrimeConst);
     // Compute `m` * `n`
-    Value mExt = m;
-    if (numLimbs > 1) {
-      mExt = b.create<arith::ExtUIOp>(tLow.getType(), m);
-    }
+    Value mExt = b.create<arith::ExtUIOp>(tLow.getType(), m);
     auto mN = b.create<arith::MulUIExtendedOp>(modConst, mExt);
     // Add the product to `T`.
-    auto sum = b.create<arith::AddUIExtendedOp>(tLow, mN.getLow());
-    tLow = sum.getSum();
+    tLow = b.create<arith::AddIOp>(tLow, mN.getLow());
+    auto carry =
+        b.create<arith::CmpIOp>(arith::CmpIPredicate::ult, tLow, mN.getLow());
     tHigh = b.create<arith::AddIOp>(tHigh, mN.getHigh(), noOverflow);
-    auto carryExt =
-        b.create<arith::ExtUIOp>(tHigh.getType(), sum.getOverflow());
-    tHigh = b.create<arith::AddIOp>(tHigh, carryExt, noOverflow);
-    if (numLimbs == 1) {
-      tLow = tHigh;
-    } else {
-      // Shift right `T` by `limbWidth` to discard the zeroed limb.
-      tLow = b.create<arith::ShRUIOp>(tLow, limbWidthConst);
-      tHigh = b.create<arith::ShLIOp>(tHigh, limbShiftConst);
-      tLow = b.create<arith::OrIOp>(tLow, tHigh);
-    }
+    auto tHighPlusOne = b.create<arith::AddIOp>(tHigh, oneConst, noOverflow);
+    tHigh = b.create<arith::SelectOp>(carry, tHighPlusOne, tHigh);
+    // Shift right `T` by `limbWidth` to discard the zeroed limb.
+    tLow = b.create<arith::ShRUIOp>(tLow, limbWidthConst);
+    tHigh = b.create<arith::ShLIOp>(tHigh, limbShiftConst);
+    tLow = b.create<arith::OrIOp>(tLow, tHigh);
 
     // Final conditional subtraction: if (`tLow` >= `modulus`) then subtract
     // `modulus`.

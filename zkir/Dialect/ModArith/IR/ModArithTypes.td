@@ -13,7 +13,7 @@ class ModArith_Type<string name, string typeMnemonic, list<Trait> traits = []>
   let mnemonic = typeMnemonic;
 }
 
-def ModArith_ModArithType : ModArith_Type<"ModArith", "int", [MemRefElementTypeInterface]> {
+def ModArith_ModArithType : ModArith_Type<"ModArith", "int", [MemRefElementTypeInterface, VectorElementTypeInterface]> {
   let summary = "Integer type with modular arithmetic";
   let description = [{
     `mod_arith.int<p>` represents an element of the ring of integers modulo $p$.

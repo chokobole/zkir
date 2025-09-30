@@ -23,6 +23,11 @@
 // RUN:      -shared-libs="%mlir_lib_dir/libmlir_runner_utils%shlibext" > %t
 // RUN: FileCheck %s -check-prefix=CHECK_TEST_MONT_SQUARE < %t
 
+// RUN: zkir-opt %s -field-to-llvm \
+// RUN:   | mlir-runner -e test_packed_mont_mul -entry-point-result=void \
+// RUN:      -shared-libs="%mlir_lib_dir/libmlir_runner_utils%shlibext" > %t
+// RUN: FileCheck %s -check-prefix=CHECK_PACKED_MONT_MUL < %t
+
 
 func.func private @printMemrefI32(memref<*xi32>) attributes { llvm.emit_c_interface }
 
@@ -165,3 +170,25 @@ func.func @test_lower_mont_square() {
 }
 
 // CHECK_TEST_MONT_SQUARE: [-1717936988, -857005375, 1976922116, -1939796685, 1587159113, 557631023, 126776667, 742573744]
+
+func.func @test_packed_mont_mul() {
+  %a_const = arith.constant dense<[1,10,100,1000,10000,100000,100000,10000000,1,10,100,1000,10000,100000,100000,10000000]> : vector<16xi32>
+  %b_const = arith.constant dense<[2,20,200,2000,20000,200000,200000,20000000,2,20,200,2000,20000,200000,200000,20000000]> : vector<16xi32>
+  %a = mod_arith.bitcast %a_const : vector<16xi32> -> vector<16x!Fr>
+  %b = mod_arith.bitcast %b_const : vector<16xi32> -> vector<16x!Fr>
+  %a_mont = mod_arith.to_mont %a : vector<16x!Frm>
+  %b_mont = mod_arith.to_mont %b : vector<16x!Frm>
+  %ab_mont = mod_arith.mul %a_mont, %b_mont : vector<16x!Frm>
+  %ab = mod_arith.from_mont %ab_mont : vector<16x!Fr>
+
+  %2 = mod_arith.bitcast %ab : vector<16x!Fr> -> vector<16xi32>
+  %mem = memref.alloc() : memref<16xi32>
+  %idx = arith.constant 0 : index
+  vector.store %2, %mem[%idx] : memref<16xi32>, vector<16xi32>
+
+  %U = memref.cast %mem : memref<16xi32> to memref<*xi32>
+  func.call @printMemrefI32(%U) : (memref<*xi32>) -> ()
+  return
+}
+
+// CHECK_PACKED_MONT_MUL: [2, 200, 20000, 2000000, 200000000, 672647177, 672647177, 552987596, 2, 200, 20000, 2000000, 200000000, 672647177, 672647177, 552987596]

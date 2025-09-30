@@ -74,6 +74,15 @@ public:
               dyn_cast<PrimeFieldType>(type.getElementType())) {
         return convertShapedType(type, type.getShape(),
                                  convertPrimeFieldType(primeFieldType));
+      } else if (auto vectorType =
+                     dyn_cast<VectorType>(type.getElementType())) {
+        if (auto primeFieldType =
+                dyn_cast<PrimeFieldType>(vectorType.getElementType())) {
+          return convertShapedType(
+              type, type.getShape(),
+              vectorType.cloneWith(vectorType.getShape(),
+                                   convertPrimeFieldType(primeFieldType)));
+        }
       }
       return type;
     });
