@@ -647,6 +647,12 @@ MulExtendedResult squareExtended(ImplicitLocOpBuilder &b, Op op, Value input) {
                                  : modBitWidth;
   const unsigned numLimbs = (modBitWidth + limbWidth - 1) / limbWidth;
 
+  if (numLimbs == 1) {
+    auto results = b.create<arith::MulUIExtendedOp>(input, input).getResults();
+
+    return {results[0], results[1]};
+  }
+
   Type limbType = IntegerType::get(b.getContext(), limbWidth);
   Value zeroLimb = b.create<arith::ConstantIntOp>(limbType, 0);
 
