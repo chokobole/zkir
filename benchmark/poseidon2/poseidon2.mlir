@@ -86,22 +86,22 @@ func.func @mds_light_permutation(%state: !state) {
   // Precompute the four sums of every four elements
   %sums = memref.alloca() : memref<4x!pf>
 
-  // Initialize sums to zero
-  %zero = field.constant 0 : !pf
-  scf.for %k = %c0 to %c4 step %c1 {
-    memref.store %zero, %sums[%k] : memref<4x!pf>
-  }
-
   // Compute sums: sums[k] = sum of state[j + k] for j = 0, 4, 8, 12
-  scf.for %k = %c0 to %c4 step %c1 {
-    scf.for %j = %c0 to %c4 step %c1 {
-      %idx = arith.muli %j, %c4 : index
-      %idx_plus_k = arith.addi %idx, %k : index
-      %val = memref.load %state[%idx_plus_k] : !state
-      %current_sum = memref.load %sums[%k] : memref<4x!pf>
-      %new_sum = field.add %current_sum, %val : !pf
-      memref.store %new_sum, %sums[%k] : memref<4x!pf>
-    }
+  affine.for %k = 0 to 4 {
+    %ic4 = arith.constant 4 : index
+    %ic8 = arith.constant 8 : index
+    %ic12 = arith.constant 12 : index
+    %idx1 = arith.addi %ic4, %k : index
+    %idx2 = arith.addi %ic8, %k : index
+    %idx3 = arith.addi %ic12, %k : index
+    %val0 = memref.load %state[%k] : !state
+    %val1 = memref.load %state[%idx1] : !state
+    %val2 = memref.load %state[%idx2] : !state
+    %val3 = memref.load %state[%idx3] : !state
+    %sum_01 = field.add %val0, %val1 : !pf
+    %sum_23 = field.add %val2, %val3 : !pf
+    %new_sum = field.add %sum_01, %sum_23 : !pf
+    memref.store %new_sum, %sums[%k] : memref<4x!pf>
   }
 
   // Apply the formula: y_i = x_i' + sums[i % 4]
