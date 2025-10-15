@@ -150,12 +150,6 @@ func.func @internal_layer_mat_mul(%state: !state, %sum: !pf) {
   %inv_256 = field.square %inv_sixteen : !pf
   %inv_2_27 = field.powui %inv_two, %exp_27 : !pf, i32
 
-  // state[0] = sum - 2 * state[0]
-  %s0 = memref.load %state[%c0] : !state
-  %s0_double = field.double %s0 : !pf
-  %new_s0 = field.sub %sum, %s0_double : !pf
-  memref.store %new_s0, %state[%c0] : !state
-
   // state[1] += sum
   %s1 = memref.load %state[%c1] : !state
   %new_s1 = field.add %s1, %sum : !pf
@@ -256,8 +250,21 @@ func.func @internal_layer_mat_mul(%state: !state, %sum: !pf) {
 func.func @permute_state(%state: !state) {
   // Convert to memref for in-place operations
   %c0 = arith.constant 0 : index
-  %c13 = arith.constant 13 : index
   %c1 = arith.constant 1 : index
+  %c2 = arith.constant 2 : index
+  %c3 = arith.constant 3 : index
+  %c4 = arith.constant 4 : index
+  %c5 = arith.constant 5 : index
+  %c6 = arith.constant 6 : index
+  %c7 = arith.constant 7 : index
+  %c8 = arith.constant 8 : index
+  %c9 = arith.constant 9 : index
+  %c10 = arith.constant 10 : index
+  %c11 = arith.constant 11 : index
+  %c12 = arith.constant 12 : index
+  %c13 = arith.constant 13 : index
+  %c14 = arith.constant 14 : index
+  %c15 = arith.constant 15 : index
 
   // BABYBEAR_RC16_INTERNAL (13 scalar constants)
   %rc_internal = arith.constant dense<[0x5a8053c0, 0x693be639, 0x3858867d, 0x19334f6b, 0x128f0fd8, 0x4e2b1ccb, 0x61210ce0, 0x3c318939, 0x0b5b2f22, 0x2edb11d5, 0x213effdf, 0x0cac4606, 0x241af16d]> : tensor<13xi32>
@@ -274,21 +281,60 @@ func.func @permute_state(%state: !state) {
 
     // Add RC and apply S-box to first element
     %s0 = memref.load %state[%c0] : !state
-    %s0_sbox = func.call @add_rc_and_sbox(%s0, %rc) : (!pf, !pf) -> !pf
-    memref.store %s0_sbox, %state[%c0] : !state
+    %elem0 = func.call @add_rc_and_sbox(%s0, %rc) : (!pf, !pf) -> !pf
 
-    // Compute sum of all elements using linalg.reduce
-    %zero = field.constant 0 : !pf
-    %sum = memref.alloca() : memref<!pf>
-    memref.store %zero, %sum[] : memref<!pf>
+    // Compute sum of all elements using affine.for
+    // NOTE: this is extremely slow, so we manually add them.
+    // %zero = field.constant 0 : !pf
+    // %sum = affine.for %i = 0 to 16 iter_args(%acc = %zero) -> (!pf) {
+    //   %elem = tensor.extract %t[%i] : tensor<16x!pf>
+    //   %new_acc = field.add %acc, %elem : !pf
+    //   affine.yield %new_acc : !pf
+    // }
+    %elem1  = memref.load %state[%c1]  : memref<16x!pf>
+    %elem2  = memref.load %state[%c2]  : memref<16x!pf>
+    %elem3  = memref.load %state[%c3]  : memref<16x!pf>
+    %elem4  = memref.load %state[%c4]  : memref<16x!pf>
+    %elem5  = memref.load %state[%c5]  : memref<16x!pf>
+    %elem6  = memref.load %state[%c6]  : memref<16x!pf>
+    %elem7  = memref.load %state[%c7]  : memref<16x!pf>
+    %elem8  = memref.load %state[%c8]  : memref<16x!pf>
+    %elem9  = memref.load %state[%c9]  : memref<16x!pf>
+    %elem10 = memref.load %state[%c10] : memref<16x!pf>
+    %elem11 = memref.load %state[%c11] : memref<16x!pf>
+    %elem12 = memref.load %state[%c12] : memref<16x!pf>
+    %elem13 = memref.load %state[%c13] : memref<16x!pf>
+    %elem14 = memref.load %state[%c14] : memref<16x!pf>
+    %elem15 = memref.load %state[%c15] : memref<16x!pf>
 
-    linalg.reduce ins(%state : !state) outs(%sum : memref<!pf>) dimensions = [0]
-      (%elem: !pf, %acc: !pf) {
-        %result = field.add %elem, %acc : !pf
-        linalg.yield %result : !pf
-      }
+    // --- Step 2: Sum the elements using a reduction tree ---
+    // This structure allows for maximum parallel execution by the CPU.
 
-    %total_sum = memref.load %sum[] : memref<!pf>
+    // Level 1 (8 parallel additions)
+    %sum2_3   = field.add %elem2,  %elem3  : !pf
+    %sum4_5   = field.add %elem4,  %elem5  : !pf
+    %sum6_7   = field.add %elem6,  %elem7  : !pf
+    %sum8_9   = field.add %elem8,  %elem9  : !pf
+    %sum10_11 = field.add %elem10, %elem11 : !pf
+    %sum12_13 = field.add %elem12, %elem13 : !pf
+    %sum14_15 = field.add %elem14, %elem15 : !pf
+
+    // Level 2 (4 parallel additions)
+    %sum1_3   = field.add %elem1,   %sum2_3   : !pf
+    %sum4_7   = field.add %sum4_5,   %sum6_7   : !pf
+    %sum8_11  = field.add %sum8_9,   %sum10_11 : !pf
+    %sum12_15 = field.add %sum12_13, %sum14_15 : !pf
+
+    // Level 3 (2 parallel additions)
+    %sum1_7   = field.add %sum1_3,   %sum4_7   : !pf
+    %sum8_15  = field.add %sum8_11,  %sum12_15 : !pf
+
+    // Level 4 (Partial sum)
+    %partial_sum = field.add %sum1_7, %sum8_15 : !pf
+
+    %total_sum = field.add %partial_sum,  %elem0  : !pf
+    %new_s0 = field.sub %partial_sum, %elem0 : !pf
+    memref.store %new_s0, %state[%c0] : !state
 
     // Apply internal layer matrix multiplication
     func.call @internal_layer_mat_mul(%state, %total_sum) : (!state, !pf) -> ()
