@@ -271,13 +271,10 @@ func.func @permute_state(%state: !state) {
   %rc_internal_std = field.bitcast %rc_internal : tensor<13xi32> -> tensor<13x!pf_std>
   %rc_internal_mont = field.to_mont %rc_internal_std : tensor<13x!pf>
 
-  // Convert to memref for iteration
-  %rc_memref = bufferization.to_buffer %rc_internal_mont : tensor<13x!pf> to memref<13x!pf>
-
   // For each internal constant: add RC and S-box to first element, then apply matrix multiplication
   affine.for %round = 0 to 13 {
-    // Get current round constant
-    %rc = memref.load %rc_memref[%round] : memref<13x!pf>
+    // Get current round constant via tensor.extract
+    %rc = tensor.extract %rc_internal_mont[%round] : tensor<13x!pf>
 
     // Add RC and apply S-box to first element
     %s0 = memref.load %state[%c0] : !state
@@ -358,18 +355,15 @@ func.func @permute_state_terminal(%state: !state) {
 
   %rc_external_std = field.bitcast %rc_external_const : tensor<4x16xi32> -> tensor<4x16x!pf_std>
   %rc_external_final = field.to_mont %rc_external_std : tensor<4x16x!pf>
+  %state_tensor = bufferization.to_tensor %state restrict : memref<16x!pf> to tensor<16x!pf>
 
   // Loop through 4 rounds of external terminal permutation
-  scf.for %round = %c0 to %c4 step %c1 {
-    // Extract round constants for current round
-    %rc_row = tensor.extract_slice %rc_external_final[%round, 0][1, 16][1, 1] : tensor<4x16x!pf> to tensor<16x!pf>
-    %rc_memref = bufferization.to_buffer %rc_row : tensor<16x!pf> to !state
-
-    // Add round constants and apply S-box (in-place)
-    linalg.map ins(%state, %rc_memref : !state, !state) outs(%state: !state)
-      (%s: !pf, %c: !pf) {
-      %sum_exp7 = func.call @add_rc_and_sbox(%s, %c) : (!pf, !pf) -> !pf
-      linalg.yield %sum_exp7 : !pf
+  affine.for %round = 0 to 4 {
+    affine.for %i = 0 to 16 {
+      %s = tensor.extract %state_tensor[%i] : tensor<16x!pf>
+      %c = tensor.extract %rc_external_final[%round, %i] : tensor<4x16x!pf>
+      %sbox = func.call @add_rc_and_sbox(%s, %c) : (!pf, !pf) -> !pf
+      affine.store %sbox, %state[%i] : !state
     }
 
     // Apply MDS light permutation (in-place)
@@ -384,12 +378,6 @@ func.func @permute_state_initial(%state: !state) {
   // First apply MDS light permutation
   func.call @mds_light_permutation(%state) : (!state) -> ()
 
-  // Then apply terminal permutation with initial external constants
-  // Loop through 4 rounds of external terminal permutation
-  %c0 = arith.constant 0 : index
-  %c4 = arith.constant 4 : index
-  %c1 = arith.constant 1 : index
-
   // Round constants for 16-width Poseidon2 on BabyBear
   // BABYBEAR_RC16_EXTERNAL_INITIAL (4 rounds x 16 constants)
   %rc_external_const = arith.constant dense<[
@@ -400,18 +388,17 @@ func.func @permute_state_initial(%state: !state) {
   ]> : tensor<4x16xi32>
 
   %rc_external_std = field.bitcast %rc_external_const : tensor<4x16xi32> -> tensor<4x16x!pf_std>
-  %rc_external_initial = field.to_mont %rc_external_std : tensor<4x16x!pf>
+  %rc_external_final = field.to_mont %rc_external_std : tensor<4x16x!pf>
+  %state_tensor = bufferization.to_tensor %state restrict : memref<16x!pf> to tensor<16x!pf>
 
-  scf.for %round = %c0 to %c4 step %c1 {
-    // Extract round constants for current round
-    %rc_row = tensor.extract_slice %rc_external_initial[%round, 0][1, 16][1, 1] : tensor<4x16x!pf> to tensor<16x!pf>
-    %rc_memref = bufferization.to_buffer %rc_row : tensor<16x!pf> to !state
-
-    // Add round constants and apply S-box (in-place)
-    linalg.map ins(%state, %rc_memref : !state, !state) outs(%state: !state)
-      (%s: !pf, %c: !pf) {
-      %sum_exp7 = func.call @add_rc_and_sbox(%s, %c) : (!pf, !pf) -> !pf
-      linalg.yield %sum_exp7 : !pf
+  // Then apply terminal permutation with initial external constants
+  // Loop through 4 rounds of external terminal permutation
+  affine.for %round = 0 to 4 {
+    affine.for %i = 0 to 16 {
+      %s = tensor.extract %state_tensor[%i] : tensor<16x!pf>
+      %c = tensor.extract %rc_external_final[%round, %i] : tensor<4x16x!pf>
+      %sbox = func.call @add_rc_and_sbox(%s, %c) : (!pf, !pf) -> !pf
+      affine.store %sbox, %state[%i] : !state
     }
 
     // Apply MDS light permutation (in-place)
