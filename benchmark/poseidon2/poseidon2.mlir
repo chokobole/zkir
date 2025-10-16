@@ -66,53 +66,68 @@ func.func @apply_mat4(%state: memref<4x!pf, strided<[1], offset: ?>>) {
 func.func @mds_light_permutation(%state: !state) {
   // First, apply M_4 to each consecutive four elements of the state
   // This replaces each x_i with x_i'
-  %c0 = arith.constant 0 : index
-  %c4 = arith.constant 4 : index
-  %c16 = arith.constant 16 : index
-  %c1 = arith.constant 1 : index
-
-  scf.for %chunk_idx = %c0 to %c4 step %c1 {
+  affine.for %chunk_idx = 0 to 4 {
     // Calculate offset for this chunk
-    %offset = arith.muli %chunk_idx, %c4 : index
+    %x0 = affine.load %state[%chunk_idx * 4] : !state
+    %x1 = affine.load %state[%chunk_idx * 4 + 1] : !state
+    %x01 = field.add %x0, %x1 : !pf
+    %x2 = affine.load %state[%chunk_idx * 4 + 2] : !state
+    %x3 = affine.load %state[%chunk_idx * 4 + 3] : !state
+    %x23 = field.add %x2, %x3 : !pf
+    %x0123 = field.add %x01, %x23 : !pf
+    %x01123 = field.add %x0123, %x1 : !pf
+    %x01233 = field.add %x0123, %x3 : !pf
 
-    // Extract 4-element chunk
-    %chunk = memref.subview %state[%offset] [4] [1] : !state to memref<4x!pf, strided<[1], offset: ?>>
+    %x00 = field.double %x0 : !pf
+    %x22 = field.double %x2 : !pf
 
-    // Apply 4x4 MDS matrix to the chunk
-    func.call @apply_mat4(%chunk) : (memref<4x!pf, strided<[1], offset: ?>>) -> ()
+    // x[0] = x01123 + x01
+    %x0_new = field.add %x01123, %x01 : !pf
+    // x[1] = x01123 + 2*x[2]
+    %x1_new = field.add %x01123, %x22 : !pf
+    // x[2] = x01233 + x23
+    %x2_new = field.add %x01233, %x23 : !pf
+    // x[3] = x01233 + 2*x[0]
+    %x3_new = field.add %x01233, %x00 : !pf
+
+    // Store the sum in all output positions
+    affine.store %x0_new, %state[%chunk_idx * 4] : !state
+    affine.store %x1_new, %state[%chunk_idx * 4 + 1] : !state
+    affine.store %x2_new, %state[%chunk_idx * 4 + 2] : !state
+    affine.store %x3_new, %state[%chunk_idx * 4 + 3] : !state
   }
 
   // Now apply the outer circulant matrix
   // Precompute the four sums of every four elements
-  %sums = memref.alloca() : memref<4x!pf>
-
   // Compute sums: sums[k] = sum of state[j + k] for j = 0, 4, 8, 12
+  %sums = memref.alloca() : memref<4x!pf>
   affine.for %k = 0 to 4 {
-    %ic4 = arith.constant 4 : index
-    %ic8 = arith.constant 8 : index
-    %ic12 = arith.constant 12 : index
-    %idx1 = arith.addi %ic4, %k : index
-    %idx2 = arith.addi %ic8, %k : index
-    %idx3 = arith.addi %ic12, %k : index
-    %val0 = memref.load %state[%k] : !state
-    %val1 = memref.load %state[%idx1] : !state
-    %val2 = memref.load %state[%idx2] : !state
-    %val3 = memref.load %state[%idx3] : !state
-    %sum_01 = field.add %val0, %val1 : !pf
-    %sum_23 = field.add %val2, %val3 : !pf
-    %new_sum = field.add %sum_01, %sum_23 : !pf
-    memref.store %new_sum, %sums[%k] : memref<4x!pf>
+    %val0 = affine.load %state[%k] : !state
+    %val1 = affine.load %state[%k + 4] : !state
+    %val2 = affine.load %state[%k + 8] : !state
+    %val3 = affine.load %state[%k + 12] : !state
+    %sum01 = field.add %val0, %val1 : !pf
+    %sum23 = field.add %val2, %val3 : !pf
+    %new_sum = field.add %sum01, %sum23 : !pf
+    affine.store %new_sum, %sums[%k] : memref<4x!pf>
   }
 
   // Apply the formula: y_i = x_i' + sums[i % 4]
-  scf.for %i = %c0 to %c16 step %c1 {
-    %mod4 = arith.remui %i, %c4 : index
-    %x_i = memref.load %state[%i] : !state
-    %sum_k = memref.load %sums[%mod4] : memref<4x!pf>
-    %y_i = field.add %x_i, %sum_k : !pf
-    memref.store %y_i, %state[%i] : !state
+  affine.for %i = 0 to 4 {
+    %val0 = affine.load %state[%i] : !state
+    %val1 = affine.load %state[%i + 4] : !state
+    %val2 = affine.load %state[%i + 8] : !state
+    %val3 = affine.load %state[%i + 12] : !state
+    %sum = affine.load %sums[%i] : memref<4x!pf>
+    %sum0 = field.add %val0, %sum : !pf
+    %sum1 = field.add %val1, %sum : !pf
+    %sum2 = field.add %val2, %sum : !pf
+    %sum3 = field.add %val3, %sum : !pf
+    affine.store %sum0, %state[%i] : !state
+    affine.store %sum1, %state[%i + 4] : !state
+    affine.store %sum2, %state[%i + 8] : !state
+    affine.store %sum3, %state[%i + 12] : !state
   }
-
   return
 }
 
