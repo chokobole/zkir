@@ -307,9 +307,9 @@ struct ConvertMontReduce : public OpConversionPattern<MontReduceOp> {
     // Final conditional subtraction: if (`tLow` >= `modulus`) then subtract
     // `modulus`.
     auto cmp =
-        b.create<arith::CmpIOp>(arith::CmpIPredicate::uge, tLow, modConst);
+        b.create<arith::CmpIOp>(arith::CmpIPredicate::ult, tLow, modConst);
     auto sub = b.create<arith::SubIOp>(tLow, modConst, noOverflow);
-    auto result = b.create<arith::SelectOp>(cmp, sub, tLow);
+    auto result = b.create<arith::SelectOp>(cmp, tLow, sub);
 
     rewriter.replaceOp(op, result);
     return success();
@@ -459,9 +459,9 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
     auto cmod = b.create<arith::ConstantOp>(modulusAttr(op));
     auto add =
         b.create<arith::AddIOp>(adaptor.getLhs(), adaptor.getRhs(), noOverflow);
-    auto ifge = b.create<arith::CmpIOp>(arith::CmpIPredicate::uge, add, cmod);
+    auto ifge = b.create<arith::CmpIOp>(arith::CmpIPredicate::ult, add, cmod);
     auto sub = b.create<arith::SubIOp>(add, cmod, noOverflow);
-    auto select = b.create<arith::SelectOp>(ifge, sub, add);
+    auto select = b.create<arith::SelectOp>(ifge, add, sub);
 
     rewriter.replaceOp(op, select);
     return success();
@@ -490,9 +490,9 @@ struct ConvertDouble : public OpConversionPattern<DoubleOp> {
     }
     auto shifted = b.create<arith::ShLIOp>(adaptor.getInput(), one);
     auto ifge =
-        b.create<arith::CmpIOp>(arith::CmpIPredicate::uge, shifted, cmod);
+        b.create<arith::CmpIOp>(arith::CmpIPredicate::ult, shifted, cmod);
     auto sub = b.create<arith::SubIOp>(shifted, cmod);
-    auto select = b.create<arith::SelectOp>(ifge, sub, shifted);
+    auto select = b.create<arith::SelectOp>(ifge, shifted, sub);
 
     rewriter.replaceOp(op, select);
     return success();
@@ -518,9 +518,9 @@ struct ConvertSub : public OpConversionPattern<SubOp> {
     auto sub =
         b.create<arith::SubIOp>(adaptor.getLhs(), adaptor.getRhs(), noOverflow);
     auto add = b.create<arith::AddIOp>(sub, cmod, noOverflow);
-    auto ifge = b.create<arith::CmpIOp>(arith::CmpIPredicate::uge,
+    auto ifge = b.create<arith::CmpIOp>(arith::CmpIPredicate::ult,
                                         adaptor.getLhs(), adaptor.getRhs());
-    auto select = b.create<arith::SelectOp>(ifge, sub, add);
+    auto select = b.create<arith::SelectOp>(ifge, add, sub);
 
     rewriter.replaceOp(op, select);
     return success();
