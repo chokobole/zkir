@@ -168,6 +168,14 @@ Operation *ModArithDialect::materializeConstant(OpBuilder &builder,
   return ConstantOp::materialize(builder, value, type, loc);
 }
 
+OpFoldResult BitcastOp::fold(FoldAdaptor adaptor) {
+  if (isa_and_present<IntegerAttr>(adaptor.getInput()) ||
+      isa_and_present<DenseIntElementsAttr>(adaptor.getInput())) {
+    return adaptor.getInput();
+  }
+  return {};
+}
+
 OpFoldResult ToMontOp::fold(FoldAdaptor adaptor) {
   auto modArithType = cast<ModArithType>(getElementTypeOrSelf(getType()));
   MontgomeryAttr montAttr = modArithType.getMontgomeryAttr();

@@ -7,6 +7,18 @@
 // Constant Folding
 //===----------------------------------------------------------------------===//
 
+// CHECK-LABEL: @test_bitcast_fold
+// CHECK-SAME: () -> [[T:.*]] {
+func.func @test_bitcast_fold() -> !Zp {
+  // CHECK: %[[C:.*]] = mod_arith.constant 3 : [[T]]
+  // CHECK: return %[[C]] : [[T]]
+  %c1 = arith.constant 1: index
+  %0 = arith.constant dense<[2, 3]> : tensor<2xi32>
+  %1 = mod_arith.bitcast %0: tensor<2xi32> -> tensor<2x!Zp>
+  %2 = tensor.extract %1[%c1] : tensor<2x!Zp>
+  return %2 : !Zp
+}
+
 // CHECK-LABEL: @test_double_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_double_fold() -> !Zp {

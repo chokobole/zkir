@@ -1,17 +1,27 @@
 diff --git mlir/lib/Dialect/Tensor/IR/TensorOps.cpp mlir/lib/Dialect/Tensor/IR/TensorOps.cpp
-index 22a25fd1a5af..bbfab789d58a 100644
+index 22a25fd1a5af..164536527c37 100644
 --- mlir/lib/Dialect/Tensor/IR/TensorOps.cpp
 +++ mlir/lib/Dialect/Tensor/IR/TensorOps.cpp
-@@ -41,6 +41,8 @@
+@@ -41,6 +41,9 @@
  #include <optional>
  #include <vector>
 
++#include "zkir/Dialect/ModArith/IR/ModArithOps.h"
 +#include "zkir/Dialect/ModArith/IR/ModArithTypes.h"
 +
  using namespace mlir;
  using namespace mlir::tensor;
 
-@@ -1465,8 +1467,16 @@ void FromElementsOp::build(OpBuilder &builder, OperationState &result,
+@@ -58,6 +61,8 @@ Operation *TensorDialect::materializeConstant(OpBuilder &builder,
+   if (complex::ConstantOp::isBuildableWith(value, type))
+     return builder.create<complex::ConstantOp>(loc, type,
+                                                llvm::cast<ArrayAttr>(value));
++  if (auto op = zkir::mod_arith::ConstantOp::materialize(builder, value, type, loc))
++    return op;
+   return nullptr;
+ }
+ 
+@@ -1465,8 +1470,16 @@ void FromElementsOp::build(OpBuilder &builder, OperationState &result,
  }
 
  OpFoldResult FromElementsOp::fold(FoldAdaptor adaptor) {
