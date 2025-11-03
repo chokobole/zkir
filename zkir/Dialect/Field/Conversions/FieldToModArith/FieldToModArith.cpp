@@ -56,8 +56,8 @@ SmallVector<Type> coeffsTypeRange(Type type) {
 Operation::result_range extractCoeffs(ImplicitLocOpBuilder &b,
                                       Value extFieldElement) {
   return b
-      .create<field::ExtToCoeffsOp>(coeffsTypeRange(extFieldElement.getType()),
-                                    extFieldElement)
+      .create<ExtToCoeffsOp>(coeffsTypeRange(extFieldElement.getType()),
+                             extFieldElement)
       .getResults();
 }
 } // namespace
@@ -510,24 +510,24 @@ struct ConvertPowUI : public OpConversionPattern<PowUIOp> {
     Value init;
     if (auto pfType = dyn_cast<PrimeFieldType>(fieldType)) {
       modulus = pfType.getModulus().getValue();
-      init = pfType.isMontgomery()
-                 ? b.create<field::ToMontOp>(
-                        pfType, b.create<field::ConstantOp>(
-                                    cast<PrimeFieldType>(
-                                        field::getStandardFormType(pfType)),
-                                    1))
-                       .getResult()
-                 : b.create<field::ConstantOp>(pfType, 1);
+      init =
+          pfType.isMontgomery()
+              ? b.create<ToMontOp>(
+                     pfType,
+                     b.create<ConstantOp>(
+                         cast<PrimeFieldType>(getStandardFormType(pfType)), 1))
+                    .getResult()
+              : b.create<ConstantOp>(pfType, 1);
     } else if (auto f2Type = dyn_cast<QuadraticExtFieldType>(fieldType)) {
       modulus = f2Type.getBaseField().getModulus().getValue();
       init = f2Type.isMontgomery()
-                 ? b.create<field::ToMontOp>(
-                        f2Type, b.create<field::ConstantOp>(
-                                    cast<QuadraticExtFieldType>(
-                                        field::getStandardFormType(f2Type)),
-                                    1, 0))
+                 ? b.create<ToMontOp>(
+                        f2Type,
+                        b.create<ConstantOp>(cast<QuadraticExtFieldType>(
+                                                 getStandardFormType(f2Type)),
+                                             1, 0))
                        .getResult()
-                 : b.create<field::ConstantOp>(f2Type, 1, 0);
+                 : b.create<ConstantOp>(f2Type, 1, 0);
     } else {
       op.emitOpError("unsupported output type");
       return failure();
@@ -568,7 +568,7 @@ struct ConvertPowUI : public OpConversionPattern<PowUIOp> {
                                 b.create<arith::AndIOp>(exp, one), zero),
         [&](OpBuilder &builder, Location loc) {
           ImplicitLocOpBuilder b(loc, builder);
-          auto newResult = b.create<field::MulOp>(init, powerOfP);
+          auto newResult = b.create<MulOp>(init, powerOfP);
           b.create<scf::YieldOp>(ValueRange{newResult});
         },
         [&](OpBuilder &builder, Location loc) {
@@ -592,7 +592,7 @@ struct ConvertPowUI : public OpConversionPattern<PowUIOp> {
           auto currPowerOfP = args[1];
           auto currResult = args[2];
 
-          auto newPowerOfP = b.create<field::SquareOp>(currPowerOfP);
+          auto newPowerOfP = b.create<SquareOp>(currPowerOfP);
           auto masked = b.create<arith::AndIOp>(currExp, one);
           auto isOdd =
               b.create<arith::CmpIOp>(arith::CmpIPredicate::ne, masked, zero);
@@ -600,8 +600,7 @@ struct ConvertPowUI : public OpConversionPattern<PowUIOp> {
               isOdd,
               [&](OpBuilder &builder, Location loc) {
                 ImplicitLocOpBuilder b(loc, builder);
-                auto newResult =
-                    b.create<field::MulOp>(currResult, newPowerOfP);
+                auto newResult = b.create<MulOp>(currResult, newPowerOfP);
                 b.create<scf::YieldOp>(ValueRange{newResult});
               },
               [&](OpBuilder &builder, Location loc) {
@@ -712,6 +711,8 @@ void FieldToModArith::runOnOperation() {
       ConvertSquare,
       ConvertSub,
       ConvertToMont,
+      ConvertAny<ExtFromCoeffsOp>,
+      ConvertAny<ExtToCoeffsOp>,
       ConvertAny<affine::AffineForOp>,
       ConvertAny<affine::AffineLoadOp>,
       ConvertAny<affine::AffineParallelOp>,
@@ -721,8 +722,6 @@ void FieldToModArith::runOnOperation() {
       ConvertAny<bufferization::MaterializeInDestinationOp>,
       ConvertAny<bufferization::ToBufferOp>,
       ConvertAny<bufferization::ToTensorOp>,
-      ConvertAny<field::ExtFromCoeffsOp>,
-      ConvertAny<field::ExtToCoeffsOp>,
       ConvertAny<elliptic_curve::ExtractOp>,
       ConvertAny<elliptic_curve::PointOp>,
       ConvertAny<linalg::BroadcastOp>,
@@ -757,6 +756,8 @@ void FieldToModArith::runOnOperation() {
 
   target.addDynamicallyLegalOp<
       // clang-format off
+      ExtFromCoeffsOp,
+      ExtToCoeffsOp,
       affine::AffineForOp,
       affine::AffineLoadOp,
       affine::AffineParallelOp,
@@ -768,8 +769,6 @@ void FieldToModArith::runOnOperation() {
       bufferization::ToTensorOp,
       elliptic_curve::ExtractOp,
       elliptic_curve::PointOp,
-      field::ExtFromCoeffsOp,
-      field::ExtToCoeffsOp,
       linalg::BroadcastOp,
       linalg::GenericOp,
       linalg::MapOp,

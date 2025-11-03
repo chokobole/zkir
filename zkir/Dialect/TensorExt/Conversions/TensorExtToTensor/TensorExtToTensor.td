@@ -12,12 +12,12 @@ def TensorExtToTensor : Pass<"tensor-ext-to-tensor", "ModuleOp"> {
     This pass lowers the `tensor_ext` dialect to their `tensor` equivalents.
   }];
   let dependentDialects = [
-    "mlir::arith::ArithDialect",
-    "mlir::tensor::TensorDialect",
-    "mlir::memref::MemRefDialect",
-    "mlir::bufferization::BufferizationDialect",
-    "mlir::scf::SCFDialect",
-    "mlir::zkir::tensor_ext::TensorExtDialect",
+    "arith::ArithDialect",
+    "tensor::TensorDialect",
+    "memref::MemRefDialect",
+    "bufferization::BufferizationDialect",
+    "scf::SCFDialect",
+    "zkir::tensor_ext::TensorExtDialect",
   ];
 }
 

@@ -44,9 +44,7 @@ SmallVector<Type> coordsTypeRange(Type type) {
 }
 
 Operation::result_range extractCoords(ImplicitLocOpBuilder &b, Value point) {
-  return b
-      .create<elliptic_curve::ExtractOp>(coordsTypeRange(point.getType()),
-                                         point)
+  return b.create<ExtractOp>(coordsTypeRange(point.getType()), point)
       .getOutput();
 }
 } // namespace
@@ -226,7 +224,7 @@ struct ConvertConvertPointType
         outputCoords.push_back(output.getResult(0));
       }
     }
-    auto outputPt = b.create<elliptic_curve::PointOp>(outputType, outputCoords);
+    auto outputPt = b.create<PointOp>(outputType, outputCoords);
     rewriter.replaceOp(op, outputPt);
     return success();
   }
@@ -254,7 +252,7 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
     Type outputType = op.getType();
 
     // check p1 == zero point
-    Value p1IsZero = b.create<elliptic_curve::IsZeroOp>(p1);
+    Value p1IsZero = b.create<IsZeroOp>(p1);
     auto output = b.create<scf::IfOp>(
         p1IsZero,
         /*thenBuilder=*/
@@ -262,8 +260,7 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
           ImplicitLocOpBuilder b(loc, builder);
           Value retP2 = p2;
           if (isa<AffineType>(p2Type)) {
-            retP2 =
-                b.create<elliptic_curve::ConvertPointTypeOp>(outputType, p2);
+            retP2 = b.create<ConvertPointTypeOp>(outputType, p2);
           }
 
           b.create<scf::YieldOp>(retP2);
@@ -273,7 +270,7 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
           ImplicitLocOpBuilder b(loc, builder);
 
           // check p2 == zero point
-          Value p2isZero = b.create<elliptic_curve::IsZeroOp>(p2);
+          Value p2isZero = b.create<IsZeroOp>(p2);
           auto output = b.create<scf::IfOp>(
               p2isZero,
               /*thenBuilder=*/
@@ -281,8 +278,7 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
                 ImplicitLocOpBuilder b(loc, builder);
                 Value retP1 = p1;
                 if (isa<AffineType>(p1Type)) {
-                  retP1 = b.create<elliptic_curve::ConvertPointTypeOp>(
-                      outputType, p1);
+                  retP1 = b.create<ConvertPointTypeOp>(outputType, p1);
                 }
 
                 b.create<scf::YieldOp>(retP1);
@@ -301,8 +297,7 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
                 } else {
                   llvm_unreachable("Unsupported point types for addition");
                 }
-                Value outputPt =
-                    b.create<elliptic_curve::PointOp>(op.getType(), sum);
+                Value outputPt = b.create<PointOp>(op.getType(), sum);
                 b.create<scf::YieldOp>(outputPt);
               });
           b.create<scf::YieldOp>(output.getResults());
@@ -335,7 +330,7 @@ struct ConvertDouble : public OpConversionPattern<DoubleOp> {
       llvm_unreachable("Unsupported point type for doubling");
     }
 
-    auto outputPt = b.create<elliptic_curve::PointOp>(outputType, doubled);
+    auto outputPt = b.create<PointOp>(outputType, doubled);
     rewriter.replaceOp(op, outputPt);
     return success();
   }
@@ -358,8 +353,7 @@ struct ConvertNegate : public OpConversionPattern<NegateOp> {
     SmallVector<Value> outputCoords(coords);
     outputCoords[1] = negatedY;
 
-    auto outputPt =
-        b.create<elliptic_curve::PointOp>(op.getType(), outputCoords);
+    auto outputPt = b.create<PointOp>(op.getType(), outputCoords);
     rewriter.replaceOp(op, outputPt);
     return success();
   }
@@ -376,9 +370,8 @@ struct ConvertSub : public OpConversionPattern<SubOp> {
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    Value negP2 = b.create<elliptic_curve::NegateOp>(op.getRhs());
-    Value result =
-        b.create<elliptic_curve::AddOp>(op.getType(), op.getLhs(), negP2);
+    Value negP2 = b.create<NegateOp>(op.getRhs());
+    Value result = b.create<AddOp>(op.getType(), op.getLhs(), negP2);
 
     rewriter.replaceOp(op, result);
     return success();
@@ -416,10 +409,9 @@ struct ConvertScalarMul : public OpConversionPattern<ScalarMulOp> {
 
     Value zeroPoint = createZeroPoint(b, outputType);
 
-    Value initialPoint =
-        isa<AffineType>(pointType)
-            ? b.create<elliptic_curve::ConvertPointTypeOp>(outputType, point)
-            : point;
+    Value initialPoint = isa<AffineType>(pointType)
+                             ? b.create<ConvertPointTypeOp>(outputType, point)
+                             : point;
 
     auto arithOne = b.create<arith::ConstantIntOp>(scalarIntType, 1);
     auto arithZero = b.create<arith::ConstantIntOp>(scalarIntType, 0);
@@ -430,8 +422,7 @@ struct ConvertScalarMul : public OpConversionPattern<ScalarMulOp> {
                                 arithZero),
         [&](OpBuilder &builder, Location loc) {
           ImplicitLocOpBuilder b(loc, builder);
-          Value newResult =
-              b.create<elliptic_curve::AddOp>(outputType, result, initialPoint);
+          Value newResult = b.create<AddOp>(outputType, result, initialPoint);
           b.create<scf::YieldOp>(newResult);
         },
         [&](OpBuilder &builder, Location loc) {
@@ -461,8 +452,7 @@ struct ConvertScalarMul : public OpConversionPattern<ScalarMulOp> {
           Value result = args[2];
 
           // double `multiplyingPoint`
-          Value doubledPoint =
-              b.create<elliptic_curve::DoubleOp>(outputType, multiplyingPoint);
+          Value doubledPoint = b.create<DoubleOp>(outputType, multiplyingPoint);
           // if `decreasingScalar` % 1 == 1...
           auto bitAdd = b.create<arith::AndIOp>(decreasingScalar, arithOne);
           auto cmpEq = b.create<arith::CmpIOp>(arith::CmpIPredicate::eq, bitAdd,
@@ -472,8 +462,8 @@ struct ConvertScalarMul : public OpConversionPattern<ScalarMulOp> {
               // ...then add `doubledPoint` to `result`
               /*thenBuilder=*/
               [&](OpBuilder &builder, Location loc) {
-                Value innerResult = builder.create<elliptic_curve::AddOp>(
-                    loc, outputType, result, doubledPoint);
+                Value innerResult = builder.create<AddOp>(loc, outputType,
+                                                          result, doubledPoint);
                 builder.create<scf::YieldOp>(loc, innerResult);
               },
               /*elseBuilder=*/
@@ -494,7 +484,7 @@ struct ConvertScalarMul : public OpConversionPattern<ScalarMulOp> {
 
 // Currently implements Pippenger's
 struct ConvertMSM : public OpConversionPattern<MSMOp> {
-  explicit ConvertMSM(mlir::MLIRContext *context)
+  explicit ConvertMSM(MLIRContext *context)
       : OpConversionPattern<MSMOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -519,7 +509,7 @@ struct ConvertMSM : public OpConversionPattern<MSMOp> {
 };
 
 struct ConvertScalarDecomp : public OpConversionPattern<ScalarDecompOp> {
-  explicit ConvertScalarDecomp(mlir::MLIRContext *context)
+  explicit ConvertScalarDecomp(MLIRContext *context)
       : OpConversionPattern<ScalarDecompOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -622,7 +612,7 @@ struct ConvertScalarDecomp : public OpConversionPattern<ScalarDecompOp> {
 };
 
 struct ConvertBucketAcc : public OpConversionPattern<BucketAccOp> {
-  explicit ConvertBucketAcc(mlir::MLIRContext *context)
+  explicit ConvertBucketAcc(MLIRContext *context)
       : OpConversionPattern<BucketAccOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -677,8 +667,8 @@ struct ConvertBucketAcc : public OpConversionPattern<BucketAccOp> {
                 Value pointIndex =
                     b1.create<tensor::ExtractOp>(sortedPointIndices, j);
                 Value point = b1.create<tensor::ExtractOp>(points, pointIndex);
-                bucketResult = b1.create<elliptic_curve::AddOp>(
-                    outputType, bucketResult, point);
+                bucketResult =
+                    b1.create<AddOp>(outputType, bucketResult, point);
                 b1.create<scf::YieldOp>(bucketResult);
               });
 
@@ -699,7 +689,7 @@ struct ConvertBucketAcc : public OpConversionPattern<BucketAccOp> {
 };
 
 struct ConvertBucketReduce : public OpConversionPattern<BucketReduceOp> {
-  explicit ConvertBucketReduce(mlir::MLIRContext *context)
+  explicit ConvertBucketReduce(MLIRContext *context)
       : OpConversionPattern<BucketReduceOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -758,7 +748,7 @@ struct ConvertBucketReduce : public OpConversionPattern<BucketReduceOp> {
 };
 
 struct ConvertWindowReduce : public OpConversionPattern<WindowReduceOp> {
-  explicit ConvertWindowReduce(mlir::MLIRContext *context)
+  explicit ConvertWindowReduce(MLIRContext *context)
       : OpConversionPattern<WindowReduceOp>(context) {}
 
   using OpConversionPattern::OpConversionPattern;
@@ -796,11 +786,10 @@ struct ConvertWindowReduce : public OpConversionPattern<WindowReduceOp> {
           Value arithI = b0.create<arith::IndexCastOp>(scalarIntType, i);
           Value exp = b0.create<arith::MulIOp>(c, arithI);
           Value weight = b0.create<field::PowUIOp>(base, exp);
-          Value weightedValue = b0.create<elliptic_curve::ScalarMulOp>(
-              pointType, weight, args[0]);
+          Value weightedValue =
+              b0.create<ScalarMulOp>(pointType, weight, args[0]);
 
-          Value sum = b0.create<elliptic_curve::AddOp>(pointType, args[1],
-                                                       weightedValue);
+          Value sum = b0.create<AddOp>(pointType, args[1], weightedValue);
           b0.create<linalg::YieldOp>(sum);
         });
 
@@ -856,8 +845,8 @@ void EllipticCurveToField::runOnOperation() {
 
   target.addLegalOp<
       // clang-format off
-      elliptic_curve::ExtractOp,
-      elliptic_curve::PointOp
+      ExtractOp,
+      PointOp
       // clang-format on
       >();
 

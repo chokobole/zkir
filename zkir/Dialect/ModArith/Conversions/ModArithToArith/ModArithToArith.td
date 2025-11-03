@@ -12,11 +12,11 @@ def ModArithToArith : Pass<"mod-arith-to-arith", "ModuleOp"> {
     This pass lowers the `mod_arith` dialect to their `arith` equivalents.
   }];
   let dependentDialects = [
-    "mlir::arith::ArithDialect",
-    "mlir::zkir::mod_arith::ModArithDialect",
-    "mlir::scf::SCFDialect",
-    "mlir::math::MathDialect",
-    "mlir::tensor::TensorDialect",
+    "arith::ArithDialect",
+    "zkir::mod_arith::ModArithDialect",
+    "scf::SCFDialect",
+    "math::MathDialect",
+    "tensor::TensorDialect",
   ];
 }
 
