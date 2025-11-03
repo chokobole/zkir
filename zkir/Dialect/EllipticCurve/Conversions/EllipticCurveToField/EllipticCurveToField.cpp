@@ -824,13 +824,13 @@ void EllipticCurveToField::runOnOperation() {
       ConvertPointTypeOp,
       DoubleOp,
       IsZeroOp,
-      linalg::MatvecOp,
       MSMOp,
       NegateOp,
       ScalarDecompOp,
       ScalarMulOp,
       SubOp,
-      WindowReduceOp
+      WindowReduceOp,
+      linalg::MatvecOp
       // clang-format on
       >();
 
@@ -865,8 +865,8 @@ void EllipticCurveToField::runOnOperation() {
       ConvertDouble,
       ConvertIsZero,
       ConvertMSM,
-      ConvertScalarDecomp,
       ConvertNegate,
+      ConvertScalarDecomp,
       ConvertScalarMul,
       ConvertSub,
       ConvertWindowReduce
