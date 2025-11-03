@@ -2,6 +2,7 @@
 
 #include <utility>
 
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/Linalg/Transforms/Transforms.h"
@@ -375,6 +376,52 @@ struct ConvertSub : public OpConversionPattern<SubOp> {
 
     rewriter.replaceOp(op, result);
     return success();
+  }
+};
+
+struct ConvertCmp : public OpConversionPattern<CmpOp> {
+  explicit ConvertCmp(MLIRContext *context)
+      : OpConversionPattern<CmpOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(CmpOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    Value lhs = op.getLhs();
+    Value rhs = op.getRhs();
+    Operation::result_range lhsCoords = extractCoords(b, lhs);
+    Operation::result_range rhsCoords = extractCoords(b, rhs);
+    llvm::SmallVector<Value, 4> cmps;
+    for (auto [lhsCoord, rhsCoord] : llvm::zip(lhsCoords, rhsCoords)) {
+      cmps.push_back(
+          b.create<field::CmpOp>(op.getPredicate(), lhsCoord, rhsCoord));
+    }
+    Value result;
+    if (op.getPredicate() == arith::CmpIPredicate::eq) {
+      result = combineCmps<arith::AndIOp>(b, cmps);
+    } else if (op.getPredicate() == arith::CmpIPredicate::ne) {
+      result = combineCmps<arith::OrIOp>(b, cmps);
+    } else {
+      llvm_unreachable(
+          "Unsupported comparison predicate for EllipticCurve point type");
+    }
+    rewriter.replaceOp(op, result);
+    return success();
+  }
+
+  template <typename Op>
+  Value combineCmps(ImplicitLocOpBuilder &b, ValueRange cmps) const {
+    Op result = b.create<Op>(cmps[0], cmps[1]);
+    if (cmps.size() == 3) {
+      result = b.create<Op>(result, cmps[2]);
+    } else if (cmps.size() == 4) {
+      Op result2 = b.create<Op>(cmps[2], cmps[3]);
+      result = b.create<Op>(result, result2);
+    }
+    return result;
   }
 };
 
@@ -821,6 +868,7 @@ void EllipticCurveToField::runOnOperation() {
       AddOp,
       BucketAccOp,
       BucketReduceOp,
+      CmpOp,
       ConvertPointTypeOp,
       DoubleOp,
       IsZeroOp,
@@ -861,6 +909,7 @@ void EllipticCurveToField::runOnOperation() {
       ConvertAdd,
       ConvertBucketAcc,
       ConvertBucketReduce,
+      ConvertCmp,
       ConvertConvertPointType,
       ConvertDouble,
       ConvertIsZero,

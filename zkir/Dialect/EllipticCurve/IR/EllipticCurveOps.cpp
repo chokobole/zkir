@@ -163,6 +163,17 @@ LogicalResult ScalarMulOp::verify() {
   return emitError() << "wrong output type given point type";
 }
 
+LogicalResult CmpOp::verify() {
+  arith::CmpIPredicate predicate = getPredicate();
+  if (predicate == arith::CmpIPredicate::eq ||
+      predicate == arith::CmpIPredicate::ne) {
+    return success();
+  } else {
+    return emitOpError() << "only 'eq' and 'ne' comparisons are supported for "
+                            "elliptic curve points";
+  }
+}
+
 LogicalResult MSMOp::verify() {
   TensorType scalarsType = getScalars().getType();
   TensorType pointsType = getPoints().getType();
