@@ -13,10 +13,10 @@ def ModArithToArith : Pass<"mod-arith-to-arith", "ModuleOp"> {
   }];
   let dependentDialects = [
     "arith::ArithDialect",
-    "zkir::mod_arith::ModArithDialect",
-    "scf::SCFDialect",
     "math::MathDialect",
+    "scf::SCFDialect",
     "tensor::TensorDialect",
+    "zkir::mod_arith::ModArithDialect",
   ];
 }
 
