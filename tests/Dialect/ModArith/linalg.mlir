@@ -43,3 +43,14 @@ func.func @test_linalg_map(%input : tensor<4x!Zp>, %output: tensor<4x!Zp>) -> te
   // CHECK: return %[[RES]] : [[T]]
   return %res : tensor<4x!Zp>
 }
+
+// CHECK-LABEL: @test_linalg_transpose
+// CHECK-SAME: (%[[INPUT:.*]]: [[INPUT_TYPE:.*]]) -> [[OUTPUT_TYPE:.*]] {
+func.func @test_linalg_transpose(%input : tensor<2x3x!Zp>) -> tensor<3x2x!Zp> {
+  // CHECK: %[[OUTPUT:.*]] = tensor.empty() : [[OUTPUT_TYPE]]
+  %output = tensor.empty() : tensor<3x2x!Zp>
+  // CHECK: %[[RES:.*]] = linalg.transpose ins(%[[INPUT]] : [[INPUT_TYPE]]) outs(%[[OUTPUT]] : [[OUTPUT_TYPE]]) permutation = [1, 0]
+  %res = linalg.transpose ins(%input : tensor<2x3x!Zp>) outs(%output : tensor<3x2x!Zp>) permutation = [1, 0]
+  // CHECK: return %[[RES]] : [[OUTPUT_TYPE]]
+  return %res : tensor<3x2x!Zp>
+}
