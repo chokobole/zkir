@@ -30,10 +30,14 @@ namespace mlir::zkir::field {
 
 void buildFieldToLLVM(OpPassManager &pm, const FieldToLLVMOptions &options) {
   pm.addNestedPass<func::FuncOp>(createLinalgGeneralizeNamedOpsPass());
-  pm.addNestedPass<func::FuncOp>(createConvertElementwiseToLinalgPass());
-  pm.addNestedPass<func::FuncOp>(createLinalgElementwiseOpFusionPass());
+
+  // If we convert elementwise to linalg, tensor folding in ModArithDialect will
+  // not work.
   pm.addPass(createFieldToModArith());
   pm.addPass(createCanonicalizerPass());
+
+  pm.addNestedPass<func::FuncOp>(createConvertElementwiseToLinalgPass());
+  pm.addNestedPass<func::FuncOp>(createLinalgElementwiseOpFusionPass());
 
   pm.addPass(mod_arith::createModArithToArith());
   pm.addPass(createCanonicalizerPass());
