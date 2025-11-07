@@ -169,27 +169,39 @@ Operation *ModArithDialect::materializeConstant(OpBuilder &builder,
 }
 
 OpFoldResult ToMontOp::fold(FoldAdaptor adaptor) {
-  if (auto input = dyn_cast_if_present<IntegerAttr>(adaptor.getInput())) {
-    auto modArithType = cast<ModArithType>(getType());
-    MontgomeryAttr montAttr = modArithType.getMontgomeryAttr();
+  auto modArithType = cast<ModArithType>(getElementTypeOrSelf(getType()));
+  MontgomeryAttr montAttr = modArithType.getMontgomeryAttr();
+  APInt modulus = modArithType.getModulus().getValue();
 
-    APInt modulus = modArithType.getModulus().getValue();
-    APInt resultValue =
-        mulMod(input.getValue(), montAttr.getR().getValue(), modulus);
-    return IntegerAttr::get(input.getType(), resultValue);
+  auto toMontConversion = [montAttr, modulus](APInt value) {
+    return mulMod(value, montAttr.getR().getValue(), modulus);
+  };
+
+  if (auto input = dyn_cast_if_present<IntegerAttr>(adaptor.getInput())) {
+    return IntegerAttr::get(input.getType(),
+                            toMontConversion(input.getValue()));
+  } else if (auto input = dyn_cast_if_present<DenseIntElementsAttr>(
+                 adaptor.getInput())) {
+    return input.mapValues(modArithType.getStorageType(), toMontConversion);
   }
   return {};
 }
 
 OpFoldResult FromMontOp::fold(FoldAdaptor adaptor) {
-  if (auto input = dyn_cast_if_present<IntegerAttr>(adaptor.getInput())) {
-    auto modArithType = cast<ModArithType>(getType());
-    MontgomeryAttr montAttr = modArithType.getMontgomeryAttr();
+  auto modArithType = cast<ModArithType>(getElementTypeOrSelf(getType()));
+  MontgomeryAttr montAttr = modArithType.getMontgomeryAttr();
+  APInt modulus = modArithType.getModulus().getValue();
 
-    APInt modulus = modArithType.getModulus().getValue();
-    APInt resultValue =
-        mulMod(input.getValue(), montAttr.getRInv().getValue(), modulus);
-    return IntegerAttr::get(input.getType(), resultValue);
+  auto fromMontConversion = [montAttr, modulus](APInt value) {
+    return mulMod(value, montAttr.getRInv().getValue(), modulus);
+  };
+
+  if (auto input = dyn_cast_if_present<IntegerAttr>(adaptor.getInput())) {
+    return IntegerAttr::get(input.getType(),
+                            fromMontConversion(input.getValue()));
+  } else if (auto input = dyn_cast_if_present<DenseIntElementsAttr>(
+                 adaptor.getInput())) {
+    return input.mapValues(modArithType.getStorageType(), fromMontConversion);
   }
   return {};
 }
@@ -309,88 +321,145 @@ OpFoldResult MontInverseOp::fold(FoldAdaptor adaptor) {
 }
 
 OpFoldResult AddOp::fold(FoldAdaptor adaptor) {
-  if (auto rhs = dyn_cast_if_present<IntegerAttr>(adaptor.getRhs())) {
-    if (rhs.getValue().isZero()) {
-      return getLhs();
+  APInt rhsValue;
+  if (!matchPattern(adaptor.getRhs(), m_ConstantInt(&rhsValue))) {
+    return {};
+  }
+
+  if (rhsValue.isZero()) {
+    return getLhs();
+  }
+
+  auto modArithType = cast<ModArithType>(getElementTypeOrSelf(getType()));
+  APInt modulus = modArithType.getModulus().getValue();
+  auto addMod = [modulus](const APInt &a, const APInt &b) -> APInt {
+    APInt sum = a + b;
+    if (sum.uge(modulus)) {
+      sum -= modulus;
     }
-    if (auto lhs = dyn_cast_if_present<IntegerAttr>(adaptor.getLhs())) {
-      auto modArithType = cast<ModArithType>(getType());
-      APInt modulus = modArithType.getModulus().getValue();
-      APInt resultValue = lhs.getValue() + rhs.getValue();
-      if (resultValue.uge(modulus)) {
-        resultValue -= modulus;
-      }
-      return IntegerAttr::get(lhs.getType(), resultValue);
-    }
+    return sum;
+  };
+
+  if (auto lhsConst = dyn_cast_if_present<IntegerAttr>(adaptor.getLhs())) {
+    APInt lhsValue = lhsConst.getValue();
+    APInt resultValue = addMod(lhsValue, rhsValue);
+    return IntegerAttr::get(lhsConst.getType(), resultValue);
+  }
+  if (auto denseIntAttr =
+          dyn_cast_if_present<DenseIntElementsAttr>(adaptor.getLhs())) {
+    return denseIntAttr.mapValues(
+        modArithType.getStorageType(),
+        [addMod, rhsValue](APInt value) { return addMod(value, rhsValue); });
   }
   return {};
 }
 
 OpFoldResult SubOp::fold(FoldAdaptor adaptor) {
-  if (auto rhs = dyn_cast_if_present<IntegerAttr>(adaptor.getRhs())) {
-    if (rhs.getValue().isZero()) {
-      return getLhs();
+  APInt rhsValue;
+  if (!matchPattern(adaptor.getRhs(), m_ConstantInt(&rhsValue))) {
+    return {};
+  }
+
+  // x - 0 -> x
+  if (rhsValue.isZero()) {
+    return getLhs();
+  }
+
+  auto modArithType = cast<ModArithType>(getElementTypeOrSelf(getType()));
+  APInt modulus = modArithType.getModulus().getValue();
+  auto subMod = [modulus](const APInt &a, const APInt &b) -> APInt {
+    auto diff = a + modulus - b;
+    if (diff.uge(modulus)) {
+      diff -= modulus;
     }
-    if (auto lhs = dyn_cast_if_present<IntegerAttr>(adaptor.getLhs())) {
-      auto modArithType = cast<ModArithType>(getType());
-      APInt modulus = modArithType.getModulus().getValue();
-      APInt rhsValue = rhs.getValue();
-      APInt lhsValue = lhs.getValue();
-      APInt resultValue;
-      if (lhsValue.uge(rhsValue)) {
-        resultValue = lhsValue - rhsValue;
-      } else {
-        resultValue = modulus - rhsValue + lhsValue;
-      }
-      return IntegerAttr::get(lhs.getType(), resultValue);
-    }
+    return diff;
+  };
+
+  if (auto lhsConst = dyn_cast_if_present<IntegerAttr>(adaptor.getLhs())) {
+    APInt lhsValue = lhsConst.getValue();
+    APInt resultValue = subMod(lhsValue, rhsValue);
+    return IntegerAttr::get(lhsConst.getType(), resultValue);
+  }
+  if (auto denseIntAttr =
+          dyn_cast_if_present<DenseIntElementsAttr>(adaptor.getLhs())) {
+    return denseIntAttr.mapValues(
+        modArithType.getStorageType(),
+        [subMod, rhsValue](APInt value) { return subMod(value, rhsValue); });
   }
   return {};
 }
 
 OpFoldResult MulOp::fold(FoldAdaptor adaptor) {
-  if (auto rhs = dyn_cast_if_present<IntegerAttr>(adaptor.getRhs())) {
-    auto modArithType = cast<ModArithType>(getType());
-    if (rhs.getValue().isZero()) {
-      return getRhs();
-    } else if (!modArithType.isMontgomery() && rhs.getValue().isOne()) {
-      return getLhs();
-    } else if (modArithType.isMontgomery()) {
-      MontgomeryAttr montAttr = modArithType.getMontgomeryAttr();
-      if (montAttr.getR().getValue().eq(rhs.getValue())) {
-        return getLhs();
-      }
-    }
-    if (auto lhs = dyn_cast_if_present<IntegerAttr>(adaptor.getLhs())) {
-      APInt modulus = modArithType.getModulus().getValue();
-      APInt resultValue = mulMod(lhs.getValue(), rhs.getValue(), modulus);
-      if (modArithType.isMontgomery()) {
-        MontgomeryAttr montAttr = modArithType.getMontgomeryAttr();
-        resultValue =
-            mulMod(resultValue, montAttr.getRInv().getValue(), modulus);
-      }
-      return IntegerAttr::get(lhs.getType(), resultValue);
-    }
+  auto modArithType = cast<ModArithType>(getElementTypeOrSelf(getType()));
+  MontgomeryAttr montAttr = modArithType.getMontgomeryAttr();
+  APInt modulus = modArithType.getModulus().getValue();
+  APInt rhsValue;
+  if (!matchPattern(adaptor.getRhs(), m_ConstantInt(&rhsValue))) {
+    return {};
+  }
+
+  // x * 0 -> 0
+  if (rhsValue.isZero()) {
+    return getRhs();
+  }
+
+  // if in Montgomery domain, reduce the constant to standard form
+  if (modArithType.isMontgomery()) {
+    rhsValue = mulMod(rhsValue, montAttr.getRInv().getValue(), modulus);
+  }
+
+  // x * 1 -> x
+  if (rhsValue.isOne()) {
+    return getLhs();
+  }
+
+  if (auto lhsConst = dyn_cast_if_present<IntegerAttr>(adaptor.getLhs())) {
+    APInt lhsValue = lhsConst.getValue();
+    APInt resultValue = mulMod(lhsValue, rhsValue, modulus);
+    return IntegerAttr::get(lhsConst.getType(), resultValue);
+  }
+  if (auto denseIntAttr =
+          dyn_cast_if_present<DenseIntElementsAttr>(adaptor.getLhs())) {
+    return denseIntAttr.mapValues(modArithType.getStorageType(),
+                                  [rhsValue, modulus](APInt value) {
+                                    return mulMod(value, rhsValue, modulus);
+                                  });
   }
   return {};
 }
 
 OpFoldResult MontMulOp::fold(FoldAdaptor adaptor) {
-  if (auto rhs = dyn_cast_if_present<IntegerAttr>(adaptor.getRhs())) {
-    auto modArithType = cast<ModArithType>(getType());
-    if (rhs.getValue().isZero()) {
-      return getRhs();
-    }
-    MontgomeryAttr montAttr = modArithType.getMontgomeryAttr();
-    if (montAttr.getR().getValue().eq(rhs.getValue())) {
-      return getLhs();
-    }
-    if (auto lhs = dyn_cast_if_present<IntegerAttr>(adaptor.getLhs())) {
-      APInt modulus = modArithType.getModulus().getValue();
-      APInt resultValue = mulMod(lhs.getValue(), rhs.getValue(), modulus);
-      resultValue = mulMod(resultValue, montAttr.getRInv().getValue(), modulus);
-      return IntegerAttr::get(lhs.getType(), resultValue);
-    }
+  auto modArithType = cast<ModArithType>(getElementTypeOrSelf(getType()));
+  MontgomeryAttr montAttr = modArithType.getMontgomeryAttr();
+  APInt modulus = modArithType.getModulus().getValue();
+  APInt rhsValue;
+  if (!matchPattern(adaptor.getRhs(), m_ConstantInt(&rhsValue))) {
+    return {};
+  }
+
+  // x * 0 -> 0
+  if (rhsValue.isZero()) {
+    return getRhs();
+  }
+
+  rhsValue = mulMod(rhsValue, montAttr.getRInv().getValue(), modulus);
+
+  // x * 1 -> x
+  if (rhsValue.isOne()) {
+    return getLhs();
+  }
+
+  if (auto lhsConst = dyn_cast_if_present<IntegerAttr>(adaptor.getLhs())) {
+    APInt lhsValue = lhsConst.getValue();
+    APInt resultValue = mulMod(lhsValue, rhsValue, modulus);
+    return IntegerAttr::get(lhsConst.getType(), resultValue);
+  }
+  if (auto denseIntAttr =
+          dyn_cast_if_present<DenseIntElementsAttr>(adaptor.getLhs())) {
+    return denseIntAttr.mapValues(modArithType.getStorageType(),
+                                  [rhsValue, modulus](APInt value) {
+                                    return mulMod(value, rhsValue, modulus);
+                                  });
   }
   return {};
 }
