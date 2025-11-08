@@ -15,7 +15,7 @@ zkir_mlir_cc_import(
     ],
     mlir_src = "poseidon2_packed.mlir",
     zkir_opt_flags = [
-        "-field-to-llvm",
+        "-field-to-llvm=specialize-avx",
         "-convert-vector-to-llvm",
     ],
 )

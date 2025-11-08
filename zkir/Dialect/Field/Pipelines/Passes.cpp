@@ -17,6 +17,7 @@
 #include "mlir/Dialect/MemRef/Transforms/Passes.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Transforms/Passes.h"
+#include "zkir/Dialect/ArithExt/Conversions/SpecializeArithToAVX/SpecializeArithToAVX.h"
 #include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToLLVM/EllipticCurveToLLVM.h"
 #include "zkir/Dialect/Field/Conversions/FieldToModArith/FieldToModArith.h"
 #include "zkir/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.h"
@@ -74,6 +75,9 @@ void buildFieldToLLVM(OpPassManager &pm, const FieldToLLVMOptions &options) {
   pm.addPass(createLowerAffinePass());
   pm.addPass(createFinalizeMemRefToLLVMConversionPass());
   pm.addPass(createSCFToControlFlowPass());
+  if (options.specializeAVX) {
+    pm.addPass(arith_ext::createSpecializeArithToAVX());
+  }
   pm.addPass(createConvertToLLVMPass());
   pm.addPass(createCanonicalizerPass());
 }
