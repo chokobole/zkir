@@ -74,6 +74,72 @@ private:
   }
 };
 
+namespace {
+Value getSignedFormFromCanonical(Value input, TypedAttr modAttr) {
+  auto minOp = input.getDefiningOp<arith::MinUIOp>();
+  if (!minOp) {
+    return {};
+  }
+  auto addOpLhs = minOp.getLhs().getDefiningOp<arith::AddIOp>();
+  auto subOpLhs = minOp.getLhs().getDefiningOp<arith::SubIOp>();
+  auto addOpRhs = minOp.getRhs().getDefiningOp<arith::AddIOp>();
+  auto subOpRhs = minOp.getRhs().getDefiningOp<arith::SubIOp>();
+
+  if (!(addOpLhs && subOpRhs) && !(subOpLhs && addOpRhs)) {
+    return {};
+  }
+
+  arith::AddIOp addOp = addOpLhs ? addOpLhs : addOpRhs;
+  arith::SubIOp subOp = subOpLhs ? subOpLhs : subOpRhs;
+
+  // min(a, a + cmod) -> a
+  // min(a + cmod, a) -> a
+  if (addOp.getLhs() == subOp.getResult()) {
+    if (auto addedConst = addOp.getRhs().getDefiningOp<arith::ConstantOp>()) {
+      if (addedConst.getValue() == modAttr) {
+        return subOp.getResult();
+      } else if (auto splatAttr =
+                     dyn_cast<SplatElementsAttr>(addedConst.getValue())) {
+        if (splatAttr.getSplatValue<IntegerAttr>() == modAttr) {
+          return subOp.getResult();
+        }
+      }
+    }
+  }
+
+  // min(a, a - cmod) -> a - cmod
+  // min(a - cmod, a) -> a - cmod
+  if (addOp.getResult() == subOp.getLhs()) {
+    if (auto subtractedConst =
+            subOp.getRhs().getDefiningOp<arith::ConstantOp>()) {
+      if (subtractedConst.getValue() == modAttr) {
+        return subOp.getResult();
+      } else if (auto splatAttr =
+                     dyn_cast<SplatElementsAttr>(subtractedConst.getValue())) {
+        if (splatAttr.getSplatValue<IntegerAttr>() == modAttr) {
+          return subOp.getResult();
+        }
+      }
+    }
+  }
+
+  // min(a - cmod, a) -> a - cmod
+  if (subOpLhs && addOpRhs && subOpLhs.getLhs() == addOpRhs.getResult()) {
+    if (auto subtractedConst =
+            subOpLhs.getRhs().getDefiningOp<arith::ConstantOp>()) {
+      if (subtractedConst.getValue() == modAttr) {
+        return subOpLhs.getResult();
+      } else if (auto splatAttr =
+                     dyn_cast<SplatElementsAttr>(subtractedConst.getValue())) {
+        if (splatAttr.getSplatValue<IntegerAttr>() == modAttr) {
+          return subOpLhs.getResult();
+        }
+      }
+    }
+  }
+  return {};
+}
+} // namespace
 // A helper function to generate the attribute or type
 // needed to represent the result of mod_arith op as an integer
 // before applying a remainder operation
@@ -239,6 +305,7 @@ struct ConvertMontReduce : public OpConversionPattern<MontReduceOp> {
 
     // If the number of limbs is 1, the 2ʷ is larger than the modulus, so we
     // can use `nInv` instead of `nPrime` and avoid carry check.
+    auto signedOp = adaptor.getLow().getDefiningOp<arith::MulSIExtendedOp>();
     if (numLimbs == 1) {
       TypedAttr nInvAttr = montAttr.getNInv();
       if (isa<ShapedType>(tLow.getType())) {
@@ -248,7 +315,18 @@ struct ConvertMontReduce : public OpConversionPattern<MontReduceOp> {
       // Compute `m` = `tLow` * `nInv` (mod `base`)
       auto m = b.create<arith::MulIOp>(tLow, nInvConst);
       // Compute `m` * `n`
-      auto mN = b.create<arith::MulUIExtendedOp>(m, modConst);
+      Value mNLow, mNHigh;
+      if (signedOp) {
+        auto mN = b.create<arith::MulSIExtendedOp>(m, modConst);
+        mNLow = mN.getLow();
+        mNHigh = mN.getHigh();
+      } else {
+        auto mN = b.create<arith::MulUIExtendedOp>(m, modConst);
+        mNLow = mN.getLow();
+        mNHigh = mN.getHigh();
+      }
+
+      auto sub = b.create<arith::SubIOp>(tHigh, mNHigh);
 
       // Calculate `T` - `mN`, which should result in zeroed low limb since it
       // should be divisible by `base`. The low part subtraction cannot
@@ -257,17 +335,30 @@ struct ConvertMontReduce : public OpConversionPattern<MontReduceOp> {
       // always equal to `mN.getLow()` so we can skip the low subtractions.
       // The reduction result will be just `tHigh` - `mN.getHigh()` mod n.
       if (isa<VectorType>(modAttr.getType())) {
-        auto sub = b.create<arith::SubIOp>(tHigh, mN.getHigh());
         auto addIfUnderflow = b.create<arith::AddIOp>(sub, modConst);
         auto min = b.create<arith::MinUIOp>(sub, addIfUnderflow);
         rewriter.replaceOp(op, min);
       } else {
-        auto underflow = b.create<arith::CmpIOp>(arith::CmpIPredicate::ult,
-                                                 tHigh, mN.getHigh());
-        auto sub = b.create<arith::SubIOp>(tHigh, mN.getHigh());
-        auto addIfUnderflow = b.create<arith::AddIOp>(sub, modConst);
-        auto result = b.create<arith::SelectOp>(underflow, addIfUnderflow, sub);
-        rewriter.replaceOp(op, result);
+        if (signedOp) {
+          Value constZero = b.create<arith::ConstantIntOp>(limbType, 0);
+          if (isa<VectorType>(modAttr.getType())) {
+            constZero =
+                b.create<vector::BroadcastOp>(modAttr.getType(), constZero);
+          }
+          auto isNegative = b.create<arith::CmpIOp>(arith::CmpIPredicate::slt,
+                                                    sub, constZero);
+          auto addIfNegative = b.create<arith::AddIOp>(sub, modConst);
+          auto result =
+              b.create<arith::SelectOp>(isNegative, addIfNegative, sub);
+          rewriter.replaceOp(op, result);
+        } else {
+          auto underflow =
+              b.create<arith::CmpIOp>(arith::CmpIPredicate::ult, tHigh, mNHigh);
+          auto addIfUnderflow = b.create<arith::AddIOp>(sub, modConst);
+          auto result =
+              b.create<arith::SelectOp>(underflow, addIfUnderflow, sub);
+          rewriter.replaceOp(op, result);
+        }
       }
       return success();
     }
@@ -672,8 +763,14 @@ MulExtendedResult squareExtended(ImplicitLocOpBuilder &b, Op op, Value input) {
   const unsigned numLimbs = (modBitWidth + limbWidth - 1) / limbWidth;
 
   if (numLimbs == 1) {
-    auto results = b.create<arith::MulUIExtendedOp>(input, input).getResults();
-
+    // When squaring, we can just use signed multiplication since the sign will
+    // cancel out.
+    auto signedInput = getSignedFormFromCanonical(input, modulusAttr(op));
+    auto results =
+        signedInput
+            ? b.create<arith::MulSIExtendedOp>(signedInput, signedInput)
+                  .getResults()
+            : b.create<arith::MulUIExtendedOp>(input, input).getResults();
     return {results[0], results[1]};
   }
 
