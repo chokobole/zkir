@@ -64,5 +64,5 @@ BENCHMARK_TEMPLATE(BM_permute_10000_benchmark, /*kIsPacked=*/true)
 // Benchmark                     Time             CPU   Iterations
 // ---------------------------------------------------------------
 // permute_10000              14.8 ms         14.8 ms           48
-// permute_packed_10000       13.2 ms         13.2 ms           53
+// permute_packed_10000       12.6 ms         12.6 ms           57
 // NOLINTEND()

@@ -49,6 +49,14 @@ void buildFieldToLLVM(OpPassManager &pm, const FieldToLLVMOptions &options) {
         options.bufferResultsToOutParamsOptions()));
   }
 
+  pm.addPass(affine::createLoopFusionPass());
+  pm.addPass(affine::createRaiseMemrefToAffine());
+  pm.addNestedPass<func::FuncOp>(affine::createLoopUnrollPass());
+  pm.addPass(createInlinerPass());
+  pm.addPass(affine::createAffineScalarReplacementPass());
+  pm.addPass(createCanonicalizerPass());
+  pm.addPass(createLowerAffinePass());
+
   pm.addNestedPass<func::FuncOp>(createConvertLinalgToParallelLoopsPass());
   pm.addPass(createLowerAffinePass());
 
