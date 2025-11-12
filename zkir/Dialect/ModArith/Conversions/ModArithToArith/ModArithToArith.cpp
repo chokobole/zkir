@@ -316,7 +316,9 @@ struct ConvertMontReduce : public OpConversionPattern<MontReduceOp> {
       auto m = b.create<arith::MulIOp>(tLow, nInvConst);
       // Compute `m` * `n`
       Value mNLow, mNHigh;
-      if (signedOp) {
+      // If it was from signed multiplication and also not squaring, use signed
+      // multiplication.
+      if (signedOp && signedOp.getLhs() != signedOp.getRhs()) {
         auto mN = b.create<arith::MulSIExtendedOp>(m, modConst);
         mNLow = mN.getLow();
         mNHigh = mN.getHigh();
@@ -729,13 +731,26 @@ struct ConvertMontMul : public OpConversionPattern<MontMulOp> {
           "MontMulOp with non-Montgomery type is not supported in "
           "ModArithToArith conversion");
     }
-    auto mul =
-        b.create<arith::MulUIExtendedOp>(adaptor.getLhs(), adaptor.getRhs());
-    auto reduced = b.create<MontReduceOp>(getResultModArithType(op),
-                                          mul.getLow(), mul.getHigh());
+    Value signedLhs =
+        getSignedFormFromCanonical(adaptor.getLhs(), modulusAttr(op));
+    Value signedRhs =
+        getSignedFormFromCanonical(adaptor.getRhs(), modulusAttr(op));
+    if (signedLhs && signedRhs) {
+      auto mul = b.create<arith::MulSIExtendedOp>(signedLhs, signedRhs);
+      auto reduced = b.create<mod_arith::MontReduceOp>(
+          getResultModArithType(op), mul.getLow(), mul.getHigh());
+      rewriter.replaceOp(op, reduced);
+      return success();
+    } else {
+      auto mul =
+          b.create<arith::MulUIExtendedOp>(adaptor.getLhs(), adaptor.getRhs());
+      auto reduced = b.create<mod_arith::MontReduceOp>(
+          getResultModArithType(op), mul.getLow(), mul.getHigh());
 
-    rewriter.replaceOp(op, reduced);
-    return success();
+      rewriter.replaceOp(op, reduced);
+      return success();
+    }
+    return failure();
   }
 };
 
