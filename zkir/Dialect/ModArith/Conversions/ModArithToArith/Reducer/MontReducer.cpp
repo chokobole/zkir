@@ -29,10 +29,10 @@ Value MontReducer::getCanonicalFromExtended(Value input) {
     auto min = b_.create<arith::MinUIOp>(sub, input);
     return min.getResult();
   } else {
-    auto ifge =
+    auto iflt =
         b_.create<arith::CmpIOp>(arith::CmpIPredicate::ult, input, cmod);
     auto sub = b_.create<arith::SubIOp>(input, cmod);
-    auto select = b_.create<arith::SelectOp>(ifge, input, sub);
+    auto select = b_.create<arith::SelectOp>(iflt, input, sub);
     return select.getResult();
   }
 }
