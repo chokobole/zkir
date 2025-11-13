@@ -385,7 +385,7 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    arith::IntegerOverflowFlags overflowFlag(arith::IntegerOverflowFlags::nuw &
+    arith::IntegerOverflowFlags overflowFlag(arith::IntegerOverflowFlags::nuw |
                                              arith::IntegerOverflowFlags::nsw);
     auto noOverflow =
         arith::IntegerOverflowFlagsAttr::get(b.getContext(), overflowFlag);
@@ -610,7 +610,7 @@ struct ConvertMac : public OpConversionPattern<MacOp> {
       return success();
     } else {
       arith::IntegerOverflowFlags overflowFlag(
-          arith::IntegerOverflowFlags::nuw & arith::IntegerOverflowFlags::nsw);
+          arith::IntegerOverflowFlags::nuw | arith::IntegerOverflowFlags::nsw);
       auto noOverflow =
           arith::IntegerOverflowFlagsAttr::get(b.getContext(), overflowFlag);
 
@@ -678,7 +678,7 @@ struct MulExtendedResult {
 
 template <typename Op>
 MulExtendedResult squareExtended(ImplicitLocOpBuilder &b, Op op, Value input) {
-  arith::IntegerOverflowFlags overflowFlag(arith::IntegerOverflowFlags::nuw &
+  arith::IntegerOverflowFlags overflowFlag(arith::IntegerOverflowFlags::nuw |
                                            arith::IntegerOverflowFlags::nsw);
   auto noOverflow =
       arith::IntegerOverflowFlagsAttr::get(b.getContext(), overflowFlag);

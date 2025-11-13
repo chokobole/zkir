@@ -142,7 +142,7 @@ Value MontReducer::reduceMultiLimb(Value tLow, Value tHigh) {
   auto bInvConst = b_.create<arith::ConstantOp>(bInvAttr);
   auto oneConst = b_.create<arith::ConstantOp>(oneAttr);
 
-  arith::IntegerOverflowFlags overflowFlag(arith::IntegerOverflowFlags::nuw &
+  arith::IntegerOverflowFlags overflowFlag(arith::IntegerOverflowFlags::nuw |
                                            arith::IntegerOverflowFlags::nsw);
   auto noOverflow =
       arith::IntegerOverflowFlagsAttr::get(b_.getContext(), overflowFlag);
