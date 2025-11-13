@@ -108,7 +108,7 @@ func.func @test_lower_add_vec(%lhs : !Zpv, %rhs : !Zpv) -> !Zpv {
 func.func @test_lower_double(%input : !Zp) -> !Zp {
   // CHECK-NOT: mod_arith.double
   // CHECK: %[[ONE:.*]] = arith.constant 1 : [[T]]
-  // CHECK: %[[SHL:.*]] = arith.shli %[[INPUT]], %[[ONE]] : [[T]]
+  // CHECK: %[[SHL:.*]] = arith.shli %[[INPUT]], %[[ONE]] overflow<nsw, nuw> : [[T]]
   // CHECK: %[[CMOD:.*]] = arith.constant 65537 : [[T]]
   // CHECK: %[[IFLT:.*]] = arith.cmpi ult, %[[SHL]], %[[CMOD]] : [[T]]
   // CHECK: %[[SUB:.*]] = arith.subi %[[SHL]], %[[CMOD]] : [[T]]

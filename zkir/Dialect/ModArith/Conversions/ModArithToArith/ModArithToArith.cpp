@@ -408,10 +408,13 @@ struct ConvertDouble : public OpConversionPattern<DoubleOp> {
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
+    auto noOverflow = arith::IntegerOverflowFlagsAttr::get(
+        b.getContext(),
+        arith::IntegerOverflowFlags::nuw | arith::IntegerOverflowFlags::nsw);
     TypedAttr modAttr = modulusAttr(op);
     Value one =
         createScalarOrSplatConstant(b, b.getLoc(), modAttr.getType(), 1);
-    auto shifted = b.create<arith::ShLIOp>(adaptor.getInput(), one);
+    auto shifted = b.create<arith::ShLIOp>(adaptor.getInput(), one, noOverflow);
     MontReducer montReducer(b, getResultModArithType(op));
     auto result = montReducer.getCanonicalFromExtended(shifted);
     rewriter.replaceOp(op, result);
