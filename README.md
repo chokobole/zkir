@@ -69,6 +69,10 @@ performance and correctness across a wide range of devices.
 - 🟡 Extension Field Operations
   - ✅ Quadratic Extension Field Operations
 
+### [TensorExt](/zkir/Dialect/TensorExt/IR/TensorExtOps.td)
+
+- ✅ Bit-reverse Canonicalization
+
 ### [Elliptic Curve](/zkir/Dialect/EllipticCurve/IR/EllipticCurveOps.td)
 
 - ✅ Group Operations(Add, Double, Sub, Negate, ScalarMul, ...)
