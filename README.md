@@ -55,7 +55,7 @@ performance and correctness across a wide range of devices.
 - ✅ Fast Montgomery Multiplication
 - ✅ Bernstein-Yang Batch Inverse
 - 🟡 Specialized SIMD
-  - 🟡 AVX512
+  - ✅ AVX512
   - 🟡 ARM Neon
   - ⚪ AVX2
 - ⚪ DataFlow Analysis
