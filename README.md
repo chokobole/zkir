@@ -55,7 +55,7 @@ performance and correctness across a wide range of devices.
 - ✅ Fast Montgomery Multiplication
 - ✅ Bernstein-Yang Batch Inverse
 - 🟡 Specialized SIMD
-  - 🟡 AVX512
+  - ✅ AVX512
   - 🟡 ARM Neon
   - ⚪ AVX2
 - ⚪ DataFlow Analysis
@@ -68,6 +68,10 @@ performance and correctness across a wide range of devices.
 - ⚪ Binary Field Operations
 - 🟡 Extension Field Operations
   - ✅ Quadratic Extension Field Operations
+
+### [TensorExt](/zkir/Dialect/TensorExt/IR/TensorExtOps.td)
+
+- ✅ Bit-reverse Canonicalization
 
 ### [Elliptic Curve](/zkir/Dialect/EllipticCurve/IR/EllipticCurveOps.td)
 

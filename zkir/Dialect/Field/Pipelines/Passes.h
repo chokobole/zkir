@@ -16,6 +16,11 @@ struct FieldToLLVMOptions : public PassPipelineOptions<FieldToLLVMOptions> {
       llvm::cl::desc("Lowers parallel loops to OpenMP dialect"),
       llvm::cl::init(false)};
 
+  PassOptions::Option<bool> specializeAVX{
+      *this, "specialize-avx",
+      llvm::cl::desc("Specialize arithmetic operations to AVX instructions"),
+      llvm::cl::init(false)};
+
   PassOptions::Option<bool> bufferizeFunctionBoundaries{
       *this, "bufferize-function-boundaries",
       llvm::cl::desc("Bufferize function boundaries"), llvm::cl::init(false)};

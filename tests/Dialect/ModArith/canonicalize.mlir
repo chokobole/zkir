@@ -7,6 +7,18 @@
 // Constant Folding
 //===----------------------------------------------------------------------===//
 
+// CHECK-LABEL: @test_bitcast_fold
+// CHECK-SAME: () -> [[T:.*]] {
+func.func @test_bitcast_fold() -> !Zp {
+  // CHECK: %[[C:.*]] = mod_arith.constant 3 : [[T]]
+  // CHECK: return %[[C]] : [[T]]
+  %c1 = arith.constant 1: index
+  %0 = arith.constant dense<[2, 3]> : tensor<2xi32>
+  %1 = mod_arith.bitcast %0: tensor<2xi32> -> tensor<2x!Zp>
+  %2 = tensor.extract %1[%c1] : tensor<2x!Zp>
+  return %2 : !Zp
+}
+
 // CHECK-LABEL: @test_double_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_double_fold() -> !Zp {
@@ -47,8 +59,42 @@ func.func @test_from_mont_fold() -> !Zp {
   %0 = mod_arith.constant 2 : !Zpm
   %1 = mod_arith.from_mont %0 : !Zp
   // CHECK-NOT: mod_arith.from_mont
-  // CHECK: return %[[C]]
+  // CHECK: return %[[C]] : [[T]]
   return %1 : !Zp
+}
+
+// CHECK-LABEL: @test_from_mont_tensor_fold
+// CHECK-SAME: () -> [[T:.*]] {
+func.func @test_from_mont_tensor_fold() -> tensor<4x!Zp> {
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<[16, 32, 11, 27]> : [[T]]
+  %0 = mod_arith.constant dense<[1, 2, 3, 4]> : tensor<4xi32> : tensor<4x!Zpm>
+  %1 = mod_arith.from_mont %0 : tensor<4x!Zp>
+  // CHECK-NOT: mod_arith.from_mont
+  // CHECK: return %[[C]] : [[T]]
+  return %1 : tensor<4x!Zp>
+}
+
+
+// CHECK-LABEL: @test_to_mont_fold
+// CHECK-SAME: () -> [[T:.*]] {
+func.func @test_to_mont_fold() -> !Zpm {
+  // CHECK: %[[C:.*]] = mod_arith.constant 2 : [[T]]
+  %0 = mod_arith.constant 32 : !Zp
+  %1 = mod_arith.to_mont %0 : !Zpm
+  // CHECK-NOT: mod_arith.from_mont
+  // CHECK: return %[[C]] : [[T]]
+  return %1 : !Zpm
+}
+
+// CHECK-LABEL: @test_to_mont_tensor_fold
+// CHECK-SAME: () -> [[T:.*]] {
+func.func @test_to_mont_tensor_fold() -> tensor<4x!Zpm> {
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<[1, 2, 3, 4]> : [[T]]
+  %0 = mod_arith.constant dense<[16, 32, 11, 27]> : tensor<4xi32> : tensor<4x!Zp>
+  %1 = mod_arith.to_mont %0 : tensor<4x!Zpm>
+  // CHECK-NOT: mod_arith.to_mont
+  // CHECK: return %[[C]] : [[T]]
+  return %1 : tensor<4x!Zpm>
 }
 
 // CHECK-LABEL: @test_cmp_fold

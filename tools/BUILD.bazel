@@ -23,6 +23,7 @@ cc_binary(
     name = "zkir-opt",
     srcs = ["zkir-opt.cpp"],
     deps = [
+        "//zkir/Dialect/ArithExt/Conversions/SpecializeArithToAVX",
         "//zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField",
         "//zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToLLVM",
         "//zkir/Dialect/EllipticCurve/IR:EllipticCurve",

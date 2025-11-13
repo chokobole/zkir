@@ -4,11 +4,13 @@
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Arith/Utils/Utils.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SparseTensor/IR/SparseTensor.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
+#include "mlir/Dialect/Vector/IR/VectorOps.h"
 #include "mlir/IR/BuiltinAttributeInterfaces.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -24,10 +26,12 @@
 #include "zkir/Dialect/EllipticCurve/IR/EllipticCurveOps.h"
 #include "zkir/Dialect/Field/IR/FieldOps.h"
 #include "zkir/Dialect/ModArith/Conversions/ModArithToArith/Inverter/BYInverter.h"
+#include "zkir/Dialect/ModArith/Conversions/ModArithToArith/Reducer/MontReducer.h"
 #include "zkir/Dialect/ModArith/IR/ModArithDialect.h"
 #include "zkir/Dialect/ModArith/IR/ModArithOps.h"
 #include "zkir/Dialect/ModArith/IR/ModArithTypes.h"
 #include "zkir/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "zkir/Utils/APIntUtils.h"
 #include "zkir/Utils/ConversionUtils.h"
 #include "zkir/Utils/ShapedTypeConverter.h"
 
@@ -73,17 +77,83 @@ private:
   }
 };
 
+namespace {
+Value getSignedFormFromCanonical(Value input, TypedAttr modAttr) {
+  auto minOp = input.getDefiningOp<arith::MinUIOp>();
+  if (!minOp) {
+    return {};
+  }
+  auto addOpLhs = minOp.getLhs().getDefiningOp<arith::AddIOp>();
+  auto subOpLhs = minOp.getLhs().getDefiningOp<arith::SubIOp>();
+  auto addOpRhs = minOp.getRhs().getDefiningOp<arith::AddIOp>();
+  auto subOpRhs = minOp.getRhs().getDefiningOp<arith::SubIOp>();
+
+  if (!(addOpLhs && subOpRhs) && !(subOpLhs && addOpRhs)) {
+    return {};
+  }
+
+  arith::AddIOp addOp = addOpLhs ? addOpLhs : addOpRhs;
+  arith::SubIOp subOp = subOpLhs ? subOpLhs : subOpRhs;
+
+  // min(a, a + cmod) -> a
+  // min(a + cmod, a) -> a
+  if (addOp.getLhs() == subOp.getResult()) {
+    if (auto addedConst = addOp.getRhs().getDefiningOp<arith::ConstantOp>()) {
+      if (addedConst.getValue() == modAttr) {
+        return subOp.getResult();
+      } else if (auto splatAttr =
+                     dyn_cast<SplatElementsAttr>(addedConst.getValue())) {
+        if (splatAttr.getSplatValue<IntegerAttr>() == modAttr) {
+          return subOp.getResult();
+        }
+      }
+    }
+  }
+
+  // min(a, a - cmod) -> a - cmod
+  // min(a - cmod, a) -> a - cmod
+  if (addOp.getResult() == subOp.getLhs()) {
+    if (auto subtractedConst =
+            subOp.getRhs().getDefiningOp<arith::ConstantOp>()) {
+      if (subtractedConst.getValue() == modAttr) {
+        return subOp.getResult();
+      } else if (auto splatAttr =
+                     dyn_cast<SplatElementsAttr>(subtractedConst.getValue())) {
+        if (splatAttr.getSplatValue<IntegerAttr>() == modAttr) {
+          return subOp.getResult();
+        }
+      }
+    }
+  }
+
+  // min(a - cmod, a) -> a - cmod
+  if (subOpLhs && addOpRhs && subOpLhs.getLhs() == addOpRhs.getResult()) {
+    if (auto subtractedConst =
+            subOpLhs.getRhs().getDefiningOp<arith::ConstantOp>()) {
+      if (subtractedConst.getValue() == modAttr) {
+        return subOpLhs.getResult();
+      } else if (auto splatAttr =
+                     dyn_cast<SplatElementsAttr>(subtractedConst.getValue())) {
+        if (splatAttr.getSplatValue<IntegerAttr>() == modAttr) {
+          return subOpLhs.getResult();
+        }
+      }
+    }
+  }
+  return {};
+}
+} // namespace
 // A helper function to generate the attribute or type
 // needed to represent the result of mod_arith op as an integer
 // before applying a remainder operation
 template <typename Op>
-static TypedAttr modulusAttr(Op op, bool mul = false) {
+static TypedAttr modulusAttr(Op op, bool extended = false) {
   auto type = op.getType();
   auto modArithType = getResultModArithType(op);
   APInt modulus = modArithType.getModulus().getValue();
 
   auto width = modulus.getBitWidth();
-  if (mul) {
+  if (extended) {
     width *= 2;
   }
 
@@ -99,8 +169,8 @@ static TypedAttr modulusAttr(Op op, bool mul = false) {
 
 // used for extui/trunci
 template <typename Op>
-static inline Type modulusType(Op op, bool mul = false) {
-  return modulusAttr(op, mul).getType();
+static inline Type modulusType(Op op, bool extended = false) {
+  return modulusAttr(op, extended).getType();
 }
 
 struct ConvertBitcast : public OpConversionPattern<BitcastOp> {
@@ -174,142 +244,15 @@ struct ConvertMontReduce : public OpConversionPattern<MontReduceOp> {
   matchAndRewrite(MontReduceOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    TypedAttr modAttr = modulusAttr(op);
 
     // `T` is the operand (e.g. the result of a multiplication, twice the
     // bitwidth of modulus).
     Value tLow = adaptor.getLow();
     Value tHigh = adaptor.getHigh();
 
-    // Extract Montgomery constants:
-    // `nPrime` = -n⁻¹ mod R, where R is the base and n is the modulus
-    // `bInv` = b⁻¹ mod n = (2ʷ)⁻¹ mod n, where w is the word size (e.g. 64)
-    MontgomeryAttr montAttr = getResultModArithType(op).getMontgomeryAttr();
-    TypedAttr nPrimeAttr = montAttr.getNPrime();
-    TypedAttr bInvAttr = montAttr.getBInv();
-
-    // Retrieve the modulus bitwidth.
-    const unsigned modBitWidth =
-        cast<IntegerType>(getElementTypeOrSelf(modAttr.getType())).getWidth();
-
-    // Compute number of limbs.
-    const unsigned limbWidth = nPrimeAttr.getType().getIntOrFloatBitWidth();
-    const unsigned numLimbs = (modBitWidth + limbWidth - 1) / limbWidth;
-
-    // Prepare constants for limb operations.
-    Type limbType = nPrimeAttr.getType();
-    TypedAttr limbWidthAttr =
-        b.getIntegerAttr(getElementTypeOrSelf(tLow), limbWidth);
-    TypedAttr limbMaskAttr =
-        b.getIntegerAttr(getElementTypeOrSelf(tLow),
-                         APInt::getAllOnes(limbWidth).zext(modBitWidth));
-    TypedAttr limbShiftAttr = b.getIntegerAttr(getElementTypeOrSelf(tLow),
-                                               (numLimbs - 1) * limbWidth);
-    TypedAttr oneAttr = b.getIntegerAttr(getElementTypeOrSelf(tLow), 1);
-
-    arith::IntegerOverflowFlags overflowFlag(arith::IntegerOverflowFlags::nuw &
-                                             arith::IntegerOverflowFlags::nsw);
-    auto noOverflow =
-        arith::IntegerOverflowFlagsAttr::get(b.getContext(), overflowFlag);
-
-    // Splat the attributes to match the shape of `tLow`.
-    if (auto shapedType = dyn_cast<ShapedType>(tLow.getType())) {
-      limbType = shapedType.cloneWith(std::nullopt, limbType);
-      nPrimeAttr =
-          SplatElementsAttr::get(cast<ShapedType>(limbType), nPrimeAttr);
-      limbWidthAttr = SplatElementsAttr::get(shapedType, limbWidthAttr);
-      limbMaskAttr = SplatElementsAttr::get(shapedType, limbMaskAttr);
-      limbShiftAttr = SplatElementsAttr::get(shapedType, limbShiftAttr);
-      modAttr = isa<VectorType>(modAttr.getType())
-                    ? modAttr
-                    : SplatElementsAttr::get(shapedType, modAttr);
-      bInvAttr = SplatElementsAttr::get(shapedType, bInvAttr);
-      oneAttr = SplatElementsAttr::get(shapedType, oneAttr);
-    }
-
-    // Create constants for the Montgomery reduction.
-    auto nPrimeConst = b.create<arith::ConstantOp>(nPrimeAttr);
-    auto limbWidthConst = b.create<arith::ConstantOp>(limbWidthAttr);
-    auto limbMaskConst = b.create<arith::ConstantOp>(limbMaskAttr);
-    auto limbShiftConst = b.create<arith::ConstantOp>(limbShiftAttr);
-    auto modConst = b.create<arith::ConstantOp>(modAttr);
-    auto bInvConst = b.create<arith::ConstantOp>(bInvAttr);
-    auto oneConst = b.create<arith::ConstantOp>(oneAttr);
-
-    // If the number of limbs is 1, the 2ʷ is larger than the modulus, so we
-    // can use `nInv` instead of `nPrime` and avoid carry check.
-    if (numLimbs == 1) {
-      TypedAttr nInvAttr = montAttr.getNInv();
-      if (isa<ShapedType>(tLow.getType())) {
-        nInvAttr = SplatElementsAttr::get(cast<ShapedType>(limbType), nInvAttr);
-      }
-      auto nInvConst = b.create<arith::ConstantOp>(nInvAttr);
-      // Compute `m` = `tLow` * `nInv` (mod `base`)
-      auto m = b.create<arith::MulIOp>(tLow, nInvConst);
-      // Compute `m` * `n`
-      auto mN = b.create<arith::MulUIExtendedOp>(m, modConst);
-
-      // Calculate `T` - `mN`, which should result in zeroed low limb since it
-      // should be divisible by `base`. The low part subtraction cannot
-      // underflow since if `tLow` < `mN.getLow()`, then `tLow` -
-      // `mN.getLow()` cannot result in zero low limb. This means, `tLow` is
-      // always equal to `mN.getLow()` so we can skip the low subtractions.
-      // The reduction result will be just `tHigh` - `mN.getHigh()` mod n.
-      auto underflow = b.create<arith::CmpIOp>(arith::CmpIPredicate::ult, tHigh,
-                                               mN.getHigh());
-      auto sub = b.create<arith::SubIOp>(tHigh, mN.getHigh());
-      auto addIfUnderflow = b.create<arith::AddIOp>(sub, modConst);
-      auto result = b.create<arith::SelectOp>(underflow, addIfUnderflow, sub);
-      rewriter.replaceOp(op, result);
-      return success();
-    }
-
-    // Because the number of limbs (`numLimbs`) is known at compile time, we can
-    // unroll the loop as a straight-line chain of operations.
-    // The result of the `i`th iteration is `T` * b⁻¹ mod n.
-    for (unsigned i = 0; i < numLimbs - 1; ++i) {
-      // Shift `T` right by `limbWidth`.
-      Value freeCoeff = b.create<arith::AndIOp>(tLow, limbMaskConst);
-      tLow = b.create<arith::ShRUIOp>(tLow, limbWidthConst);
-      Value tHighLowerLimb = b.create<arith::ShLIOp>(tHigh, limbShiftConst);
-      tLow = b.create<arith::OrIOp>(tLow, tHighLowerLimb);
-      tHigh = b.create<arith::ShRUIOp>(tHigh, limbWidthConst);
-
-      // Compute `m` = `freeCoeff` * (b⁻¹ mod n) and add to `T`.
-      auto m = b.create<arith::MulUIExtendedOp>(freeCoeff, bInvConst);
-      tLow = b.create<arith::AddIOp>(tLow, m.getLow());
-      Value carry =
-          b.create<arith::CmpIOp>(arith::CmpIPredicate::ult, tLow, m.getLow());
-      tHigh = b.create<arith::AddIOp>(tHigh, m.getHigh(), noOverflow);
-      auto tHighPlusOne = b.create<arith::AddIOp>(tHigh, oneConst, noOverflow);
-      tHigh = b.create<arith::SelectOp>(carry, tHighPlusOne, tHigh);
-    }
-    // The last iteration is the same as normal Montgomery reduction.
-    Value freeCoeff = b.create<arith::TruncIOp>(limbType, tLow);
-    // Compute `m` = `freeCoeff` * `nPrime` (mod `base`)
-    auto m = b.create<arith::MulIOp>(freeCoeff, nPrimeConst);
-    // Compute `m` * `n`
-    Value mExt = b.create<arith::ExtUIOp>(tLow.getType(), m);
-    auto mN = b.create<arith::MulUIExtendedOp>(modConst, mExt);
-    // Add the product to `T`.
-    tLow = b.create<arith::AddIOp>(tLow, mN.getLow());
-    auto carry =
-        b.create<arith::CmpIOp>(arith::CmpIPredicate::ult, tLow, mN.getLow());
-    tHigh = b.create<arith::AddIOp>(tHigh, mN.getHigh(), noOverflow);
-    auto tHighPlusOne = b.create<arith::AddIOp>(tHigh, oneConst, noOverflow);
-    tHigh = b.create<arith::SelectOp>(carry, tHighPlusOne, tHigh);
-    // Shift right `T` by `limbWidth` to discard the zeroed limb.
-    tLow = b.create<arith::ShRUIOp>(tLow, limbWidthConst);
-    tHigh = b.create<arith::ShLIOp>(tHigh, limbShiftConst);
-    tLow = b.create<arith::OrIOp>(tLow, tHigh);
-
-    // Final conditional subtraction: if (`tLow` >= `modulus`) then subtract
-    // `modulus`.
-    auto cmp =
-        b.create<arith::CmpIOp>(arith::CmpIPredicate::uge, tLow, modConst);
-    auto sub = b.create<arith::SubIOp>(tLow, modConst, noOverflow);
-    auto result = b.create<arith::SelectOp>(cmp, sub, tLow);
-
+    // Perform Montgomery reduction using MontReducer helper class.
+    MontReducer reducer(b, getResultModArithType(op));
+    Value result = reducer.reduce(tLow, tHigh);
     rewriter.replaceOp(op, result);
     return success();
   }
@@ -326,21 +269,21 @@ struct ConvertToMont : public OpConversionPattern<ToMontOp> {
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    ModArithType resultType = getResultModArithType(op);
-    MontgomeryAttr montAttr = resultType.getMontgomeryAttr();
-    TypedAttr rSquaredAttr = montAttr.getRSquared();
-    if (auto shapedType = dyn_cast<ShapedType>(op.getType())) {
-      auto intShapedType = shapedType.cloneWith(
-          std::nullopt, typeConverter->convertType(resultType));
-      rSquaredAttr = SplatElementsAttr::get(intShapedType, rSquaredAttr);
-    }
+    TypedAttr modAttr = modulusAttr(op);
+    ModArithType modType = getResultModArithType(op);
+    MontgomeryAttr montAttr = modType.getMontgomeryAttr();
+    APInt rSquaredInt = montAttr.getRSquared().getValue();
+    Value rSquaredConst = createScalarOrSplatConstant(
+        b, b.getLoc(), modAttr.getType(), rSquaredInt);
+
     // x * R = REDC(x * rSquared)
-    auto rSquared = b.create<arith::ConstantOp>(rSquaredAttr);
+    Value rSquared =
+        b.create<mod_arith::BitcastOp>(op.getType(), rSquaredConst);
+    Value bitcast =
+        b.create<mod_arith::BitcastOp>(op.getType(), adaptor.getInput());
     auto product =
-        b.create<arith::MulUIExtendedOp>(adaptor.getInput(), rSquared);
-    auto reduced =
-        b.create<MontReduceOp>(resultType, product.getLow(), product.getHigh());
-    rewriter.replaceOp(op, reduced);
+        b.create<mod_arith::MontMulOp>(op.getType(), bitcast, rSquared);
+    rewriter.replaceOp(op, product);
     return success();
   }
 };
@@ -356,19 +299,11 @@ struct ConvertFromMont : public OpConversionPattern<FromMontOp> {
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    ModArithType resultType = getResultModArithType(op);
-    TypedAttr zeroAttr =
-        b.getIntegerAttr(typeConverter->convertType(resultType), 0);
-    if (auto shapedType = dyn_cast<ShapedType>(op.getType())) {
-      auto intShapedType = shapedType.cloneWith(
-          std::nullopt, typeConverter->convertType(resultType));
-      zeroAttr = SplatElementsAttr::get(intShapedType, zeroAttr);
-    }
-
     // x * R⁻¹ = REDC(x)
-    auto zeroHighConst = b.create<arith::ConstantOp>(zeroAttr);
+    Value zeroHighConst = createScalarOrSplatConstant(
+        b, b.getLoc(), modulusAttr(op).getType(), 0);
     auto reduced =
-        b.create<MontReduceOp>(resultType, adaptor.getInput(), zeroHighConst);
+        b.create<MontReduceOp>(op.getType(), op.getInput(), zeroHighConst);
 
     rewriter.replaceOp(op, reduced);
     return success();
@@ -386,9 +321,9 @@ struct ConvertInverse : public OpConversionPattern<InverseOp> {
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    ModArithType resultType = getResultModArithType(op);
-    if (resultType.isMontgomery()) {
-      auto result = b.create<MontInverseOp>(resultType, op.getInput());
+    ModArithType modType = getResultModArithType(op);
+    if (modType.isMontgomery()) {
+      auto result = b.create<MontInverseOp>(op.getType(), op.getInput());
       rewriter.replaceOp(op, result);
       return success();
     }
@@ -417,8 +352,8 @@ struct ConvertMontInverse : public OpConversionPattern<MontInverseOp> {
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    ModArithType resultType = getResultModArithType(op);
-    if (!resultType.isMontgomery()) {
+    ModArithType modType = getResultModArithType(op);
+    if (!modType.isMontgomery()) {
       return op->emitError(
           "MontInverseOp with non-Montgomery type is not supported in "
           "ModArithToArith conversion");
@@ -454,15 +389,11 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
                                              arith::IntegerOverflowFlags::nsw);
     auto noOverflow =
         arith::IntegerOverflowFlagsAttr::get(b.getContext(), overflowFlag);
-
-    auto cmod = b.create<arith::ConstantOp>(modulusAttr(op));
     auto add =
         b.create<arith::AddIOp>(adaptor.getLhs(), adaptor.getRhs(), noOverflow);
-    auto ifge = b.create<arith::CmpIOp>(arith::CmpIPredicate::uge, add, cmod);
-    auto sub = b.create<arith::SubIOp>(add, cmod, noOverflow);
-    auto select = b.create<arith::SelectOp>(ifge, sub, add);
-
-    rewriter.replaceOp(op, select);
+    MontReducer montReducer(b, getResultModArithType(op));
+    auto result = montReducer.getCanonicalFromExtended(add);
+    rewriter.replaceOp(op, result);
     return success();
   }
 };
@@ -478,18 +409,13 @@ struct ConvertDouble : public OpConversionPattern<DoubleOp> {
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    ModArithType modType = getResultModArithType(op);
-    auto intType = modType.getStorageType();
-
-    Value cmod = b.create<arith::ConstantOp>(modulusAttr(op));
-    Value one = b.create<arith::ConstantIntOp>(intType, 1);
+    TypedAttr modAttr = modulusAttr(op);
+    Value one =
+        createScalarOrSplatConstant(b, b.getLoc(), modAttr.getType(), 1);
     auto shifted = b.create<arith::ShLIOp>(adaptor.getInput(), one);
-    auto ifge =
-        b.create<arith::CmpIOp>(arith::CmpIPredicate::uge, shifted, cmod);
-    auto sub = b.create<arith::SubIOp>(shifted, cmod);
-    auto select = b.create<arith::SelectOp>(ifge, sub, shifted);
-
-    rewriter.replaceOp(op, select);
+    MontReducer montReducer(b, getResultModArithType(op));
+    auto result = montReducer.getCanonicalFromExtended(shifted);
+    rewriter.replaceOp(op, result);
     return success();
   }
 };
@@ -504,20 +430,10 @@ struct ConvertSub : public OpConversionPattern<SubOp> {
   matchAndRewrite(SubOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    arith::IntegerOverflowFlags overflowFlag(arith::IntegerOverflowFlags::nuw &
-                                             arith::IntegerOverflowFlags::nsw);
-    auto noOverflow =
-        arith::IntegerOverflowFlagsAttr::get(b.getContext(), overflowFlag);
-
-    auto cmod = b.create<arith::ConstantOp>(modulusAttr(op));
-    auto sub =
-        b.create<arith::SubIOp>(adaptor.getLhs(), adaptor.getRhs(), noOverflow);
-    auto add = b.create<arith::AddIOp>(sub, cmod, noOverflow);
-    auto ifge = b.create<arith::CmpIOp>(arith::CmpIPredicate::uge,
-                                        adaptor.getLhs(), adaptor.getRhs());
-    auto select = b.create<arith::SelectOp>(ifge, sub, add);
-
-    rewriter.replaceOp(op, select);
+    MontReducer montReducer(b, getResultModArithType(op));
+    auto result =
+        montReducer.getCanonicalDiff(adaptor.getLhs(), adaptor.getRhs());
+    rewriter.replaceOp(op, result);
     return success();
   }
 };
@@ -533,19 +449,138 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    ModArithType resultType = getResultModArithType(op);
-    if (resultType.isMontgomery()) {
-      auto result = b.create<MontMulOp>(resultType, op.getLhs(), op.getRhs());
+    ModArithType modType = getResultModArithType(op);
+    TypedAttr modAttr = modulusAttr(op);
+    APInt modulus = modType.getModulus().getValue();
+    MontgomeryAttr montAttr = modType.getMontgomeryAttr();
+
+    Value zero =
+        createScalarOrSplatConstant(b, b.getLoc(), modAttr.getType(), 0);
+    Value one =
+        createScalarOrSplatConstant(b, b.getLoc(), modAttr.getType(), 1);
+    Value four =
+        createScalarOrSplatConstant(b, b.getLoc(), modAttr.getType(), 4);
+    Value cmod = b.create<arith::ConstantOp>(modAttr);
+    if (auto constRhs = op.getRhs().getDefiningOp<ConstantOp>()) {
+      IntegerAttr rhsInt =
+          dyn_cast_if_present<IntegerAttr>(constRhs.getValue());
+      if (auto denseIntAttr =
+              dyn_cast_if_present<SplatElementsAttr>(constRhs.getValue())) {
+        rhsInt = denseIntAttr.getSplatValue<IntegerAttr>();
+      }
+      if (rhsInt) {
+        IntegerAttr rhsStd, negRhsStd;
+        if (modType.isMontgomery()) {
+          IntegerAttr rInv = montAttr.getRInv();
+          rhsStd = IntegerAttr::get(
+              rhsInt.getType(),
+              mulMod(rhsInt.getValue(), rInv.getValue(), modulus));
+          negRhsStd =
+              IntegerAttr::get(rhsInt.getType(), modulus - rhsStd.getValue());
+        } else {
+          rhsStd = rhsInt;
+          negRhsStd =
+              IntegerAttr::get(rhsInt.getType(), modulus - rhsInt.getValue());
+        }
+
+        // modulus = k * 2^twoAdicity + 1
+        size_t twoAdicity = (modulus - 1).countTrailingZeros();
+        APInt k = modulus.lshr(twoAdicity);
+        Value kConst =
+            createScalarOrSplatConstant(b, b.getLoc(), modAttr.getType(), k);
+
+        for (size_t i = 0; i < montAttr.getInvTwoPowers().size(); i++) {
+          if (rhsStd == montAttr.getInvTwoPowers()[i] ||
+              negRhsStd == montAttr.getInvTwoPowers()[i]) {
+            bool isNegated = negRhsStd == montAttr.getInvTwoPowers()[i];
+            if (i == 0) {
+              // Efficient halve: if odd, add modulus, then shift right by 1
+              Value lhs = adaptor.getLhs();
+              auto lhsIsOdd = b.create<arith::AndIOp>(lhs, one);
+              auto needsAdd = b.create<arith::CmpIOp>(arith::CmpIPredicate::ne,
+                                                      lhsIsOdd, zero);
+              auto halvedInput = b.create<arith::SelectOp>(
+                  needsAdd, b.create<arith::AddIOp>(lhs, cmod), lhs);
+              auto halved = b.create<arith::ShRUIOp>(halvedInput, one);
+              auto negatedHalved = b.create<arith::SubIOp>(cmod, halved);
+              rewriter.replaceOp(op, isNegated ? negatedHalved : halved);
+              return success();
+            } else {
+              size_t invDegree = i + 1;
+              Value invDegreeConst = createScalarOrSplatConstant(
+                  b, b.getLoc(), modAttr.getType(), invDegree);
+              size_t degreeDelta = twoAdicity - invDegree;
+              Value degreeDeltaConst = createScalarOrSplatConstant(
+                  b, b.getLoc(), modAttr.getType(), degreeDelta);
+
+              // Create mask for low invDegree bits
+              APInt maskVal =
+                  APInt::getLowBitsSet(modulus.getBitWidth(), invDegree);
+              Value mask = createScalarOrSplatConstant(
+                  b, b.getLoc(), modAttr.getType(), maskVal);
+
+              // hi = lhs >> invDegree
+              auto hi =
+                  b.create<arith::ShRUIOp>(adaptor.getLhs(), invDegreeConst);
+
+              // lo = last invDegree bits of lhs
+              auto lo = b.create<arith::AndIOp>(adaptor.getLhs(), mask);
+
+              // loTimesK = lo * k
+              Value loTimesK;
+              // TODO(batzor): this is temporary optimization for BabyBear. We
+              // need to replace this with a more general solution.
+              if (k == 15) {
+                auto loTimes16 = b.create<arith::ShLIOp>(lo, four);
+                loTimesK = b.create<arith::SubIOp>(loTimes16, lo);
+              } else {
+                loTimesK = b.create<arith::MulIOp>(lo, kConst);
+              }
+
+              // loShifted = loTimesK << degreeDelta
+              auto loShifted =
+                  b.create<arith::ShLIOp>(loTimesK, degreeDeltaConst);
+
+              // loIsNotZero = (lo != 0)
+              auto loIsNotZero =
+                  b.create<arith::CmpIOp>(arith::CmpIPredicate::ne, lo, zero);
+
+              // loCorrected = loIsNotZero ? loShifted : cmod
+              auto loCorrected =
+                  b.create<arith::SelectOp>(loIsNotZero, loShifted, cmod);
+
+              // result = loCorrected - hi
+              auto result = b.create<arith::SubIOp>(loCorrected, hi);
+              auto negatedResult = b.create<arith::SubIOp>(cmod, result);
+
+              // NOTE(batzor): This inverted negation is as intended.
+              // WARN(batzor): The output can be modulus when LHS is 0. This is
+              // generally safe since all other operations are safe under this
+              // range but zero check would fail. This can be fixed after we
+              // introduce proper range analysis.
+              rewriter.replaceOp(op, isNegated ? result : negatedResult);
+              return success();
+            }
+          }
+        }
+      }
+    }
+
+    if (modType.isMontgomery()) {
+      auto result = b.create<MontMulOp>(op.getType(), op.getLhs(), op.getRhs());
       rewriter.replaceOp(op, result);
       return success();
     }
-    auto cmod = b.create<arith::ConstantOp>(modulusAttr(op, true));
-    auto lhs =
-        b.create<arith::ExtUIOp>(modulusType(op, true), adaptor.getLhs());
-    auto rhs =
-        b.create<arith::ExtUIOp>(modulusType(op, true), adaptor.getRhs());
+
+    // Use standard multiplication and reduction
+    auto cmodExt =
+        b.create<arith::ConstantOp>(modulusAttr(op, /*extended=*/true));
+    auto lhs = b.create<arith::ExtUIOp>(modulusType(op, /*extended=*/true),
+                                        adaptor.getLhs());
+    auto rhs = b.create<arith::ExtUIOp>(modulusType(op, /*extended=*/true),
+                                        adaptor.getRhs());
     auto mul = b.create<arith::MulIOp>(lhs, rhs);
-    auto remu = b.create<arith::RemUIOp>(mul, cmod);
+    auto remu = b.create<arith::RemUIOp>(mul, cmodExt);
     auto trunc = b.create<arith::TruncIOp>(modulusType(op), remu);
 
     rewriter.replaceOp(op, trunc);
@@ -563,14 +598,14 @@ struct ConvertMac : public OpConversionPattern<MacOp> {
   matchAndRewrite(MacOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
-    ModArithType resultType = getResultModArithType(op);
-    if (resultType.isMontgomery()) {
+    ModArithType modType = getResultModArithType(op);
+    if (modType.isMontgomery()) {
       auto mul =
           b.create<arith::MulUIExtendedOp>(adaptor.getLhs(), adaptor.getRhs());
       auto sum =
           b.create<arith::AddUIExtendedOp>(mul.getLow(), adaptor.getAcc());
       auto high = b.create<arith::AddIOp>(mul.getHigh(), sum.getOverflow());
-      auto reduced = b.create<MontReduceOp>(resultType, sum.getSum(), high);
+      auto reduced = b.create<MontReduceOp>(op.getType(), sum.getSum(), high);
       rewriter.replaceOp(op, reduced);
       return success();
     } else {
@@ -579,16 +614,14 @@ struct ConvertMac : public OpConversionPattern<MacOp> {
       auto noOverflow =
           arith::IntegerOverflowFlagsAttr::get(b.getContext(), overflowFlag);
 
-      auto cmod = b.create<arith::ConstantOp>(modulusAttr(op, true));
-      auto x =
-          b.create<arith::ExtUIOp>(modulusType(op, true), adaptor.getLhs());
-      auto y =
-          b.create<arith::ExtUIOp>(modulusType(op, true), adaptor.getRhs());
-      auto acc =
-          b.create<arith::ExtUIOp>(modulusType(op, true), adaptor.getAcc());
+      auto cmodExt =
+          b.create<arith::ConstantOp>(modulusAttr(op, /*extended=*/true));
+      auto x = b.create<arith::ExtUIOp>(cmodExt.getType(), adaptor.getLhs());
+      auto y = b.create<arith::ExtUIOp>(cmodExt.getType(), adaptor.getRhs());
+      auto acc = b.create<arith::ExtUIOp>(cmodExt.getType(), adaptor.getAcc());
       auto mul = b.create<arith::MulIOp>(x, y);
       auto add = b.create<arith::AddIOp>(mul, acc, noOverflow);
-      auto remu = b.create<arith::RemUIOp>(add, cmod);
+      auto remu = b.create<arith::RemUIOp>(add, cmodExt);
       auto trunc = b.create<arith::TruncIOp>(modulusType(op), remu);
 
       rewriter.replaceOp(op, trunc);
@@ -608,19 +641,31 @@ struct ConvertMontMul : public OpConversionPattern<MontMulOp> {
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    ModArithType resultType = getResultModArithType(op);
-    if (!resultType.isMontgomery()) {
+    TypedAttr modAttr = modulusAttr(op);
+    ModArithType modType = getResultModArithType(op);
+    if (!modType.isMontgomery()) {
       return op->emitError(
           "MontMulOp with non-Montgomery type is not supported in "
           "ModArithToArith conversion");
     }
-    auto mul =
-        b.create<arith::MulUIExtendedOp>(adaptor.getLhs(), adaptor.getRhs());
-    auto reduced = b.create<MontReduceOp>(getResultModArithType(op),
-                                          mul.getLow(), mul.getHigh());
+    Value signedLhs = getSignedFormFromCanonical(adaptor.getLhs(), modAttr);
+    Value signedRhs = getSignedFormFromCanonical(adaptor.getRhs(), modAttr);
+    if (signedLhs && signedRhs) {
+      auto mul = b.create<arith::MulSIExtendedOp>(signedLhs, signedRhs);
+      auto reduced = b.create<mod_arith::MontReduceOp>(
+          op.getType(), mul.getLow(), mul.getHigh());
+      rewriter.replaceOp(op, reduced);
+      return success();
+    } else {
+      auto mul =
+          b.create<arith::MulUIExtendedOp>(adaptor.getLhs(), adaptor.getRhs());
+      auto reduced = b.create<mod_arith::MontReduceOp>(
+          op.getType(), mul.getLow(), mul.getHigh());
 
-    rewriter.replaceOp(op, reduced);
-    return success();
+      rewriter.replaceOp(op, reduced);
+      return success();
+    }
+    return failure();
   }
 };
 
@@ -638,14 +683,28 @@ MulExtendedResult squareExtended(ImplicitLocOpBuilder &b, Op op, Value input) {
   auto noOverflow =
       arith::IntegerOverflowFlagsAttr::get(b.getContext(), overflowFlag);
 
-  Type intType = modulusType(op, /*mul=*/false);
-  Type resultType = modulusType(op, /*mul=*/true);
+  ModArithType modType = getResultModArithType(op);
+  IntegerType intType = modType.getStorageType();
+  IntegerType intExtType = intType.scaleElementBitwidth(2);
 
-  const unsigned modBitWidth = cast<IntegerType>(intType).getWidth();
+  const unsigned modBitWidth = intType.getWidth();
   const unsigned limbWidth = modBitWidth > APInt::APINT_BITS_PER_WORD
                                  ? APInt::APINT_BITS_PER_WORD
                                  : modBitWidth;
   const unsigned numLimbs = (modBitWidth + limbWidth - 1) / limbWidth;
+
+  MontReducer montReducer(b, modType);
+  if (numLimbs == 1) {
+    // When squaring, we can just use signed multiplication since the sign will
+    // cancel out.
+    auto signedInput = getSignedFormFromCanonical(input, modulusAttr(op));
+    auto results =
+        signedInput
+            ? b.create<arith::MulSIExtendedOp>(signedInput, signedInput)
+                  .getResults()
+            : b.create<arith::MulUIExtendedOp>(input, input).getResults();
+    return {results[0], results[1]};
+  }
 
   Type limbType = IntegerType::get(b.getContext(), limbWidth);
   Value zeroLimb = b.create<arith::ConstantIntOp>(limbType, 0);
@@ -705,19 +764,19 @@ MulExtendedResult squareExtended(ImplicitLocOpBuilder &b, Op op, Value input) {
   }
 
   // Reconstruct a single integer value by combining all limbs
-  Value result = b.create<arith::ConstantIntOp>(resultType, 0);
+  Value result = b.create<arith::ConstantIntOp>(intExtType, 0);
   for (unsigned i = 0; i < 2 * numLimbs; ++i) {
-    Value rAtI = b.create<arith::ExtUIOp>(resultType, resultVec[i]);
+    Value rAtI = b.create<arith::ExtUIOp>(intExtType, resultVec[i]);
     Value shifted = b.create<arith::ShLIOp>(
-        rAtI, b.create<arith::ConstantIntOp>(resultType, i * limbWidth));
+        rAtI, b.create<arith::ConstantIntOp>(intExtType, i * limbWidth));
     result = b.create<arith::OrIOp>(result, shifted);
   }
 
   // Multiply result by 2. It's safe to assume no overflow
   result = b.create<arith::ShLIOp>(
-      result, b.create<arith::ConstantIntOp>(resultType, 1), noOverflow);
+      result, b.create<arith::ConstantIntOp>(intExtType, 1), noOverflow);
 
-  decomposeToLimbs(resultVec, result, resultType);
+  decomposeToLimbs(resultVec, result, intExtType);
 
   // Add diagonal entries to result buffer
   for (unsigned i = 0; i < numLimbs; ++i) {
@@ -769,26 +828,27 @@ struct ConvertSquare : public OpConversionPattern<SquareOp> {
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    ModArithType resultType = getResultModArithType(op);
-    if (resultType.isMontgomery()) {
-      auto result = b.create<MontSquareOp>(resultType, op.getInput());
+    ModArithType modType = getResultModArithType(op);
+    if (modType.isMontgomery()) {
+      auto result = b.create<MontSquareOp>(op.getType(), op.getInput());
       rewriter.replaceOp(op, result);
       return success();
     }
 
-    Type mulResultType = modulusType(op, /*mul=*/true);
+    Type intExtType = modulusType(op, /*extended=*/true);
     MulExtendedResult result = squareExtended(b, op, adaptor.getInput());
-    Value lowExt = b.create<arith::ExtUIOp>(mulResultType, result.lo);
-    Value highExt = b.create<arith::ExtUIOp>(mulResultType, result.hi);
-    Value shift = b.create<arith::ConstantIntOp>(
-        mulResultType, resultType.getStorageBitWidth());
+    Value lowExt = b.create<arith::ExtUIOp>(intExtType, result.lo);
+    Value highExt = b.create<arith::ExtUIOp>(intExtType, result.hi);
+    Value shift = b.create<arith::ConstantIntOp>(intExtType,
+                                                 modType.getStorageBitWidth());
     highExt = b.create<arith::ShLIOp>(highExt, shift);
     Value squared = b.create<arith::OrIOp>(lowExt, highExt);
 
-    Value cmod = b.create<arith::ConstantOp>(modulusAttr(op, /*mul=*/true));
+    Value cmod =
+        b.create<arith::ConstantOp>(modulusAttr(op, /*extended=*/true));
     Value remu = b.create<arith::RemUIOp>(squared, cmod);
     Value trunc =
-        b.create<arith::TruncIOp>(modulusType(op, /*mul=*/false), remu);
+        b.create<arith::TruncIOp>(modulusType(op, /*extended=*/false), remu);
     rewriter.replaceOp(op, trunc);
     return success();
   };
@@ -805,15 +865,14 @@ struct ConvertMontSquare : public OpConversionPattern<MontSquareOp> {
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    ModArithType resultType = getResultModArithType(op);
-    if (!resultType.isMontgomery()) {
+    ModArithType modType = getResultModArithType(op);
+    if (!modType.isMontgomery()) {
       return op->emitError(
           "MontSquareOp with non-Montgomery type is not supported in "
           "ModArithToArith conversion");
     }
     auto result = squareExtended(b, op, adaptor.getInput());
-    auto reduced =
-        b.create<MontReduceOp>(getResultModArithType(op), result.lo, result.hi);
+    auto reduced = b.create<MontReduceOp>(op.getType(), result.lo, result.hi);
 
     rewriter.replaceOp(op, reduced);
     return success();
@@ -932,7 +991,8 @@ void ModArithToArith::runOnOperation() {
       ConvertAny<tensor::PadOp>,
       ConvertAny<tensor::ReshapeOp>,
       ConvertAny<tensor::YieldOp>,
-      ConvertAny<tensor_ext::BitReverseOp>
+      ConvertAny<tensor_ext::BitReverseOp>,
+      ConvertAny<vector::SplatOp>
       // clang-format on
       >(typeConverter, context);
 
@@ -982,7 +1042,8 @@ void ModArithToArith::runOnOperation() {
       tensor::PadOp,
       tensor::ReshapeOp,
       tensor::YieldOp,
-      tensor_ext::BitReverseOp
+      tensor_ext::BitReverseOp,
+      vector::SplatOp
       // clang-format on
       >([&](auto op) { return typeConverter.isLegal(op); });
 

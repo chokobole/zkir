@@ -10,6 +10,7 @@
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/SparseTensor/IR/SparseTensor.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
+#include "mlir/Dialect/Vector/IR/VectorOps.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypeInterfaces.h"
@@ -510,14 +511,19 @@ struct ConvertPowUI : public OpConversionPattern<PowUIOp> {
     Value init;
     if (auto pfType = dyn_cast<PrimeFieldType>(fieldType)) {
       modulus = pfType.getModulus().getValue();
-      init =
-          pfType.isMontgomery()
-              ? b.create<ToMontOp>(
-                     pfType,
-                     b.create<ConstantOp>(
-                         cast<PrimeFieldType>(getStandardFormType(pfType)), 1))
-                    .getResult()
-              : b.create<ConstantOp>(pfType, 1);
+      Type intType = pfType.getStorageType();
+      Type stdType = getStandardFormType(pfType);
+      Type montType = getMontgomeryFormType(pfType);
+      if (auto vecType = dyn_cast<VectorType>(base.getType())) {
+        intType = vecType.cloneWith(vecType.getShape(), intType);
+        stdType = vecType.cloneWith(vecType.getShape(), stdType);
+        montType = vecType.cloneWith(vecType.getShape(), montType);
+      }
+      init = createScalarOrSplatConstant(b, b.getLoc(), intType, 1);
+      init = b.create<BitcastOp>(stdType, init);
+      if (pfType.isMontgomery()) {
+        init = b.create<ToMontOp>(montType, init);
+      }
     } else if (auto f2Type = dyn_cast<QuadraticExtFieldType>(fieldType)) {
       modulus = f2Type.getBaseField().getModulus().getValue();
       init = f2Type.isMontgomery()
@@ -543,6 +549,29 @@ struct ConvertPowUI : public OpConversionPattern<PowUIOp> {
       modBitWidth = expBitWidth;
     }
     IntegerType intType = cast<IntegerType>(exp.getType());
+
+    // If `exp` is a constant, unroll the while loop.
+    if (auto expConstOp = exp.getDefiningOp<arith::ConstantOp>()) {
+      APInt cExp = cast<IntegerAttr>(expConstOp.getValue()).getValue();
+      cExp = cExp.urem(modulus - 1);
+      APInt cZero = APInt::getZero(cExp.getBitWidth());
+      APInt cOne = cZero + 1;
+
+      // Depending on the type, we need to perform the loop.
+      Value result = init;
+      Value factor = base;
+      APInt currExp = cExp;
+      SmallVector<Value> factors;
+      while (!currExp.isZero()) {
+        if ((currExp & cOne).getBoolValue()) {
+          result = b.create<field::MulOp>(result, factor);
+        }
+        factor = b.create<field::SquareOp>(factor);
+        currExp = currExp.lshr(1);
+      }
+      rewriter.replaceOp(op, result);
+      return success();
+    }
 
     // For prime field, x^(p-1) ≡ 1 mod p, so x^n ≡ x^(n mod (p-1)) mod p
     // For quadratic extension field, x^(p²-1) ≡ 1 mod p², so
@@ -777,7 +806,8 @@ void FieldToModArith::runOnOperation() {
       ConvertAny<tensor::PadOp>,
       ConvertAny<tensor::ReshapeOp>,
       ConvertAny<tensor::YieldOp>,
-      ConvertAny<tensor_ext::BitReverseOp>
+      ConvertAny<tensor_ext::BitReverseOp>,
+      ConvertAny<vector::SplatOp>
       // clang-format on
       >(typeConverter, context);
 
@@ -826,7 +856,8 @@ void FieldToModArith::runOnOperation() {
       tensor::PadOp,
       tensor::ReshapeOp,
       tensor::YieldOp,
-      tensor_ext::BitReverseOp
+      tensor_ext::BitReverseOp,
+      vector::SplatOp
       // clang-format on
       >([&](auto op) { return typeConverter.isLegal(op); });
 

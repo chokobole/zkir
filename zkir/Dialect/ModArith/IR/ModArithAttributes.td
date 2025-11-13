@@ -24,6 +24,7 @@ def ModArith_MontgomeryAttr : ModArith_Attr<"Montgomery", "montgomery"> {
     IntegerAttr getRInv() const;
     IntegerAttr getRSquared() const;
     IntegerAttr getBInv() const;
+    const SmallVector<IntegerAttr> &getInvTwoPowers() const;
   }];
   let assemblyFormat = "`<`$modulus`>`";
   let genStorageClass = 0;

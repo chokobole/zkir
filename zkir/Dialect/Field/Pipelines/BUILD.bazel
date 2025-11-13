@@ -9,6 +9,7 @@ cc_library(
     srcs = ["Passes.cpp"],
     hdrs = ["Passes.h"],
     deps = [
+        "//zkir/Dialect/ArithExt/Conversions/SpecializeArithToAVX",
         "//zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToLLVM",
         "//zkir/Dialect/Field/Conversions/FieldToModArith",
         "//zkir/Dialect/ModArith/Conversions/ModArithToArith",
