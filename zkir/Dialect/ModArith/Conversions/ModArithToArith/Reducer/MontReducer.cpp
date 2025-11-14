@@ -37,6 +37,20 @@ Value MontReducer::getCanonicalFromExtended(Value input) {
   }
 }
 
+Value MontReducer::getCanonicalFromExtended(Value input, Value overflow) {
+  auto cmod = createModulusConst(input.getType());
+  // NOTE(chokobole): 'ult' is generally preferred over 'uge' for
+  // better performance. However, using 'ult' would require inverting the
+  // overflow check logic. Currently, 'uge' is used for clearer logic, but
+  // this choice should be re-evaluated after benchmarking. See
+  // https://github.com/fractalyze/zkir/pull/86/commits/10d3807
+  auto ifge = b_.create<arith::CmpIOp>(arith::CmpIPredicate::uge, input, cmod);
+  auto or_ = b_.create<arith::OrIOp>(ifge, overflow);
+  auto sub = b_.create<arith::SubIOp>(input, cmod);
+  auto select = b_.create<arith::SelectOp>(or_, sub, input);
+  return select.getResult();
+}
+
 Value MontReducer::getCanonicalDiff(Value lhs, Value rhs) {
   auto cmod = createModulusConst(lhs.getType());
   auto sub = b_.create<arith::SubIOp>(lhs, rhs);

@@ -381,14 +381,27 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
   matchAndRewrite(AddOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    ModArithType modArithType = getResultModArithType(op);
+    APInt modulus = modArithType.getModulus().getValue();
+    unsigned storageWidth = modArithType.getStorageBitWidth();
+    unsigned modWidth = modulus.getActiveBits();
 
-    auto noOverflow = arith::IntegerOverflowFlagsAttr::get(
-        b.getContext(),
-        arith::IntegerOverflowFlags::nuw | arith::IntegerOverflowFlags::nsw);
-    auto add =
-        b.create<arith::AddIOp>(adaptor.getLhs(), adaptor.getRhs(), noOverflow);
-    MontReducer montReducer(b, getResultModArithType(op));
-    auto result = montReducer.getCanonicalFromExtended(add);
+    Value result;
+    if (modWidth == storageWidth) {
+      auto add =
+          b.create<arith::AddUIExtendedOp>(adaptor.getLhs(), adaptor.getRhs());
+      MontReducer montReducer(b, getResultModArithType(op));
+      result =
+          montReducer.getCanonicalFromExtended(add.getSum(), add.getOverflow());
+    } else {
+      auto noOverflow = arith::IntegerOverflowFlagsAttr::get(
+          b.getContext(),
+          arith::IntegerOverflowFlags::nuw | arith::IntegerOverflowFlags::nsw);
+      auto add = b.create<arith::AddIOp>(adaptor.getLhs(), adaptor.getRhs(),
+                                         noOverflow);
+      MontReducer montReducer(b, getResultModArithType(op));
+      result = montReducer.getCanonicalFromExtended(add);
+    }
     rewriter.replaceOp(op, result);
     return success();
   }
@@ -405,15 +418,26 @@ struct ConvertDouble : public OpConversionPattern<DoubleOp> {
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto noOverflow = arith::IntegerOverflowFlagsAttr::get(
-        b.getContext(),
-        arith::IntegerOverflowFlags::nuw | arith::IntegerOverflowFlags::nsw);
-    TypedAttr modAttr = modulusAttr(op);
-    Value one =
-        createScalarOrSplatConstant(b, b.getLoc(), modAttr.getType(), 1);
-    auto shifted = b.create<arith::ShLIOp>(adaptor.getInput(), one, noOverflow);
-    MontReducer montReducer(b, getResultModArithType(op));
-    auto result = montReducer.getCanonicalFromExtended(shifted);
+    ModArithType modArithType = getResultModArithType(op);
+    APInt modulus = modArithType.getModulus().getValue();
+    unsigned storageWidth = modArithType.getStorageBitWidth();
+    unsigned modWidth = modulus.getActiveBits();
+
+    Value result;
+    if (modWidth == storageWidth) {
+      result = b.create<AddOp>(op.getInput(), op.getInput());
+    } else {
+      TypedAttr modAttr = modulusAttr(op);
+      Value one =
+          createScalarOrSplatConstant(b, b.getLoc(), modAttr.getType(), 1);
+      auto noOverflow = arith::IntegerOverflowFlagsAttr::get(
+          b.getContext(),
+          arith::IntegerOverflowFlags::nuw | arith::IntegerOverflowFlags::nsw);
+      auto shifted =
+          b.create<arith::ShLIOp>(adaptor.getInput(), one, noOverflow);
+      MontReducer montReducer(b, getResultModArithType(op));
+      result = montReducer.getCanonicalFromExtended(shifted);
+    }
     rewriter.replaceOp(op, result);
     return success();
   }
