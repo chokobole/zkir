@@ -277,12 +277,9 @@ struct ConvertToMont : public OpConversionPattern<ToMontOp> {
         b, b.getLoc(), modAttr.getType(), rSquaredInt);
 
     // x * R = REDC(x * rSquared)
-    Value rSquared =
-        b.create<mod_arith::BitcastOp>(op.getType(), rSquaredConst);
-    Value bitcast =
-        b.create<mod_arith::BitcastOp>(op.getType(), adaptor.getInput());
-    auto product =
-        b.create<mod_arith::MontMulOp>(op.getType(), bitcast, rSquared);
+    Value rSquared = b.create<BitcastOp>(op.getType(), rSquaredConst);
+    Value bitcast = b.create<BitcastOp>(op.getType(), adaptor.getInput());
+    auto product = b.create<MontMulOp>(op.getType(), bitcast, rSquared);
     rewriter.replaceOp(op, product);
     return success();
   }
@@ -653,15 +650,15 @@ struct ConvertMontMul : public OpConversionPattern<MontMulOp> {
     Value signedRhs = getSignedFormFromCanonical(adaptor.getRhs(), modAttr);
     if (signedLhs && signedRhs) {
       auto mul = b.create<arith::MulSIExtendedOp>(signedLhs, signedRhs);
-      auto reduced = b.create<mod_arith::MontReduceOp>(
-          op.getType(), mul.getLow(), mul.getHigh());
+      auto reduced =
+          b.create<MontReduceOp>(op.getType(), mul.getLow(), mul.getHigh());
       rewriter.replaceOp(op, reduced);
       return success();
     } else {
       auto mul =
           b.create<arith::MulUIExtendedOp>(adaptor.getLhs(), adaptor.getRhs());
-      auto reduced = b.create<mod_arith::MontReduceOp>(
-          op.getType(), mul.getLow(), mul.getHigh());
+      auto reduced =
+          b.create<MontReduceOp>(op.getType(), mul.getLow(), mul.getHigh());
 
       rewriter.replaceOp(op, reduced);
       return success();
