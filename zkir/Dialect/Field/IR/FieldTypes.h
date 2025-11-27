@@ -20,20 +20,26 @@ limitations under the License.
 
 // IWYU pragma: begin_keep
 // Headers needed for FieldTypes.h.inc
+#include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinTypeInterfaces.h"
 #include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/ImplicitLocOpBuilder.h"
 #include "mlir/Interfaces/DataLayoutInterfaces.h"
+#include "zkir/Utils/SimpleStructBuilder.h"
 // IWYU pragma: end_keep
 
 namespace mlir::zkir::field {
 
 class PrimeFieldAttr;
+class PrimeFieldType;
 
 bool isMontgomery(Type type);
 unsigned getIntOrPrimeFieldBitWidth(Type type);
 
 } // namespace mlir::zkir::field
+
+#include "zkir/Dialect/Field/IR/FieldTypesInterfaces.h.inc"
 
 #define GET_TYPEDEF_CLASSES
 #include "zkir/Dialect/Field/IR/FieldTypes.h.inc"

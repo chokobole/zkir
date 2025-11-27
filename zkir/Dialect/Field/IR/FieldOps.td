@@ -100,19 +100,19 @@ def Field_ConstantOp : Op<Field_Dialect, "constant", [ConstantLike, Pure]> {
 }
 
 def Field_F2ConstantOp : Op<Field_Dialect, "f2.constant", [Pure, TypesMatchWith<
-  "result type is the same as the operand type", "output", "low", "cast<QuadraticExtFieldType>($_self).getBaseField()">,
-  TypesMatchWith< "result type is the same as the operand type", "output", "high", "cast<QuadraticExtFieldType>($_self).getBaseField()">]> {
+  "result type is the same as the operand type", "output", "c0", "cast<QuadraticExtFieldType>($_self).getBaseField()">,
+  TypesMatchWith< "result type is the same as the operand type", "output", "c1", "cast<QuadraticExtFieldType>($_self).getBaseField()">]> {
   let summary = "Define a constant quadratic extension field element";
   let description = [{
     Example:
     ```
     !QF = !field.f2<!PF, #beta>
-    %0 = field.f2.constant %low, %high : !QF
+    %0 = field.f2.constant %c0, %c1 : !QF
     ```
   }];
-  let arguments = (ins Field_PrimeFieldType:$low, Field_PrimeFieldType:$high);
+  let arguments = (ins Field_PrimeFieldType:$c0, Field_PrimeFieldType:$c1);
   let results = (outs Field_QuadraticExtFieldType:$output);
-  let assemblyFormat = "$low `,` $high attr-dict `:` type($output)";
+  let assemblyFormat = "$c0 `,` $c1 attr-dict `:` type($output)";
 }
 
 def Field_BitcastOp : Op<Field_Dialect, "bitcast", [Pure,

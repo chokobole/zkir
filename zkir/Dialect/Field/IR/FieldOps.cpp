@@ -72,7 +72,8 @@ Type getStandardFormType(Type type) {
       auto pfType = PrimeFieldType::get(type.getContext(),
                                         f2Type.getBaseField().getModulus());
       standardType = QuadraticExtFieldType::get(
-          type.getContext(), pfType, getAttrAsStandardForm(f2Type.getBeta()));
+          type.getContext(), pfType,
+          getAttrAsStandardForm(f2Type.getNonResidue()));
     }
   }
   if (auto memrefType = dyn_cast<MemRefType>(type)) {
@@ -97,7 +98,8 @@ Type getMontgomeryFormType(Type type) {
       auto pfType = PrimeFieldType::get(
           type.getContext(), f2Type.getBaseField().getModulus(), true);
       montType = QuadraticExtFieldType::get(
-          type.getContext(), pfType, getAttrAsMontgomeryForm(f2Type.getBeta()));
+          type.getContext(), pfType,
+          getAttrAsMontgomeryForm(f2Type.getNonResidue()));
     }
   }
   if (auto memrefType = dyn_cast<MemRefType>(type)) {

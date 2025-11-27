@@ -21,6 +21,8 @@ limitations under the License.
 #include "zkir/Dialect/Field/IR/FieldTypes.h"
 // IWYU pragma: end_keep
 
+#include "zkir/Dialect/Field/IR/FieldAttributesInterfaces.h.inc"
+
 #define GET_ATTRDEF_CLASSES
 #include "zkir/Dialect/Field/IR/FieldAttributes.h.inc"
 

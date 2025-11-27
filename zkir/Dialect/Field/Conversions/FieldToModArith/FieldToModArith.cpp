@@ -134,12 +134,12 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
       return success();
     } else if (auto f2Attr =
                    dyn_cast<QuadraticExtFieldAttr>(op.getValueAttr())) {
-      auto low =
-          b.create<mod_arith::ConstantOp>(modType, f2Attr.getLow().getValue());
-      auto high =
-          b.create<mod_arith::ConstantOp>(modType, f2Attr.getHigh().getValue());
+      auto c0 =
+          b.create<mod_arith::ConstantOp>(modType, f2Attr.getC0().getValue());
+      auto c1 =
+          b.create<mod_arith::ConstantOp>(modType, f2Attr.getC1().getValue());
       auto f2 = b.create<ExtFromCoeffsOp>(TypeRange{f2Attr.getType()},
-                                          ValueRange{low, high});
+                                          ValueRange{c0, c1});
       rewriter.replaceOp(op, f2);
       return success();
     } else {
@@ -254,7 +254,7 @@ struct ConvertInverse : public OpConversionPattern<InverseOp> {
       // construct beta as a mod arith constant
       auto beta = b.create<mod_arith::ConstantOp>(
           typeConverter->convertType(f2Type.getBaseField()),
-          f2Type.getBeta().getValue());
+          f2Type.getNonResidue().getValue());
 
       // denominator = a₀² - a₁²β
       auto coeffs = extractCoeffs(b, adaptor.getInput());
@@ -426,7 +426,7 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
       // construct beta as a mod arith constant
       auto beta = b.create<mod_arith::ConstantOp>(
           typeConverter->convertType(f2Type.getBaseField()),
-          f2Type.getBeta().getValue());
+          f2Type.getNonResidue().getValue());
 
       Operation::result_range lhsCoeffs = extractCoeffs(b, adaptor.getLhs());
       Operation::result_range rhsCoeffs = extractCoeffs(b, adaptor.getRhs());
@@ -476,7 +476,7 @@ struct ConvertSquare : public OpConversionPattern<SquareOp> {
       // construct beta as a mod arith constant
       auto beta = b.create<mod_arith::ConstantOp>(
           typeConverter->convertType(f2Type.getBaseField()),
-          f2Type.getBeta().getValue());
+          f2Type.getNonResidue().getValue());
 
       auto coeffs = extractCoeffs(b, adaptor.getInput());
 
@@ -732,11 +732,8 @@ struct ConvertF2Constant : public OpConversionPattern<F2ConstantOp> {
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    SmallVector<ValueRange> values;
-    values.push_back({adaptor.getLow(), adaptor.getHigh()});
-
     auto f2 = b.create<ExtFromCoeffsOp>(
-        op.getType(), ValueRange{adaptor.getLow(), adaptor.getHigh()});
+        op.getType(), ValueRange{adaptor.getC0(), adaptor.getC1()});
     rewriter.replaceOp(op, f2);
     return success();
   }

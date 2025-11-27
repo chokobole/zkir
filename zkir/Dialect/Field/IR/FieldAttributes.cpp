@@ -18,6 +18,7 @@ limitations under the License.
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/Diagnostics.h"
 #include "mlir/Support/LogicalResult.h"
+#include "zkir/Dialect/Field/IR/FieldAttributesInterfaces.cpp.inc"
 #include "zkir/Utils/APIntUtils.h"
 
 namespace mlir::zkir::field {

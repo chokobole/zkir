@@ -26,6 +26,22 @@ class Field_Attr<string name, string attrMnemonic, list<Trait> traits = []>
   let mnemonic = attrMnemonic;
 }
 
+// Extension field attribute interface.
+// Provides a unified interface for extension field attributes (Fp2, Fp3, etc.)
+def ExtensionFieldAttrInterface : AttrInterface<"ExtensionFieldAttrInterface"> {
+  let cppNamespace = "mlir::zkir::field";
+
+  let description = [{
+    Interface for extension field attributes that allows generic handling
+    of different extension degrees without explicit type checking.
+  }];
+
+  let methods = [
+    InterfaceMethod<"Get the coefficient at index",
+      "mlir::Attribute", "getCoeff", (ins "unsigned":$index)>,
+  ];
+}
+
 def Field_PrimeFieldAttr : Field_Attr<"PrimeField", "pf.elem", [TypedAttrInterface]> {
   let summary = "An attribute representing a prime field element";
   let parameters = (ins "PrimeFieldType":$type, "IntegerAttr":$value);
@@ -52,12 +68,37 @@ def Field_PrimeFieldAttr : Field_Attr<"PrimeField", "pf.elem", [TypedAttrInterfa
   let genVerifyDecl = 1;
 }
 
-def Field_QuadraticExtFieldAttr : Field_Attr<"QuadraticExtField", "f2.elem", [TypedAttrInterface]> {
+def Field_QuadraticExtFieldAttr : Field_Attr<"QuadraticExtField", "f2.elem", [TypedAttrInterface, ExtensionFieldAttrInterface]> {
   let summary = "An attribute representing a quadratic extension field element";
-  let parameters = (ins "QuadraticExtFieldType":$type, Field_PrimeFieldAttr:$low, Field_PrimeFieldAttr:$high);
-  let assemblyFormat = "`<` $low `,` $high `>` `:` $type";
+  let parameters = (ins "QuadraticExtFieldType":$type, Field_PrimeFieldAttr:$c0, Field_PrimeFieldAttr:$c1);
+  let assemblyFormat = "`<` $c0 `,` $c1 `>` `:` $type";
   let extraClassDeclaration = [{
     using ValueType = Attribute;
+
+    // ExtensionFieldAttrInterface method
+    mlir::Attribute getCoeff(unsigned index) const {
+      assert(index < 2 && "Index out of bounds");
+      return index == 0 ? getC0() : getC1();
+    }
+  }];
+}
+
+def Field_CubicExtFieldAttr : Field_Attr<"CubicExtField", "f3.elem", [TypedAttrInterface, ExtensionFieldAttrInterface]> {
+  let summary = "An attribute representing a cubic extension field element";
+  let parameters = (ins "CubicExtFieldType":$type, Field_PrimeFieldAttr:$c0, Field_PrimeFieldAttr:$c1, Field_PrimeFieldAttr:$c2);
+  let assemblyFormat = "`<` $c0 `,` $c1 `,` $c2 `>` `:` $type";
+  let extraClassDeclaration = [{
+    using ValueType = Attribute;
+
+    // ExtensionFieldAttrInterface method
+    mlir::Attribute getCoeff(unsigned index) const {
+      assert(index < 3 && "Index out of bounds");
+      switch (index) {
+        case 0: return getC0();
+        case 1: return getC1();
+        default: return getC2();
+      }
+    }
   }];
 }
 
@@ -73,8 +114,8 @@ def Field_RootOfUnityAttr : Field_Attr<"RootOfUnity", "root_of_unity", [TypedAtt
   let genVerifyDecl = 1;
 }
 
-def Field_AnyFieldAttr : AnyAttrOf<[Field_PrimeFieldAttr, Field_QuadraticExtFieldAttr]> {
-  string cppType = "::mlir::TypedAttr";
+def Field_AnyFieldAttr : AnyAttrOf<[Field_PrimeFieldAttr, Field_QuadraticExtFieldAttr, Field_CubicExtFieldAttr]> {
+  string cppType = "mlir::TypedAttr";
 }
 
 #endif  // ZKIR_DIALECT_FIELD_IR_FIELDATTRS_TD_
