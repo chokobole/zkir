@@ -44,6 +44,7 @@ cc_library(
         "//zkir/Dialect/TensorExt/IR:TensorExt",
         "//zkir/Utils:APIntUtils",
         "//zkir/Utils:OpUtils",
+        "//zkir/Utils:SimpleStructBuilder",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:DataLayoutInterfaces",
@@ -84,6 +85,14 @@ gentbl_cc_library(
         (
             ["-gen-attrdef-defs"],
             "FieldAttributes.cpp.inc",
+        ),
+        (
+            ["-gen-attr-interface-decls"],
+            "FieldAttributesInterfaces.h.inc",
+        ),
+        (
+            ["-gen-attr-interface-defs"],
+            "FieldAttributesInterfaces.cpp.inc",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
@@ -137,6 +146,14 @@ gentbl_cc_library(
         (
             ["-gen-typedef-defs"],
             "FieldTypes.cpp.inc",
+        ),
+        (
+            ["-gen-type-interface-decls"],
+            "FieldTypesInterfaces.h.inc",
+        ),
+        (
+            ["-gen-type-interface-defs"],
+            "FieldTypesInterfaces.cpp.inc",
         ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
