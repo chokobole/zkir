@@ -269,7 +269,7 @@ LogicalResult ExtToCoeffsOp::verify() {
                          << " output types for extension field input, but got "
                          << getOutput().size();
   }
-  return emitOpError() << "input type must be a extension field; got "
+  return emitOpError() << "input type must be an extension field; got "
                        << inputType;
 }
 
@@ -284,7 +284,7 @@ LogicalResult ExtFromCoeffsOp::verify() {
                          << " input types for extension field output, but got "
                          << getInput().size();
   }
-  return emitOpError() << "output type must be a extension field; got "
+  return emitOpError() << "output type must be an extension field; got "
                        << outputType;
 }
 
