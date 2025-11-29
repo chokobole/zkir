@@ -19,11 +19,6 @@ common --noenable_bzlmod
 
 build --cxxopt=-std=c++17
 build --host_cxxopt=-std=c++17
-# llvm builds typically without rtti
-# disable it to be consistent with the llvm build
-# this also helps later on when using sanitizers
-build --cxxopt=-fno-rtti
-build --host_cxxopt=-fno-rtti
 # support layering_check similar to Google internal
 # this only works for Clang toolchain AFAIK
 # https://github.com/bazelbuild/bazel/pull/11440
