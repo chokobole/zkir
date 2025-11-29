@@ -13,20 +13,45 @@
 # limitations under the License.
 # ==============================================================================
 
-load("//zkir:pywrap.bzl", "pywrap_library")
+load("@rules_python//python:defs.bzl", "py_library")
+load("//zkir:symlink_files.bzl", "symlink_inputs")
 
 package(
     default_visibility = ["//visibility:public"],
 )
 
-exports_files([
-    "pyinit_stub.c",
-])
+py_library(
+    name = "mlir",
+    deps = ["//zkir/mlir/_mlir_libs"],
+)
 
-pywrap_library(
-    name = "zkir",
+symlink_inputs(
+    name = "core",
+    rule = py_library,
+    symlinked_inputs = {"srcs": {
+        "dialects": ["@llvm-project//mlir/python:DialectCorePyFiles"],
+    }},
+)
+
+symlink_inputs(
+    name = "field",
+    rule = py_library,
+    symlinked_inputs = {"srcs": {
+        "dialects": ["//zkir/Dialect/Field/Python:FieldPyFiles"],
+    }},
     deps = [
+        ":core",
+        ":ir",
+        ":mlir",
         "//zkir/mlir/_mlir_libs:_field",
-        "//zkir/mlir/_mlir_libs:_mlir",
     ],
+)
+
+symlink_inputs(
+    name = "ir",
+    rule = py_library,
+    symlinked_inputs = {"srcs": {
+        ".": ["@llvm-project//mlir/python:IRPyFiles"],
+    }},
+    deps = [":mlir"],
 )
