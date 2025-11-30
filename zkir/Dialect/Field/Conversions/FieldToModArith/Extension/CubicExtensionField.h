@@ -63,8 +63,8 @@ private:
   // Multiplies a base field element by the non-residue xi.
   Value mulByNonResidue(Value v);
 
-  ImplicitLocOpBuilder &b_;
-  Value xi_;
+  ImplicitLocOpBuilder &b;
+  Value xi;
 };
 
 } // namespace mlir::zkir::field
