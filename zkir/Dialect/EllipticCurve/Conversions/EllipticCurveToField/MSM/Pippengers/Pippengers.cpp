@@ -112,15 +112,15 @@ void Pippengers::bucketReduction(Value j, Value initialPoint, Value buckets,
       ValueRange{/*runningSum=*/zeroPoint,
                  /*windowSum=*/initialPoint},
       [&](OpBuilder &builder, Location loc, Value i, ValueRange args) {
-        ImplicitLocOpBuilder b_(loc, builder);
-        auto idxTmp1 = b_.create<arith::SubIOp>(numBuckets, i);
-        Value idx = b_.create<arith::SubIOp>(idxTmp1, one);
+        ImplicitLocOpBuilder b0(loc, builder);
+        auto idxTmp1 = b0.create<arith::SubIOp>(numBuckets, i);
+        Value idx = b0.create<arith::SubIOp>(idxTmp1, one);
 
-        auto bucket = b_.create<memref::LoadOp>(buckets, idx);
-        auto rSum = b_.create<AddOp>(outputType, args[0], bucket);
-        auto wSum = b_.create<AddOp>(outputType, args[1], rSum);
+        auto bucket = b0.create<memref::LoadOp>(buckets, idx);
+        auto rSum = b0.create<AddOp>(outputType, args[0], bucket);
+        auto wSum = b0.create<AddOp>(outputType, args[1], rSum);
 
-        b_.create<scf::YieldOp>(ValueRange{rSum, wSum});
+        b0.create<scf::YieldOp>(ValueRange{rSum, wSum});
       });
   b.create<memref::StoreOp>(bucketsForOp.getResult(1), windowSums, j);
 }
