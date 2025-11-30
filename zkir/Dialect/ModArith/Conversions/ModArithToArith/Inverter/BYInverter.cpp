@@ -33,50 +33,47 @@ limitations under the License.
 namespace mlir::zkir::mod_arith {
 
 BYInverter::BYInverter(ImplicitLocOpBuilder &b, Type inputType)
-    : b_(b),
-      modArithType_(cast<ModArithType>(getElementTypeOrSelf(inputType))) {
-  IntegerAttr modulus = modArithType_.getModulus();
-  BYAttr byAttr = modArithType_.getBYAttr();
+    : b(b), modArithType(cast<ModArithType>(getElementTypeOrSelf(inputType))) {
+  IntegerAttr modulus = modArithType.getModulus();
+  BYAttr byAttr = modArithType.getBYAttr();
   unsigned extModBitWidth = byAttr.getNewBitWidth().getValue().getZExtValue();
   unsigned modBitWidth = modulus.getValue().getBitWidth();
   unsigned n = byAttr.getDivsteps().getValue().getZExtValue();
   unsigned limbBitWidth = n > 64 ? n : 64;
 
-  intType_ = IntegerType::get(b.getContext(), modBitWidth);
-  extIntType_ = IntegerType::get(b.getContext(), extModBitWidth);
-  limbType_ = IntegerType::get(b.getContext(), limbBitWidth);
+  intType = IntegerType::get(b.getContext(), modBitWidth);
+  extIntType = IntegerType::get(b.getContext(), extModBitWidth);
+  limbType = IntegerType::get(b.getContext(), limbBitWidth);
 
-  maskN_ = b.create<arith::ConstantIntOp>(
-      limbType_, APInt::getAllOnes(n).zextOrTrunc(limbBitWidth));
-  APInt m = modulus.getValue().zext(extModBitWidth);
-  APInt mInv = byAttr.getMInv().getValue();
-  m_ = b.create<arith::ConstantIntOp>(extIntType_, m);
-  mInv_ =
-      b.create<arith::ConstantIntOp>(limbType_, mInv.zextOrTrunc(limbBitWidth));
+  maskN = b.create<arith::ConstantIntOp>(
+      limbType, APInt::getAllOnes(n).zextOrTrunc(limbBitWidth));
+  APInt mInt = modulus.getValue().zext(extModBitWidth);
+  APInt mInvInt = byAttr.getMInv().getValue();
+  m = b.create<arith::ConstantIntOp>(extIntType, mInt);
+  mInv = b.create<arith::ConstantIntOp>(limbType,
+                                        mInvInt.zextOrTrunc(limbBitWidth));
 
-  limbTypeOne_ = b.create<arith::ConstantIntOp>(limbType_, 1);
-  limbTypeZero_ = b.create<arith::ConstantIntOp>(limbType_, 0);
-  extIntTypeOne_ = b.create<arith::ConstantIntOp>(extIntType_, 1);
-  extIntTypeZero_ = b.create<arith::ConstantIntOp>(extIntType_, 0);
+  limbTypeOne = b.create<arith::ConstantIntOp>(limbType, 1);
+  limbTypeZero = b.create<arith::ConstantIntOp>(limbType, 0);
+  extIntTypeOne = b.create<arith::ConstantIntOp>(extIntType, 1);
+  extIntTypeZero = b.create<arith::ConstantIntOp>(extIntType, 0);
 
-  extIntTypeN_ = b.create<arith::ConstantIntOp>(extIntType_, n);
-  limbTypeN_ = b.create<arith::ConstantIntOp>(limbType_, n);
+  extIntTypeN = b.create<arith::ConstantIntOp>(extIntType, n);
+  limbTypeN = b.create<arith::ConstantIntOp>(limbType, n);
 }
 
 BYInverter::JumpResult BYInverter::GenerateJump(Value f, Value g, Value eta) {
-  TMatrix t = {limbTypeOne_, limbTypeZero_, limbTypeZero_, limbTypeOne_};
-  Value steps = limbTypeN_;
+  TMatrix t = {limbTypeOne, limbTypeZero, limbTypeZero, limbTypeOne};
+  Value steps = limbTypeN;
 
-  f = b_.create<arith::AndIOp>(b_.create<arith::TruncIOp>(limbType_, f),
-                               maskN_);
-  g = b_.create<arith::AndIOp>(b_.create<arith::TruncIOp>(limbType_, g),
-                               maskN_);
+  f = b.create<arith::AndIOp>(b.create<arith::TruncIOp>(limbType, f), maskN);
+  g = b.create<arith::AndIOp>(b.create<arith::TruncIOp>(limbType, g), maskN);
 
   SmallVector<Value, 8> initValues = {steps, f,     g,     eta,
                                       t.t00, t.t01, t.t10, t.t11};
-  SmallVector<Type, 8> types(8, limbType_);
+  SmallVector<Type, 8> types(8, limbType);
 
-  auto whileOp = b_.create<scf::WhileOp>(
+  auto whileOp = b.create<scf::WhileOp>(
       types, initValues,
       [&](OpBuilder &builder, Location loc, ValueRange args) {
         ImplicitLocOpBuilder b(loc, builder);
@@ -85,16 +82,16 @@ BYInverter::JumpResult BYInverter::GenerateJump(Value f, Value g, Value eta) {
             std::make_tuple(args[0], args[1], args[2], args[3],
                             TMatrix{args[4], args[5], args[6], args[7]});
 
-        Value zeros = b_.create<math::CountTrailingZerosOp>(g);
-        zeros = b_.create<arith::MinUIOp>(zeros, steps);
-        steps = b_.create<arith::SubIOp>(steps, zeros);
-        eta = b_.create<arith::AddIOp>(eta, zeros);
-        g = b_.create<arith::ShRUIOp>(g, zeros);
-        t.t00 = b_.create<arith::ShLIOp>(t.t00, zeros);
-        t.t01 = b_.create<arith::ShLIOp>(t.t01, zeros);
+        Value zeros = b.create<math::CountTrailingZerosOp>(g);
+        zeros = b.create<arith::MinUIOp>(zeros, steps);
+        steps = b.create<arith::SubIOp>(steps, zeros);
+        eta = b.create<arith::AddIOp>(eta, zeros);
+        g = b.create<arith::ShRUIOp>(g, zeros);
+        t.t00 = b.create<arith::ShLIOp>(t.t00, zeros);
+        t.t01 = b.create<arith::ShLIOp>(t.t01, zeros);
 
-        Value isContinue = b_.create<arith::CmpIOp>(arith::CmpIPredicate::ne,
-                                                    steps, limbTypeZero_);
+        Value isContinue = b.create<arith::CmpIOp>(arith::CmpIPredicate::ne,
+                                                   steps, limbTypeZero);
         b.create<scf::ConditionOp>(
             isContinue,
             ValueRange{steps, f, g, eta, t.t00, t.t01, t.t10, t.t11});
@@ -106,12 +103,12 @@ BYInverter::JumpResult BYInverter::GenerateJump(Value f, Value g, Value eta) {
                             TMatrix{args[4], args[5], args[6], args[7]});
 
         Value deltaPos = b.create<arith::CmpIOp>(arith::CmpIPredicate::sgt, eta,
-                                                 limbTypeZero_);
+                                                 limbTypeZero);
 
-        Value negEta = b.create<arith::SubIOp>(limbTypeZero_, eta);
-        Value negT00 = b.create<arith::SubIOp>(limbTypeZero_, t.t00);
-        Value negT01 = b.create<arith::SubIOp>(limbTypeZero_, t.t01);
-        Value negF = b.create<arith::SubIOp>(limbTypeZero_, f);
+        Value negEta = b.create<arith::SubIOp>(limbTypeZero, eta);
+        Value negT00 = b.create<arith::SubIOp>(limbTypeZero, t.t00);
+        Value negT01 = b.create<arith::SubIOp>(limbTypeZero, t.t01);
+        Value negF = b.create<arith::SubIOp>(limbTypeZero, f);
 
         eta = b.create<arith::SelectOp>(deltaPos, negEta, eta);
         t.t00 = b.create<arith::SelectOp>(deltaPos, t.t10, t.t00);
@@ -121,16 +118,16 @@ BYInverter::JumpResult BYInverter::GenerateJump(Value f, Value g, Value eta) {
         f = b.create<arith::SelectOp>(deltaPos, g, f);
         g = b.create<arith::SelectOp>(deltaPos, negF, g);
 
-        Value five = b.create<arith::ConstantIntOp>(limbType_, 5);
-        Value oneMinusEta = b.create<arith::SubIOp>(limbTypeOne_, eta);
+        Value five = b.create<arith::ConstantIntOp>(limbType, 5);
+        Value oneMinusEta = b.create<arith::SubIOp>(limbTypeOne, eta);
         Value shift = b.create<arith::MinSIOp>(
             b.create<arith::MinSIOp>(steps, oneMinusEta), five);
         Value mask = b.create<arith::SubIOp>(
-            b.create<arith::ShLIOp>(limbTypeOne_, shift), limbTypeOne_);
+            b.create<arith::ShLIOp>(limbTypeOne, shift), limbTypeOne);
 
         Value threeF = b.create<arith::MulIOp>(
-            b.create<arith::ConstantIntOp>(limbType_, 3), f);
-        Value twentyEight = b.create<arith::ConstantIntOp>(limbType_, 28);
+            b.create<arith::ConstantIntOp>(limbType, 3), f);
+        Value twentyEight = b.create<arith::ConstantIntOp>(limbType, 28);
         Value w = b.create<arith::AndIOp>(
             b.create<arith::MulIOp>(
                 g, b.create<arith::XOrIOp>(threeF, twentyEight)),
@@ -153,106 +150,106 @@ BYInverter::JumpResult BYInverter::GenerateJump(Value f, Value g, Value eta) {
 }
 
 BYInverter::FGResult BYInverter::GenerateFG(Value f, Value g, TMatrix t) {
-  Value extT00 = b_.create<arith::ExtSIOp>(extIntType_, t.t00);
-  Value extT01 = b_.create<arith::ExtSIOp>(extIntType_, t.t01);
-  Value extT10 = b_.create<arith::ExtSIOp>(extIntType_, t.t10);
-  Value extT11 = b_.create<arith::ExtSIOp>(extIntType_, t.t11);
+  Value extT00 = b.create<arith::ExtSIOp>(extIntType, t.t00);
+  Value extT01 = b.create<arith::ExtSIOp>(extIntType, t.t01);
+  Value extT10 = b.create<arith::ExtSIOp>(extIntType, t.t10);
+  Value extT11 = b.create<arith::ExtSIOp>(extIntType, t.t11);
 
-  Value newF = b_.create<arith::AddIOp>(b_.create<arith::MulIOp>(f, extT00),
-                                        b_.create<arith::MulIOp>(g, extT01));
+  Value newF = b.create<arith::AddIOp>(b.create<arith::MulIOp>(f, extT00),
+                                       b.create<arith::MulIOp>(g, extT01));
 
-  Value newG = b_.create<arith::AddIOp>(b_.create<arith::MulIOp>(f, extT10),
-                                        b_.create<arith::MulIOp>(g, extT11));
-  newF = b_.create<arith::ShRSIOp>(newF, extIntTypeN_);
-  newG = b_.create<arith::ShRSIOp>(newG, extIntTypeN_);
+  Value newG = b.create<arith::AddIOp>(b.create<arith::MulIOp>(f, extT10),
+                                       b.create<arith::MulIOp>(g, extT11));
+  newF = b.create<arith::ShRSIOp>(newF, extIntTypeN);
+  newG = b.create<arith::ShRSIOp>(newG, extIntTypeN);
 
   return {newF, newG};
 }
 
 BYInverter::DEResult BYInverter::GenerateDE(Value d, Value e, TMatrix t) {
-  Value isNegD = b_.create<arith::ExtUIOp>(
-      limbType_,
-      b_.create<arith::CmpIOp>(arith::CmpIPredicate::slt, d, extIntTypeZero_));
-  Value isNegE = b_.create<arith::ExtUIOp>(
-      limbType_,
-      b_.create<arith::CmpIOp>(arith::CmpIPredicate::slt, e, extIntTypeZero_));
-  Value md = b_.create<arith::AddIOp>(b_.create<arith::MulIOp>(t.t00, isNegD),
-                                      b_.create<arith::MulIOp>(t.t01, isNegE));
-  Value me = b_.create<arith::AddIOp>(b_.create<arith::MulIOp>(t.t10, isNegD),
-                                      b_.create<arith::MulIOp>(t.t11, isNegE));
+  Value isNegD = b.create<arith::ExtUIOp>(
+      limbType,
+      b.create<arith::CmpIOp>(arith::CmpIPredicate::slt, d, extIntTypeZero));
+  Value isNegE = b.create<arith::ExtUIOp>(
+      limbType,
+      b.create<arith::CmpIOp>(arith::CmpIPredicate::slt, e, extIntTypeZero));
+  Value md = b.create<arith::AddIOp>(b.create<arith::MulIOp>(t.t00, isNegD),
+                                     b.create<arith::MulIOp>(t.t01, isNegE));
+  Value me = b.create<arith::AddIOp>(b.create<arith::MulIOp>(t.t10, isNegD),
+                                     b.create<arith::MulIOp>(t.t11, isNegE));
 
   // Calculate cd and ce using lowest bits
-  Value dLow = b_.create<arith::AndIOp>(
-      b_.create<arith::TruncIOp>(limbType_, d), maskN_);
-  Value eLow = b_.create<arith::AndIOp>(
-      b_.create<arith::TruncIOp>(limbType_, e), maskN_);
-  Value cd = b_.create<arith::AndIOp>(
-      b_.create<arith::AddIOp>(b_.create<arith::MulIOp>(t.t00, dLow),
-                               b_.create<arith::MulIOp>(t.t01, eLow)),
-      maskN_);
-  Value ce = b_.create<arith::AndIOp>(
-      b_.create<arith::AddIOp>(b_.create<arith::MulIOp>(t.t10, dLow),
-                               b_.create<arith::MulIOp>(t.t11, eLow)),
-      maskN_);
+  Value dLow =
+      b.create<arith::AndIOp>(b.create<arith::TruncIOp>(limbType, d), maskN);
+  Value eLow =
+      b.create<arith::AndIOp>(b.create<arith::TruncIOp>(limbType, e), maskN);
+  Value cd = b.create<arith::AndIOp>(
+      b.create<arith::AddIOp>(b.create<arith::MulIOp>(t.t00, dLow),
+                              b.create<arith::MulIOp>(t.t01, eLow)),
+      maskN);
+  Value ce = b.create<arith::AndIOp>(
+      b.create<arith::AddIOp>(b.create<arith::MulIOp>(t.t10, dLow),
+                              b.create<arith::MulIOp>(t.t11, eLow)),
+      maskN);
 
-  md = b_.create<arith::SubIOp>(
-      md, b_.create<arith::AndIOp>(
-              b_.create<arith::AddIOp>(b_.create<arith::MulIOp>(cd, mInv_), md),
-              maskN_));
-  me = b_.create<arith::SubIOp>(
-      me, b_.create<arith::AndIOp>(
-              b_.create<arith::AddIOp>(b_.create<arith::MulIOp>(ce, mInv_), me),
-              maskN_));
+  md = b.create<arith::SubIOp>(
+      md, b.create<arith::AndIOp>(
+              b.create<arith::AddIOp>(b.create<arith::MulIOp>(cd, mInv), md),
+              maskN));
+  me = b.create<arith::SubIOp>(
+      me, b.create<arith::AndIOp>(
+              b.create<arith::AddIOp>(b.create<arith::MulIOp>(ce, mInv), me),
+              maskN));
 
-  Value extT00 = b_.create<arith::ExtSIOp>(extIntType_, t.t00);
-  Value extT01 = b_.create<arith::ExtSIOp>(extIntType_, t.t01);
-  Value extT10 = b_.create<arith::ExtSIOp>(extIntType_, t.t10);
-  Value extT11 = b_.create<arith::ExtSIOp>(extIntType_, t.t11);
+  Value extT00 = b.create<arith::ExtSIOp>(extIntType, t.t00);
+  Value extT01 = b.create<arith::ExtSIOp>(extIntType, t.t01);
+  Value extT10 = b.create<arith::ExtSIOp>(extIntType, t.t10);
+  Value extT11 = b.create<arith::ExtSIOp>(extIntType, t.t11);
 
-  cd = b_.create<arith::AddIOp>(
-      b_.create<arith::AddIOp>(b_.create<arith::MulIOp>(d, extT00),
-                               b_.create<arith::MulIOp>(e, extT01)),
-      b_.create<arith::MulIOp>(m_, b_.create<arith::ExtSIOp>(extIntType_, md)));
-  ce = b_.create<arith::AddIOp>(
-      b_.create<arith::AddIOp>(b_.create<arith::MulIOp>(d, extT10),
-                               b_.create<arith::MulIOp>(e, extT11)),
-      b_.create<arith::MulIOp>(m_, b_.create<arith::ExtSIOp>(extIntType_, me)));
+  cd = b.create<arith::AddIOp>(
+      b.create<arith::AddIOp>(b.create<arith::MulIOp>(d, extT00),
+                              b.create<arith::MulIOp>(e, extT01)),
+      b.create<arith::MulIOp>(m, b.create<arith::ExtSIOp>(extIntType, md)));
+  ce = b.create<arith::AddIOp>(
+      b.create<arith::AddIOp>(b.create<arith::MulIOp>(d, extT10),
+                              b.create<arith::MulIOp>(e, extT11)),
+      b.create<arith::MulIOp>(m, b.create<arith::ExtSIOp>(extIntType, me)));
 
-  cd = b_.create<arith::ShRSIOp>(cd, extIntTypeN_);
-  ce = b_.create<arith::ShRSIOp>(ce, extIntTypeN_);
+  cd = b.create<arith::ShRSIOp>(cd, extIntTypeN);
+  ce = b.create<arith::ShRSIOp>(ce, extIntTypeN);
   return {cd, ce};
 }
 
 Value BYInverter::GenerateNorm(Value value, Value antiunit) {
-  Value isNeg = b_.create<arith::CmpIOp>(arith::CmpIPredicate::slt, value,
-                                         extIntTypeZero_);
-  Value result = b_.create<arith::SelectOp>(
-      isNeg, b_.create<arith::AddIOp>(value, m_), value);
+  Value isNeg =
+      b.create<arith::CmpIOp>(arith::CmpIPredicate::slt, value, extIntTypeZero);
+  Value result = b.create<arith::SelectOp>(
+      isNeg, b.create<arith::AddIOp>(value, m), value);
 
-  result = b_.create<arith::SelectOp>(
-      antiunit, b_.create<arith::SubIOp>(extIntTypeZero_, result), result);
+  result = b.create<arith::SelectOp>(
+      antiunit, b.create<arith::SubIOp>(extIntTypeZero, result), result);
 
-  result = b_.create<arith::SelectOp>(
-      b_.create<arith::CmpIOp>(arith::CmpIPredicate::slt, result,
-                               extIntTypeZero_),
-      b_.create<arith::AddIOp>(result, m_), result);
+  result = b.create<arith::SelectOp>(
+      b.create<arith::CmpIOp>(arith::CmpIPredicate::slt, result,
+                              extIntTypeZero),
+      b.create<arith::AddIOp>(result, m), result);
 
   return result;
 }
 
 Value BYInverter::Generate(Value input, bool isMont) {
-  Value f = m_;
-  Value g = b_.create<arith::ExtUIOp>(extIntType_, input);
-  Value d = extIntTypeZero_;
+  Value f = m;
+  Value g = b.create<arith::ExtUIOp>(extIntType, input);
+  Value d = extIntTypeZero;
   Value e;
   if (isMont) {
-    MontgomeryAttr montAttr = modArithType_.getMontgomeryAttr();
-    e = b_.create<arith::ConstantOp>(montAttr.getRSquared());
-    e = b_.create<arith::ExtUIOp>(extIntType_, e);
+    MontgomeryAttr montAttr = modArithType.getMontgomeryAttr();
+    e = b.create<arith::ConstantOp>(montAttr.getRSquared());
+    e = b.create<arith::ExtUIOp>(extIntType, e);
   } else {
-    e = extIntTypeOne_;
+    e = extIntTypeOne;
   }
-  Value eta = limbTypeOne_;
+  Value eta = limbTypeOne;
 
   SmallVector<Value, 5> initValues = {f, g, d, e, eta};
   SmallVector<Type, 5> types;
@@ -260,13 +257,13 @@ Value BYInverter::Generate(Value input, bool isMont) {
     types.push_back(v.getType());
   }
 
-  auto whileOp = b_.create<scf::WhileOp>(
+  auto whileOp = b.create<scf::WhileOp>(
       types, initValues,
       [&](OpBuilder &builder, Location loc, ValueRange args) {
         ImplicitLocOpBuilder b(loc, builder);
         Value g = args[1];
-        Value cond = b_.create<arith::CmpIOp>(arith::CmpIPredicate::ne, g,
-                                              extIntTypeZero_);
+        Value cond = b.create<arith::CmpIOp>(arith::CmpIPredicate::ne, g,
+                                             extIntTypeZero);
         b.create<scf::ConditionOp>(cond, args);
       },
       [&](OpBuilder &builder, Location loc, ValueRange args) {
@@ -286,51 +283,49 @@ Value BYInverter::Generate(Value input, bool isMont) {
   f = whileOp.getResult(0);
   d = whileOp.getResult(2);
 
-  Value minusOneIntType = b_.create<arith::ConstantIntOp>(
-      extIntType_, APInt::getAllOnes(extIntType_.getWidth()));
+  Value minusOneIntType = b.create<arith::ConstantIntOp>(
+      extIntType, APInt::getAllOnes(extIntType.getWidth()));
 
   Value antiunit =
-      b_.create<arith::CmpIOp>(arith::CmpIPredicate::eq, f, minusOneIntType);
-  Value invertible = b_.create<arith::OrIOp>(
-      b_.create<arith::CmpIOp>(arith::CmpIPredicate::eq, f, extIntTypeOne_),
+      b.create<arith::CmpIOp>(arith::CmpIPredicate::eq, f, minusOneIntType);
+  Value invertible = b.create<arith::OrIOp>(
+      b.create<arith::CmpIOp>(arith::CmpIPredicate::eq, f, extIntTypeOne),
       antiunit);
 
   d = GenerateNorm(d, antiunit);
   // return zero for non-invertible input
-  Value result = b_.create<arith::SelectOp>(invertible, d, extIntTypeZero_);
-  result = b_.create<arith::TruncIOp>(intType_, result);
+  Value result = b.create<arith::SelectOp>(invertible, d, extIntTypeZero);
+  result = b.create<arith::TruncIOp>(intType, result);
   return result;
 }
 
 Value BYInverter::BatchGenerate(Value input, bool isMont,
                                 ShapedType shapedType) {
-  Value oneIndex = b_.create<arith::ConstantIndexOp>(1);
-  Value zeroIndex = b_.create<arith::ConstantIndexOp>(0);
+  Value oneIndex = b.create<arith::ConstantIndexOp>(1);
+  Value zeroIndex = b.create<arith::ConstantIndexOp>(0);
   Value sizeIndex =
-      b_.create<arith::ConstantIndexOp>(shapedType.getNumElements());
+      b.create<arith::ConstantIndexOp>(shapedType.getNumElements());
 
-  Value one =
-      b_.create<ConstantOp>(modArithType_, IntegerAttr::get(intType_, 1));
+  Value one = b.create<ConstantOp>(modArithType, IntegerAttr::get(intType, 1));
   if (isMont) {
-    one = b_.create<ToMontOp>(modArithType_, one);
+    one = b.create<ToMontOp>(modArithType, one);
   }
-  Value zero =
-      b_.create<ConstantOp>(modArithType_, IntegerAttr::get(intType_, 0));
+  Value zero = b.create<ConstantOp>(modArithType, IntegerAttr::get(intType, 0));
   Value productions =
-      b_.create<tensor::EmptyOp>(shapedType.getShape(), modArithType_);
-  productions = b_.create<tensor::InsertOp>(one, productions, zeroIndex);
+      b.create<tensor::EmptyOp>(shapedType.getShape(), modArithType);
+  productions = b.create<tensor::InsertOp>(one, productions, zeroIndex);
   Value product = one;
 
   // calculate [a₁, a₁*a₂, ..., a₁*a₂*...*aₙ]
   // TODO(quanxi1): try parallelizing the reduction
-  auto forOp = b_.create<scf::ForOp>(
+  auto forOp = b.create<scf::ForOp>(
       /*lb=*/zeroIndex,
       /*ub=*/sizeIndex,
       /*step=*/oneIndex,
       /*iterArgs=*/ValueRange{productions, product},
       [&](OpBuilder &builder, Location loc, Value iv, ValueRange iterArgs) {
         ImplicitLocOpBuilder b(loc, builder);
-        Value element = b.create<tensor::ExtractOp>(modArithType_, input, iv);
+        Value element = b.create<tensor::ExtractOp>(modArithType, input, iv);
         Value productions = iterArgs[0];
         Value product = iterArgs[1];
 
@@ -359,17 +354,16 @@ Value BYInverter::BatchGenerate(Value input, bool isMont,
 
   // (a₁*a₂* ... *aᵢ)⁻¹
   Value invertedProduct =
-      Generate(b_.create<BitcastOp>(intType_, product), isMont);
-  invertedProduct = b_.create<BitcastOp>(modArithType_, invertedProduct);
+      Generate(b.create<BitcastOp>(intType, product), isMont);
+  invertedProduct = b.create<BitcastOp>(modArithType, invertedProduct);
 
   // calculate [a₁⁻¹, a₂⁻¹, ..., aₙ⁻¹]
   // TODO(quanxi1): Currently this is lowered to allocating a new buffer. Change
   // this to in-place operation reusing the input buffer
-  Value result =
-      b_.create<tensor::EmptyOp>(shapedType.getShape(), modArithType_);
-  auto forOp2 = b_.create<scf::ForOp>(
+  Value result = b.create<tensor::EmptyOp>(shapedType.getShape(), modArithType);
+  auto forOp2 = b.create<scf::ForOp>(
       /*lb=*/zeroIndex,
-      /*ub=*/b_.create<arith::SubIOp>(sizeIndex, oneIndex),
+      /*ub=*/b.create<arith::SubIOp>(sizeIndex, oneIndex),
       /*step=*/oneIndex,
       /*iterArgs=*/ValueRange{result, invertedProduct},
       [&](OpBuilder &builder, Location loc, Value iv, ValueRange iterArgs) {
@@ -380,7 +374,7 @@ Value BYInverter::BatchGenerate(Value input, bool isMont,
         Value result = iterArgs[0];
         Value invertedProduct = iterArgs[1];
         Value element =
-            b.create<tensor::ExtractOp>(modArithType_, input, currIndex);
+            b.create<tensor::ExtractOp>(modArithType, input, currIndex);
 
         Value isNotZero =
             b.create<CmpOp>(arith::CmpIPredicate::ne, element, zero);
@@ -391,7 +385,7 @@ Value BYInverter::BatchGenerate(Value input, bool isMont,
               Value prevIndex = b.create<arith::SubIOp>(currIndex, oneIndex);
               // a₁*a₂*...*aᵢ₋₁
               Value prevProd = b.create<tensor::ExtractOp>(
-                  modArithType_, productions, prevIndex);
+                  modArithType, productions, prevIndex);
               // aᵢ⁻¹
               Value elementInv = b.create<MulOp>(prevProd, invertedProduct);
               Value newResult =
@@ -413,7 +407,7 @@ Value BYInverter::BatchGenerate(Value input, bool isMont,
   result = forOp2.getResult(0);
   // a₁⁻¹
   invertedProduct = forOp2.getResult(1);
-  return b_.create<tensor::InsertOp>(invertedProduct, result, zeroIndex);
+  return b.create<tensor::InsertOp>(invertedProduct, result, zeroIndex);
 }
 
 } // namespace mlir::zkir::mod_arith
