@@ -69,9 +69,9 @@ private:
   // Checks if the input is from a signed multiplication.
   bool isFromSignedMul(Value input);
 
-  ImplicitLocOpBuilder &b_;
-  TypedAttr modAttr_;
-  MontgomeryAttr montAttr_;
+  ImplicitLocOpBuilder &b;
+  TypedAttr modAttr;
+  MontgomeryAttr montAttr;
 };
 
 } // namespace mlir::zkir::mod_arith
