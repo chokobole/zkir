@@ -56,22 +56,22 @@ public:
   Value GenerateNorm(Value value, Value antiunit);
 
 private:
-  ImplicitLocOpBuilder &b_;
+  ImplicitLocOpBuilder &b;
 
-  IntegerType intType_;
-  IntegerType extIntType_;
-  IntegerType limbType_;
-  ModArithType modArithType_;
+  IntegerType intType;
+  IntegerType extIntType;
+  IntegerType limbType;
+  ModArithType modArithType;
 
-  Value maskN_;
-  Value m_;
-  Value mInv_;
-  Value limbTypeOne_;
-  Value limbTypeZero_;
-  Value extIntTypeOne_;
-  Value extIntTypeZero_;
-  Value extIntTypeN_;
-  Value limbTypeN_;
+  Value maskN;
+  Value m;
+  Value mInv;
+  Value limbTypeOne;
+  Value limbTypeZero;
+  Value extIntTypeOne;
+  Value extIntTypeZero;
+  Value extIntTypeN;
+  Value limbTypeN;
 };
 
 } // namespace mlir::zkir::mod_arith
