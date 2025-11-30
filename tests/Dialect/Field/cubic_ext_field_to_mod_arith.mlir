@@ -44,7 +44,7 @@ func.func @test_lower_sub(%arg0: !CF, %arg1: !CF) -> !CF {
 func.func @test_lower_mul(%arg0: !CF, %arg1: !CF) -> !CF {
     // CHECK: mod_arith.constant 2 : !z7_i32
     // CHECK-COUNT-2: field.ext_to_coeffs
-    // CHECK-COUNT-11: mod_arith.mul
+    // CHECK-COUNT-8: mod_arith.mul
     // CHECK: field.ext_from_coeffs
     %0 = field.mul %arg0, %arg1 : !CF
     return %0 : !CF

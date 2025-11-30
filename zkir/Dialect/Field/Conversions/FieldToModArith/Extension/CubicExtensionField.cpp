@@ -80,23 +80,24 @@ Value CubicExtensionField::square(Value x) {
 }
 
 Value CubicExtensionField::mul(Value x, Value y) {
-  // Schoolbook multiplication for cubic extension field.
+  // See https://eprint.iacr.org/2006/471.pdf
+  // Devegili OhEig Scott Dahab --- Multiplication and Squaring on
+  // AbstractPairing-Friendly Fields.pdf; Section 4 (Karatsuba)
+  //
   // For x = x₀ + x₁ * u + x₂ * u² and y = y₀ + y₁ * u + y₂ * u²
   // where u³ = xi:
   //
   // v₀ = x₀ * y₀
-  // v₁ = x₁ * y₂
-  // v₂ = x₂ * y₁
-  // v₃ = x₀ * y₁
-  // v₄ = x₁ * y₀
-  // v₅ = x₂ * y₂
-  // v₆ = x₀ * y₂
-  // v₇ = x₁ * y₁
-  // v₈ = x₂ * y₀
+  // v₁ = x₁ * y₁
+  // v₂ = x₂ * y₂
+  // v₃ = (x₀ + x₁) * (y₀ + y₁) - v₀ - v₁
+  // v₄ = (x₀ + x₂) * (y₀ + y₂) - v₀ - v₂
+  // v₅ = (x₁ + x₂) * (y₁ + y₂) - v₁ - v₂
   //
-  // z₀ = v₀ + xi * (v₁ + v₂)
-  // z₁ = v₃ + v₄ + xi * v₅
-  // z₂ = v₆ + v₇ + v₈
+  // Result:
+  // z₀ = v₀ + xi * v₅
+  // z₁ = v₃ + xi * v₂
+  // z₂ = v₄ + v₁
 
   auto xCoeffs = toCoeffs(b, x);
   auto x0 = xCoeffs[0];
@@ -108,28 +109,38 @@ Value CubicExtensionField::mul(Value x, Value y) {
   auto y2 = yCoeffs[2];
 
   auto v0 = b.create<mod_arith::MulOp>(x0, y0);
-  auto v1 = b.create<mod_arith::MulOp>(x1, y2);
-  auto v2 = b.create<mod_arith::MulOp>(x2, y1);
-  auto v3 = b.create<mod_arith::MulOp>(x0, y1);
-  auto v4 = b.create<mod_arith::MulOp>(x1, y0);
-  auto v5 = b.create<mod_arith::MulOp>(x2, y2);
-  auto v6 = b.create<mod_arith::MulOp>(x0, y2);
-  auto v7 = b.create<mod_arith::MulOp>(x1, y1);
-  auto v8 = b.create<mod_arith::MulOp>(x2, y0);
+  auto v1 = b.create<mod_arith::MulOp>(x1, y1);
+  auto v2 = b.create<mod_arith::MulOp>(x2, y2);
 
-  // z₀ = v₀ + xi * (v₁ + v₂)
-  auto v1PlusV2 = b.create<mod_arith::AddOp>(v1, v2);
-  auto xiTimesV1PlusV2 = b.create<mod_arith::MulOp>(nonResidue, v1PlusV2);
-  auto z0 = b.create<mod_arith::AddOp>(v0, xiTimesV1PlusV2);
+  // v₃ = (x₀ + x₁) * (y₀ + y₁) - v₀ - v₁
+  auto x0PlusX1 = b.create<mod_arith::AddOp>(x0, x1);
+  auto y0PlusY1 = b.create<mod_arith::AddOp>(y0, y1);
+  Value v3 = b.create<mod_arith::MulOp>(x0PlusX1, y0PlusY1);
+  v3 = b.create<mod_arith::SubOp>(v3, v0);
+  v3 = b.create<mod_arith::SubOp>(v3, v1);
 
-  // z₁ = v₃ + v₄ + xi * v₅
-  auto xiTimesV5 = b.create<mod_arith::MulOp>(nonResidue, v5);
-  auto v3PlusV4 = b.create<mod_arith::AddOp>(v3, v4);
-  auto z1 = b.create<mod_arith::AddOp>(v3PlusV4, xiTimesV5);
+  // v₄ = (x₀ + x₂) * (y₀ + y₂) - v₀ - v₂
+  auto x0PlusX2 = b.create<mod_arith::AddOp>(x0, x2);
+  auto y0PlusY2 = b.create<mod_arith::AddOp>(y0, y2);
+  Value v4 = b.create<mod_arith::MulOp>(x0PlusX2, y0PlusY2);
+  v4 = b.create<mod_arith::SubOp>(v4, v0);
+  v4 = b.create<mod_arith::SubOp>(v4, v2);
 
-  // z₂ = v₆ + v₇ + v₈
-  auto v6PlusV7 = b.create<mod_arith::AddOp>(v6, v7);
-  auto z2 = b.create<mod_arith::AddOp>(v6PlusV7, v8);
+  // v₅ = (x₁ + x₂) * (y₁ + y₂) - v₁ - v₂
+  auto x1PlusX2 = b.create<mod_arith::AddOp>(x1, x2);
+  auto y1PlusY2 = b.create<mod_arith::AddOp>(y1, y2);
+  Value v5 = b.create<mod_arith::MulOp>(x1PlusX2, y1PlusY2);
+  v5 = b.create<mod_arith::SubOp>(v5, v1);
+  v5 = b.create<mod_arith::SubOp>(v5, v2);
+
+  // z₀ = v₀ + xi * v₅
+  auto z0 = b.create<mod_arith::AddOp>(
+      v0, b.create<mod_arith::MulOp>(nonResidue, v5));
+  // z₁ = v₃ + xi * v₂
+  auto z1 = b.create<mod_arith::AddOp>(
+      v3, b.create<mod_arith::MulOp>(nonResidue, v2));
+  // z₂ = v₄ + v₁
+  auto z2 = b.create<mod_arith::AddOp>(v4, v1);
 
   return fromCoeffs(b, type, {z0, z1, z2});
 }
