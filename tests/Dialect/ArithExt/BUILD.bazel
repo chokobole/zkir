@@ -13,11 +13,39 @@
 # limitations under the License.
 # ==============================================================================
 
+load("@rules_python//python:defs.bzl", "py_test")
 load("//bazel:lit.bzl", "glob_lit_tests")
+
+AVX512_TESTS = [
+    "packed_arith_runner.mlir",
+]
 
 glob_lit_tests(
     name = "all_tests",
     data = ["//tests:test_utilities"],
     driver = "//tests:run_lit.sh",
+    exclude = AVX512_TESTS,
     test_file_exts = ["mlir"],
 )
+
+[
+    py_test(
+        name = f.replace(".mlir", ""),
+        srcs = ["@llvm-project//llvm:lit"],
+        args = select({
+            "//:zkir_has_avx512": [
+                "-v",
+                "tests/Dialect/ArithExt/" + f,
+            ],
+            # TODO(chokobole): This is a hack to prevent the test from running if AVX512 is not supported.
+            "//conditions:default": ["-h"],
+        }),
+        data = [
+            "//tests:test_utilities",
+            f,
+        ],
+        main = "lit.py",
+        deps = ["@pypi//lit"],
+    )
+    for f in AVX512_TESTS
+]

@@ -29,8 +29,10 @@ zkir_mlir_cc_import(
         "-mcpu=native",
     ],
     mlir_src = "poseidon2_packed.mlir",
-    zkir_opt_flags = [
-        "-field-to-llvm=specialize-avx",
+    zkir_opt_flags = select({
+        "//:zkir_has_avx512": ["-field-to-llvm=specialize-avx"],
+        "//conditions:default": ["-field-to-llvm"],
+    }) + [
         "-convert-vector-to-llvm",
     ],
 )
