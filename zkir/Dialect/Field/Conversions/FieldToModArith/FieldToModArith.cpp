@@ -666,6 +666,25 @@ struct ConvertF3Constant : public OpConversionPattern<F3ConstantOp> {
   }
 };
 
+struct ConvertF4Constant : public OpConversionPattern<F4ConstantOp> {
+  explicit ConvertF4Constant(MLIRContext *context)
+      : OpConversionPattern<F4ConstantOp>(context) {}
+
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(F4ConstantOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+
+    auto f4 = b.create<ExtFromCoeffsOp>(
+        op.getType(), ValueRange{adaptor.getC0(), adaptor.getC1(),
+                                 adaptor.getC2(), adaptor.getC3()});
+    rewriter.replaceOp(op, f4);
+    return success();
+  }
+};
+
 namespace rewrites {
 // In an inner namespace to avoid conflicts with canonicalization patterns
 #include "zkir/Dialect/Field/Conversions/FieldToModArith/FieldToModArith.cpp.inc"
@@ -697,6 +716,7 @@ void FieldToModArith::runOnOperation() {
       ConvertDouble,
       ConvertF2Constant,
       ConvertF3Constant,
+      ConvertF4Constant,
       ConvertFromMont,
       ConvertInverse,
       ConvertMul,
