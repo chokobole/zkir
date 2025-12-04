@@ -13,6 +13,13 @@
 # limitations under the License.
 # ==============================================================================
 
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+
+bool_flag(
+    name = "has_avx512",
+    build_setting_default = False,
+)
+
 config_setting(
     name = "linux_x86_64",
     constraint_values = [
@@ -43,4 +50,10 @@ config_setting(
         "@platforms//os:macos",
         "@platforms//cpu:aarch64",
     ],
+)
+
+config_setting(
+    name = "zkir_has_avx512",
+    constraint_values = ["@platforms//cpu:x86_64"],
+    flag_values = {":has_avx512": "true"},
 )
