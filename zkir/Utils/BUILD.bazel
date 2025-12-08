@@ -29,6 +29,17 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "AssemblyFormatUtils",
+    srcs = ["AssemblyFormatUtils.cpp"],
+    hdrs = ["AssemblyFormatUtils.h"],
+    deps = [
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
 td_library(
     name = "CommonTraits",
     srcs = ["CommonTraits.td"],
