@@ -82,39 +82,36 @@ def Field_ConstantOp : Op<Field_Dialect, "constant", [ConstantLike, Pure]> {
       }
     }]>,
     OpBuilder<(ins "PrimeFieldType":$ty, "llvm::APInt":$value), [{
-      return build($_builder, $_state, ty, PrimeFieldAttr::get(ty, value));
+      return build($_builder, $_state, ty, IntegerAttr::get(ty.getStorageType(), value));
     }]>,
     OpBuilder<(ins "PrimeFieldType":$ty, "uint64_t":$value), [{
-      return build($_builder, $_state, ty, PrimeFieldAttr::get(ty, value));
-    }]>,
-    OpBuilder<(ins "PrimeFieldType":$ty, "IntegerAttr":$value), [{
-      return build($_builder, $_state, ty, PrimeFieldAttr::get(ty.getContext(), ty, value));
+      return build($_builder, $_state, ty, IntegerAttr::get(ty.getStorageType(), value));
     }]>,
     OpBuilder<(ins "QuadraticExtFieldType":$ty, "uint64_t":$c0), [{
       return build($_builder, $_state, ty, c0, 0);
     }]>,
     OpBuilder<(ins "QuadraticExtFieldType":$ty, "uint64_t":$c0, "uint64_t":$c1), [{
-      PrimeFieldAttr c0Attr = PrimeFieldAttr::get(ty.getBaseField(), c0);
-      PrimeFieldAttr c1Attr = PrimeFieldAttr::get(ty.getBaseField(), c1);
+      IntegerAttr c0Attr = IntegerAttr::get(ty.getBaseField().getStorageType(), c0);
+      IntegerAttr c1Attr = IntegerAttr::get(ty.getBaseField().getStorageType(), c1);
       return build($_builder, $_state, ty, QuadraticExtFieldAttr::get(ty.getContext(), ty, c0Attr, c1Attr));
     }]>,
     OpBuilder<(ins "CubicExtFieldType":$ty, "uint64_t":$c0), [{
       return build($_builder, $_state, ty, c0, 0, 0);
     }]>,
     OpBuilder<(ins "CubicExtFieldType":$ty, "uint64_t":$c0, "uint64_t":$c1, "uint64_t":$c2), [{
-      PrimeFieldAttr c0Attr = PrimeFieldAttr::get(ty.getBaseField(), c0);
-      PrimeFieldAttr c1Attr = PrimeFieldAttr::get(ty.getBaseField(), c1);
-      PrimeFieldAttr c2Attr = PrimeFieldAttr::get(ty.getBaseField(), c2);
+      IntegerAttr c0Attr = IntegerAttr::get(ty.getBaseField().getStorageType(), c0);
+      IntegerAttr c1Attr = IntegerAttr::get(ty.getBaseField().getStorageType(), c1);
+      IntegerAttr c2Attr = IntegerAttr::get(ty.getBaseField().getStorageType(), c2);
       return build($_builder, $_state, ty, CubicExtFieldAttr::get(ty.getContext(), ty, c0Attr, c1Attr, c2Attr));
     }]>,
     OpBuilder<(ins "QuarticExtFieldType":$ty, "uint64_t":$c0), [{
       return build($_builder, $_state, ty, c0, 0, 0, 0);
     }]>,
     OpBuilder<(ins "QuarticExtFieldType":$ty, "uint64_t":$c0, "uint64_t":$c1, "uint64_t":$c2, "uint64_t":$c3), [{
-      PrimeFieldAttr c0Attr = PrimeFieldAttr::get(ty.getBaseField(), c0);
-      PrimeFieldAttr c1Attr = PrimeFieldAttr::get(ty.getBaseField(), c1);
-      PrimeFieldAttr c2Attr = PrimeFieldAttr::get(ty.getBaseField(), c2);
-      PrimeFieldAttr c3Attr = PrimeFieldAttr::get(ty.getBaseField(), c3);
+      IntegerAttr c0Attr = IntegerAttr::get(ty.getBaseField().getStorageType(), c0);
+      IntegerAttr c1Attr = IntegerAttr::get(ty.getBaseField().getStorageType(), c1);
+      IntegerAttr c2Attr = IntegerAttr::get(ty.getBaseField().getStorageType(), c2);
+      IntegerAttr c3Attr = IntegerAttr::get(ty.getBaseField().getStorageType(), c3);
       return build($_builder, $_state, ty, QuarticExtFieldAttr::get(ty.getContext(), ty, c0Attr, c1Attr, c2Attr, c3Attr));
     }]>,
   ];

@@ -42,35 +42,9 @@ def ExtensionFieldAttrInterface : AttrInterface<"ExtensionFieldAttrInterface"> {
   ];
 }
 
-def Field_PrimeFieldAttr : Field_Attr<"PrimeField", "pf.elem", [TypedAttrInterface]> {
-  let summary = "An attribute representing a prime field element";
-  let parameters = (ins "PrimeFieldType":$type, "IntegerAttr":$value);
-  let assemblyFormat = "`<` $value `>` `:` $type";
-  let builders = [
-    AttrBuilderWithInferredContext<(ins "PrimeFieldType":$type,
-                                        "const llvm::APInt":$value), [{
-      return $_get(
-        type.getContext(),
-        type,
-        IntegerAttr::get(type.getStorageType(), value));
-    }]>,
-    AttrBuilderWithInferredContext<(ins "PrimeFieldType":$type,
-                                        "const uint64_t":$value), [{
-      return $_get(
-        type.getContext(),
-        type,
-        IntegerAttr::get(type.getStorageType(), value));
-    }]>
-  ];
-  let extraClassDeclaration = [{
-    using ValueType = Attribute;
-  }];
-  let genVerifyDecl = 1;
-}
-
 def Field_QuadraticExtFieldAttr : Field_Attr<"QuadraticExtField", "f2.elem", [TypedAttrInterface, ExtensionFieldAttrInterface]> {
   let summary = "An attribute representing a quadratic extension field element";
-  let parameters = (ins "QuadraticExtFieldType":$type, Field_PrimeFieldAttr:$c0, Field_PrimeFieldAttr:$c1);
+  let parameters = (ins "QuadraticExtFieldType":$type, "IntegerAttr":$c0, "IntegerAttr":$c1);
   let assemblyFormat = "`<` $c0 `,` $c1 `>` `:` $type";
   let extraClassDeclaration = [{
     using ValueType = Attribute;
@@ -85,7 +59,7 @@ def Field_QuadraticExtFieldAttr : Field_Attr<"QuadraticExtField", "f2.elem", [Ty
 
 def Field_CubicExtFieldAttr : Field_Attr<"CubicExtField", "f3.elem", [TypedAttrInterface, ExtensionFieldAttrInterface]> {
   let summary = "An attribute representing a cubic extension field element";
-  let parameters = (ins "CubicExtFieldType":$type, Field_PrimeFieldAttr:$c0, Field_PrimeFieldAttr:$c1, Field_PrimeFieldAttr:$c2);
+  let parameters = (ins "CubicExtFieldType":$type, "IntegerAttr":$c0, "IntegerAttr":$c1, "IntegerAttr":$c2);
   let assemblyFormat = "`<` $c0 `,` $c1 `,` $c2 `>` `:` $type";
   let extraClassDeclaration = [{
     using ValueType = Attribute;
@@ -104,7 +78,7 @@ def Field_CubicExtFieldAttr : Field_Attr<"CubicExtField", "f3.elem", [TypedAttrI
 
 def Field_QuarticExtFieldAttr : Field_Attr<"QuarticExtField", "f4.elem", [TypedAttrInterface, ExtensionFieldAttrInterface]> {
   let summary = "An attribute representing a quartic extension field element";
-  let parameters = (ins "QuarticExtFieldType":$type, Field_PrimeFieldAttr:$c0, Field_PrimeFieldAttr:$c1, Field_PrimeFieldAttr:$c2, Field_PrimeFieldAttr:$c3);
+  let parameters = (ins "QuarticExtFieldType":$type, "IntegerAttr":$c0, "IntegerAttr":$c1, "IntegerAttr":$c2, "IntegerAttr":$c3);
   let assemblyFormat = "`<` $c0 `,` $c1 `,` $c2 `,` $c3 `>` `:` $type";
   let extraClassDeclaration = [{
     using ValueType = Attribute;
@@ -124,17 +98,12 @@ def Field_QuarticExtFieldAttr : Field_Attr<"QuarticExtField", "f4.elem", [TypedA
 
 def Field_RootOfUnityAttr : Field_Attr<"RootOfUnity", "root_of_unity", [TypedAttrInterface]> {
   let summary = "An attribute representing a root of unity in a prime field";
-  let parameters = (ins Field_PrimeFieldAttr:$root, "IntegerAttr":$degree);
-  let assemblyFormat = "`<` $root `,` $degree `>`";
-  let extraClassDeclaration = [{
-    PrimeFieldType getType() const {
-      return getRoot().getType();
-    }
-  }];
+  let parameters = (ins "PrimeFieldType":$type, "IntegerAttr":$root, "IntegerAttr":$degree);
+  let assemblyFormat = "`<` $root `,` $degree `>` `:` $type";
   let genVerifyDecl = 1;
 }
 
-def Field_AnyFieldAttr : AnyAttrOf<[Field_PrimeFieldAttr, Field_QuadraticExtFieldAttr, Field_CubicExtFieldAttr, Field_QuarticExtFieldAttr]> {
+def Field_AnyFieldAttr : AnyAttrOf<[APIntAttr, Field_QuadraticExtFieldAttr, Field_CubicExtFieldAttr, Field_QuarticExtFieldAttr]> {
   string cppType = "mlir::TypedAttr";
 }
 

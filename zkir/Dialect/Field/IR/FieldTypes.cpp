@@ -17,6 +17,8 @@ limitations under the License.
 
 #include "mlir/IR/BuiltinTypes.h"
 #include "zkir/Dialect/Field/IR/FieldOps.h"
+#include "zkir/Dialect/ModArith/IR/ModArithAttributes.h"
+#include "zkir/Dialect/ModArith/IR/ModArithTypes.h"
 #include "zkir/Utils/AssemblyFormatUtils.h"
 
 namespace mlir::zkir::field {
@@ -124,6 +126,49 @@ namespace ext_field_utils {
 namespace {
 
 template <typename T>
+Type parseExtensionFieldType(AsmParser &parser) {
+  if (failed(parser.parseLess())) {
+    return nullptr;
+  }
+  Type baseField;
+  if (failed(parser.parseType(baseField))) {
+    return nullptr;
+  }
+  if (!isa<PrimeFieldType>(baseField)) {
+    parser.emitError(parser.getCurrentLocation(),
+                     "base field must be a prime field");
+    return nullptr;
+  }
+  auto pfType = cast<PrimeFieldType>(baseField);
+  if (failed(parser.parseComma())) {
+    return nullptr;
+  }
+  IntegerAttr nonResidue;
+  if (failed(parser.parseAttribute(nonResidue))) {
+    return nullptr;
+  }
+  if (pfType.getIsMontgomery()) {
+    nonResidue =
+        mod_arith::getAttrAsMontgomeryForm(pfType.getModulus(), nonResidue);
+  }
+  if (failed(parser.parseGreater())) {
+    return nullptr;
+  }
+  return T::get(parser.getContext(), pfType, nonResidue);
+}
+
+void printExtensionFieldType(ExtensionFieldTypeInterface extField,
+                             AsmPrinter &printer) {
+  auto pfType = cast<PrimeFieldType>(extField.getBaseFieldType());
+  auto nonResidue = cast<IntegerAttr>(extField.getNonResidue());
+  if (pfType.getIsMontgomery()) {
+    nonResidue =
+        mod_arith::getAttrAsStandardForm(pfType.getModulus(), nonResidue);
+  }
+  printer << "<" << pfType << ", " << nonResidue << ">";
+}
+
+template <typename T>
 bool isMontgomery(T *extField) {
   return extField->getBaseField().getIsMontgomery();
 }
@@ -131,7 +176,7 @@ bool isMontgomery(T *extField) {
 template <typename T>
 Type cloneWith(const T *extField, Type baseField, Attribute element) {
   return T::get(extField->getContext(), cast<PrimeFieldType>(baseField),
-                cast<PrimeFieldAttr>(element));
+                cast<IntegerAttr>(element));
 }
 
 template <typename A, typename T, unsigned kRemainingSize, typename... Args>
@@ -143,8 +188,8 @@ TypedAttr callCreateConstantAttr(const T *extField,
                   std::forward<Args>(currentCoeffs)...);
   } else {
     unsigned index = coeffs.size() - kRemainingSize;
-    auto nextCoeff =
-        PrimeFieldAttr::get(extField->getBaseField(), coeffs[index]);
+    auto nextCoeff = IntegerAttr::get(extField->getBaseField().getStorageType(),
+                                      coeffs[index]);
 
     return callCreateConstantAttr<A, T, kRemainingSize - 1>(
         extField, coeffs, nextCoeff, std::forward<Args>(currentCoeffs)...);
@@ -204,6 +249,15 @@ llvm::SmallVector<Value> extractCoeffsFromStruct(ImplicitLocOpBuilder &builder,
 // QuadraticExtFieldType
 //===----------------------------------------------------------------------===//
 
+Type QuadraticExtFieldType::parse(AsmParser &parser) {
+  return ext_field_utils::parseExtensionFieldType<QuadraticExtFieldType>(
+      parser);
+}
+
+void QuadraticExtFieldType::print(AsmPrinter &printer) const {
+  ext_field_utils::printExtensionFieldType(*this, printer);
+}
+
 llvm::TypeSize QuadraticExtFieldType::getTypeSizeInBits(
     DataLayout const &, llvm::ArrayRef<DataLayoutEntryInterface>) const {
   return llvm::TypeSize::getFixed(getBaseField().getStorageBitWidth() * 2);
@@ -222,6 +276,14 @@ DEFINE_EXTENSION_FIELD_INTERFACE_METHODS(QuadraticExtFieldType,
 // CubicExtFieldType
 //===----------------------------------------------------------------------===//
 
+Type CubicExtFieldType::parse(AsmParser &parser) {
+  return ext_field_utils::parseExtensionFieldType<CubicExtFieldType>(parser);
+}
+
+void CubicExtFieldType::print(AsmPrinter &printer) const {
+  ext_field_utils::printExtensionFieldType(*this, printer);
+}
+
 llvm::TypeSize CubicExtFieldType::getTypeSizeInBits(
     DataLayout const &, llvm::ArrayRef<DataLayoutEntryInterface>) const {
   return llvm::TypeSize::getFixed(getBaseField().getStorageBitWidth() * 3);
@@ -239,6 +301,14 @@ DEFINE_EXTENSION_FIELD_INTERFACE_METHODS(CubicExtFieldType, CubicExtFieldAttr,
 //===----------------------------------------------------------------------===//
 // QuarticExtFieldType
 //===----------------------------------------------------------------------===//
+
+Type QuarticExtFieldType::parse(AsmParser &parser) {
+  return ext_field_utils::parseExtensionFieldType<QuarticExtFieldType>(parser);
+}
+
+void QuarticExtFieldType::print(AsmPrinter &printer) const {
+  ext_field_utils::printExtensionFieldType(*this, printer);
+}
 
 llvm::TypeSize QuarticExtFieldType::getTypeSizeInBits(
     DataLayout const &, llvm::ArrayRef<DataLayoutEntryInterface>) const {
