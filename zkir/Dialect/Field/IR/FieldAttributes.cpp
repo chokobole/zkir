@@ -62,8 +62,7 @@ RootOfUnityAttr::verify(llvm::function_ref<InFlightDiagnostic()> emitError,
   }
   APInt modulus = root.getType().getModulus().getValue();
   APInt rootOfUnity = root.getValue().getValue();
-  // TODO(chokobole): Check if zextOrTrunc is correct here.
-  APInt degreeValue = degree.getValue().zextOrTrunc(modulus.getBitWidth());
+  APInt degreeValue = degree.getValue();
 
   if (!expMod(rootOfUnity, degreeValue, modulus).isOne()) {
     SmallString<40> rootOfUnityStr;
