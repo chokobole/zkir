@@ -619,15 +619,13 @@ OpFoldResult MontMulOp::fold(FoldAdaptor adaptor) {
       auto lhsValues = lhsDenseElementsAttr.getValues<APInt>();
       return ZkirDenseElementsAttr::get(
           rhsDenseElementsAttr.getType(),
-          llvm::map_to_vector(
-              llvm::zip(lhsValues, rhsValues),
-              [modulus, montAttr, modArithType](const auto &values) {
-                auto [lhs, rhs] = values;
-                if (modArithType.isMontgomery()) {
-                  rhs = mulMod(rhs, montAttr.getRInv().getValue(), modulus);
-                }
-                return mulMod(lhs, rhs, modulus);
-              }));
+          llvm::map_to_vector(llvm::zip(lhsValues, rhsValues),
+                              [modulus, montAttr](const auto &values) {
+                                auto [lhs, rhs] = values;
+                                rhs = mulMod(rhs, montAttr.getRInv().getValue(),
+                                             modulus);
+                                return mulMod(lhs, rhs, modulus);
+                              }));
     } else {
       // NOLINTNEXTLINE(whitespace/newline)
       if (llvm::all_of(rhsValues, [](APInt value) { return value.isZero(); })) {
