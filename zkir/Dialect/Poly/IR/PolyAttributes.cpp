@@ -106,6 +106,7 @@ mod_arith::MontgomeryAttr PrimitiveRootAttr::getMontgomery() const {
 
 namespace detail {
 
+// static
 PrimitiveRootAttrStorage *
 PrimitiveRootAttrStorage::construct(AttributeStorageAllocator &allocator,
                                     KeyTy &&key) {

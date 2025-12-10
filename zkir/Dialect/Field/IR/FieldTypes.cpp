@@ -96,6 +96,7 @@ Value createOneConstant(const T *field, ImplicitLocOpBuilder &builder) {
 // PrimeFieldType
 //===----------------------------------------------------------------------===//
 
+// static
 Type PrimeFieldType::parse(AsmParser &parser) {
   return parseModulus<PrimeFieldType>(parser);
 }
@@ -236,6 +237,7 @@ llvm::SmallVector<Value> extractCoeffsFromStruct(ImplicitLocOpBuilder &builder,
 // QuadraticExtFieldType
 //===----------------------------------------------------------------------===//
 
+// static
 Type QuadraticExtFieldType::parse(AsmParser &parser) {
   return ext_field_utils::parseExtensionFieldType<QuadraticExtFieldType>(
       parser);
@@ -262,6 +264,7 @@ DEFINE_EXTENSION_FIELD_INTERFACE_METHODS(QuadraticExtFieldType, 2, 2);
 // CubicExtFieldType
 //===----------------------------------------------------------------------===//
 
+// static
 Type CubicExtFieldType::parse(AsmParser &parser) {
   return ext_field_utils::parseExtensionFieldType<CubicExtFieldType>(parser);
 }
@@ -287,6 +290,7 @@ DEFINE_EXTENSION_FIELD_INTERFACE_METHODS(CubicExtFieldType, 3, 3);
 // QuarticExtFieldType
 //===----------------------------------------------------------------------===//
 
+// static
 Type QuarticExtFieldType::parse(AsmParser &parser) {
   return ext_field_utils::parseExtensionFieldType<QuarticExtFieldType>(parser);
 }

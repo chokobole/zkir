@@ -25,6 +25,7 @@ limitations under the License.
 
 namespace mlir::zkir::field {
 
+// static
 LogicalResult
 RootOfUnityAttr::verify(llvm::function_ref<InFlightDiagnostic()> emitError,
                         PrimeFieldType type, IntegerAttr root,
