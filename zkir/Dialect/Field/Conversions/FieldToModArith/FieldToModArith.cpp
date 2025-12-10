@@ -114,14 +114,12 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
       }
     }
 
-    auto efAttr = cast<ExtensionFieldAttrInterface>(op.getValueAttr());
-    auto efType = cast<ExtensionFieldTypeInterface>(op.getType());
-    unsigned n = efType.getDegreeOverBase();
+    auto denseAttr = cast<DenseIntElementsAttr>(op.getValueAttr());
 
     SmallVector<Value> coeffs;
-    for (unsigned i = 0; i < n; ++i) {
-      auto coeff = cast<IntegerAttr>(efAttr.getCoeff(i));
-      coeffs.push_back(b.create<mod_arith::ConstantOp>(modType, coeff));
+    for (auto coeff : denseAttr.getValues<APInt>()) {
+      auto coeffAttr = IntegerAttr::get(modType.getModulus().getType(), coeff);
+      coeffs.push_back(b.create<mod_arith::ConstantOp>(modType, coeffAttr));
     }
     auto ext = b.create<ExtFromCoeffsOp>(TypeRange{op.getType()}, coeffs);
     rewriter.replaceOp(op, ext);

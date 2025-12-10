@@ -179,27 +179,14 @@ Type cloneWith(const T *extField, Type baseField, Attribute element) {
                 cast<IntegerAttr>(element));
 }
 
-template <typename A, typename T, unsigned kRemainingSize, typename... Args>
-TypedAttr callCreateConstantAttr(const T *extField,
-                                 llvm::ArrayRef<llvm::APInt> coeffs,
-                                 Args &&...currentCoeffs) {
-  if constexpr (kRemainingSize == 0) {
-    return A::get(extField->getContext(), *extField,
-                  std::forward<Args>(currentCoeffs)...);
-  } else {
-    unsigned index = coeffs.size() - kRemainingSize;
-    auto nextCoeff = IntegerAttr::get(extField->getBaseField().getStorageType(),
-                                      coeffs[index]);
-
-    return callCreateConstantAttr<A, T, kRemainingSize - 1>(
-        extField, coeffs, nextCoeff, std::forward<Args>(currentCoeffs)...);
-  }
-}
-
-template <typename A, typename T, unsigned kDegreeOverPrime>
+template <typename T, unsigned kDegreeOverPrime>
 TypedAttr createConstantAttr(const T *extField,
                              llvm::ArrayRef<llvm::APInt> coeffs) {
-  return callCreateConstantAttr<A, T, kDegreeOverPrime>(extField, coeffs);
+  auto tensorType = RankedTensorType::get(
+      {kDegreeOverPrime},
+      IntegerType::get(extField->getContext(),
+                       extField->getBaseField().getStorageBitWidth()));
+  return DenseIntElementsAttr::get(tensorType, coeffs);
 }
 
 template <unsigned kDegreeOverPrime>
@@ -219,8 +206,8 @@ llvm::SmallVector<Value> extractCoeffsFromStruct(ImplicitLocOpBuilder &builder,
 } // namespace
 } // namespace ext_field_utils
 
-#define DEFINE_EXTENSION_FIELD_INTERFACE_METHODS(                              \
-    TYPE, ATTR, DEGREE_OVER_PRIME, DEGREE_OVER_BASE)                           \
+#define DEFINE_EXTENSION_FIELD_INTERFACE_METHODS(TYPE, DEGREE_OVER_PRIME,      \
+                                                 DEGREE_OVER_BASE)             \
   DEFINE_FIELD_TYPE_INTERFACE_METHODS(TYPE)                                    \
   unsigned TYPE::getDegreeOverPrime() const { return DEGREE_OVER_PRIME; }      \
   unsigned TYPE::getDegreeOverBase() const { return DEGREE_OVER_BASE; }        \
@@ -230,7 +217,7 @@ llvm::SmallVector<Value> extractCoeffsFromStruct(ImplicitLocOpBuilder &builder,
   }                                                                            \
   TypedAttr TYPE::createConstantAttr(llvm::ArrayRef<llvm::APInt> coeffs)       \
       const {                                                                  \
-    return ext_field_utils::createConstantAttr<ATTR, TYPE, DEGREE_OVER_PRIME>( \
+    return ext_field_utils::createConstantAttr<TYPE, DEGREE_OVER_PRIME>(       \
         this, coeffs);                                                         \
   }                                                                            \
   Value TYPE::buildStructFromCoeffs(ImplicitLocOpBuilder &builder,             \
@@ -269,8 +256,7 @@ uint64_t QuadraticExtFieldType::getABIAlignment(
   return dataLayout.getTypeABIAlignment(getBaseField().getStorageType());
 }
 
-DEFINE_EXTENSION_FIELD_INTERFACE_METHODS(QuadraticExtFieldType,
-                                         QuadraticExtFieldAttr, 2, 2);
+DEFINE_EXTENSION_FIELD_INTERFACE_METHODS(QuadraticExtFieldType, 2, 2);
 
 //===----------------------------------------------------------------------===//
 // CubicExtFieldType
@@ -295,8 +281,7 @@ uint64_t CubicExtFieldType::getABIAlignment(
   return dataLayout.getTypeABIAlignment(getBaseField().getStorageType());
 }
 
-DEFINE_EXTENSION_FIELD_INTERFACE_METHODS(CubicExtFieldType, CubicExtFieldAttr,
-                                         3, 3);
+DEFINE_EXTENSION_FIELD_INTERFACE_METHODS(CubicExtFieldType, 3, 3);
 
 //===----------------------------------------------------------------------===//
 // QuarticExtFieldType
@@ -321,7 +306,6 @@ uint64_t QuarticExtFieldType::getABIAlignment(
   return dataLayout.getTypeABIAlignment(getBaseField().getStorageType());
 }
 
-DEFINE_EXTENSION_FIELD_INTERFACE_METHODS(QuarticExtFieldType,
-                                         QuarticExtFieldAttr, 4, 4);
+DEFINE_EXTENSION_FIELD_INTERFACE_METHODS(QuarticExtFieldType, 4, 4);
 
 } // namespace mlir::zkir::field
