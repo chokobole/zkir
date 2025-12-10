@@ -82,4 +82,90 @@ parseOptionalModularInteger(OpAsmParser &parser, APInt &parsedInt,
                                getModulusCallback);
 }
 
+ParseResult parseModularIntegerList(OpAsmParser &parser,
+                                    SmallVector<APInt> &parsedInts,
+                                    Type &parsedType,
+                                    GetModulusCallback getModulusCallback) {
+  if (failed(parser.parseKeyword("dense")) || failed(parser.parseLess())) {
+    return failure();
+  }
+
+  SmallVector<int64_t> parsedShape;
+  auto parseTensor = [&](auto &&parseTensor, SmallVector<int64_t> &curShape,
+                         int level = 0) -> ParseResult {
+    int64_t dimCount = 0;
+    auto checkpoint = parser.getCurrentLocation();
+    do {
+      APInt val;
+      if (parser.parseOptionalInteger(val).has_value()) {
+        parsedInts.push_back(std::move(val));
+        ++dimCount;
+      } else if (failed(parser.parseLSquare()) ||
+                 parseTensor(parseTensor, curShape, level + 1)) {
+        return failure();
+      } else {
+        ++dimCount;
+      }
+    } while (succeeded(parser.parseOptionalComma()));
+
+    if (static_cast<int64_t>(curShape.size()) <= level)
+      curShape.resize(level + 1);
+    if (curShape[level] == 0)
+      curShape[level] = dimCount;
+    else if (curShape[level] != dimCount)
+      return parser.emitError(checkpoint, "non-uniform tensor at dimension ")
+             << level;
+    return parser.parseRSquare();
+  };
+
+  bool isSplat =
+      parser.parseOptionalInteger(parsedInts.emplace_back()).has_value();
+  if (!isSplat) {
+    parsedInts.pop_back();
+    if (failed(parser.parseLSquare()) ||
+        failed(parseTensor(parseTensor, parsedShape))) {
+      return failure();
+    }
+  }
+
+  if (failed(parser.parseGreater()) ||
+      failed(parser.parseColonType(parsedType))) {
+    return failure();
+  }
+
+  auto shapedType = dyn_cast<ShapedType>(parsedType);
+  if (!shapedType) {
+    return parser.emitError(parser.getCurrentLocation(),
+                            "expected shaped type for parsed type");
+  }
+  if (shapedType.hasStaticShape()) {
+    if (!isSplat) {
+      ArrayRef<int64_t> expectedShape = shapedType.getShape();
+      if (expectedShape.size() != parsedShape.size() ||
+          !std::equal(expectedShape.begin(), expectedShape.end(),
+                      parsedShape.begin())) {
+        return parser.emitError(parser.getCurrentLocation(),
+                                "tensor constant shape [")
+               << llvm::make_range(parsedShape.begin(), parsedShape.end())
+               << "] does not match type shape " << shapedType;
+      }
+    }
+  } else {
+    return parser.emitError(parser.getCurrentLocation(),
+                            "expected static shape for parsed type");
+  }
+
+  APInt modulus;
+  if (failed(getModulusCallback(modulus))) {
+    return failure();
+  }
+
+  for (APInt &parsedInt : parsedInts) {
+    if (failed(validateModularInteger(parser, modulus, parsedInt))) {
+      return failure();
+    }
+  }
+  return success();
+}
+
 } // namespace mlir::zkir

@@ -624,12 +624,12 @@ OpFoldResult MontMulOp::fold(FoldAdaptor adaptor) {
 }
 
 ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
-  APInt parsedInt;
+  SmallVector<APInt> parsedInts;
   Type parsedType;
-  ZkirDenseElementsAttr valueAttr;
 
   auto getModulusCallback = [&](APInt &modulus) -> ParseResult {
-    if (auto modArithType = dyn_cast<ModArithType>(parsedType)) {
+    if (auto modArithType =
+            dyn_cast<ModArithType>(getElementTypeOrSelf(parsedType))) {
       modulus = modArithType.getModulus().getValue();
       return success();
     }
@@ -639,36 +639,27 @@ ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
     return failure();
   };
 
-  if (parseOptionalModularInteger(parser, parsedInt, parsedType,
+  if (parseOptionalModularInteger(parser, parsedInts.emplace_back(), parsedType,
                                   getModulusCallback)
           .has_value()) {
     result.addAttribute(
         "value",
         IntegerAttr::get(cast<ModArithType>(parsedType).getStorageType(),
-                         parsedInt));
+                         parsedInts[0]));
     result.addTypes(parsedType);
     return success();
   }
 
-  if (failed(parser.parseAttribute(valueAttr))) {
-    parser.emitError(parser.getCurrentLocation(),
-                     "expected value to be a scalar or dense elements attr");
+  parsedInts.pop_back();
+  if (failed(parseModularIntegerList(parser, parsedInts, parsedType,
+                                     getModulusCallback))) {
     return failure();
   }
-  if (auto denseElementsAttr = dyn_cast<DenseModArithElementsAttr>(valueAttr)) {
-    // TODO(chokobole): Validate integers in the dense elements attr using the
-    // `validateModularInteger()`. Currently it's impossible because
-    // `validateModularInteger()` requires mutable reference to the integer, but
-    // `getValues<APInt>()` returns a const reference.
-    // But this parsing logic is going to be refactored in the next PR, so we
-    // just ignore the validations for now.
-  } else {
-    parser.emitError(parser.getCurrentLocation(),
-                     "expected value to be a dense elements attr");
-    return failure();
-  }
-  result.addAttribute("value", valueAttr);
-  result.addTypes(valueAttr.getType());
+
+  auto denseElementsAttr =
+      ZkirDenseElementsAttr::get(cast<ShapedType>(parsedType), parsedInts);
+  result.addAttribute("value", denseElementsAttr);
+  result.addTypes(parsedType);
   return success();
 }
 
