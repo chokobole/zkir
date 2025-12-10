@@ -65,7 +65,7 @@ func.func @test_add_fold() -> !Zp {
 // CHECK-LABEL: @test_add_tensor_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_add_tensor_fold() -> tensor<2x!Zp> {
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<[6, 5]> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<[6, 5]> : [[T]]
   %0 = mod_arith.constant dense<[2, 3]> : tensor<2x!Zp>
   %1 = mod_arith.constant dense<[4, 2]> : tensor<2x!Zp>
   %2 = mod_arith.add %0, %1 : tensor<2x!Zp>
@@ -77,7 +77,7 @@ func.func @test_add_tensor_fold() -> tensor<2x!Zp> {
 // CHECK-LABEL: @test_add_splat_tensor_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_add_splat_tensor_fold() -> tensor<2x!Zp> {
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<6> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<6> : [[T]]
   %0 = mod_arith.constant dense<2> : tensor<2x!Zp>
   %1 = mod_arith.constant dense<4> : tensor<2x!Zp>
   %2 = mod_arith.add %0, %1 : tensor<2x!Zp>
@@ -125,7 +125,7 @@ func.func @test_sub_fold() -> !Zp {
 // CHECK-LABEL: @test_sub_tensor_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_sub_tensor_fold() -> tensor<2x!Zp> {
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<[35, 1]> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<[35, 1]> : [[T]]
   %0 = mod_arith.constant dense<[2, 3]> : tensor<2x!Zp>
   %1 = mod_arith.constant dense<[4, 2]> : tensor<2x!Zp>
   %2 = mod_arith.sub %0, %1 : tensor<2x!Zp>
@@ -137,7 +137,7 @@ func.func @test_sub_tensor_fold() -> tensor<2x!Zp> {
 // CHECK-LABEL: @test_sub_splat_tensor_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_sub_splat_tensor_fold() -> tensor<2x!Zp> {
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<35> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<35> : [[T]]
   %0 = mod_arith.constant dense<2> : tensor<2x!Zp>
   %1 = mod_arith.constant dense<4> : tensor<2x!Zp>
   %2 = mod_arith.sub %0, %1 : tensor<2x!Zp>
@@ -172,7 +172,7 @@ func.func @test_double_fold() -> !Zp {
 // CHECK-LABEL: @test_double_tensor_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_double_tensor_fold() -> tensor<2x!Zp> {
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<[4, 6]> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<[4, 6]> : [[T]]
   %0 = mod_arith.constant dense<[2, 3]> : tensor<2x!Zp>
   %1 = mod_arith.double %0 : tensor<2x!Zp>
   // CHECK-NOT: mod_arith.double
@@ -183,7 +183,7 @@ func.func @test_double_tensor_fold() -> tensor<2x!Zp> {
 // CHECK-LABEL: @test_double_splat_tensor_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_double_splat_tensor_fold() -> tensor<2x!Zp> {
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<4> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<4> : [[T]]
   %0 = mod_arith.constant dense<2> : tensor<2x!Zp>
   %1 = mod_arith.double %0 : tensor<2x!Zp>
   // CHECK-NOT: mod_arith.double
@@ -228,7 +228,7 @@ func.func @test_mul_fold() -> !Zp {
 // CHECK-LABEL: @test_mul_tensor_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_mul_tensor_fold() -> tensor<2x!Zp> {
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<[8, 6]> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<[8, 6]> : [[T]]
   %0 = mod_arith.constant dense<[2, 3]> : tensor<2x!Zp>
   %1 = mod_arith.constant dense<[4, 2]> : tensor<2x!Zp>
   %2 = mod_arith.mul %0, %1 : tensor<2x!Zp>
@@ -240,7 +240,7 @@ func.func @test_mul_tensor_fold() -> tensor<2x!Zp> {
 // CHECK-LABEL: @test_mul_splat_tensor_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_mul_splat_tensor_fold() -> tensor<2x!Zp> {
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<8> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<8> : [[T]]
   %0 = mod_arith.constant dense<2> : tensor<2x!Zp>
   %1 = mod_arith.constant dense<4> : tensor<2x!Zp>
   %2 = mod_arith.mul %0, %1 : tensor<2x!Zp>
@@ -264,7 +264,7 @@ func.func @test_mul_mont_fold() -> !Zpm {
 // CHECK-LABEL: @test_mul_mont_tensor_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_mul_mont_tensor_fold() -> tensor<2x!Zpm> {
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<[17, 22]> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<[17, 22]> : [[T]]
   %0 = mod_arith.constant dense<[2, 3]> : tensor<2x!Zpm>
   %1 = mod_arith.constant dense<[4, 2]> : tensor<2x!Zpm>
   %2 = mod_arith.mul %0, %1 : tensor<2x!Zpm>
@@ -276,7 +276,7 @@ func.func @test_mul_mont_tensor_fold() -> tensor<2x!Zpm> {
 // CHECK-LABEL: @test_mul_mont_splat_tensor_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_mul_mont_splat_tensor_fold() -> tensor<2x!Zpm> {
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<17> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<17> : [[T]]
   %0 = mod_arith.constant dense<2> : tensor<2x!Zpm>
   %1 = mod_arith.constant dense<4> : tensor<2x!Zpm>
   %2 = mod_arith.mul %0, %1 : tensor<2x!Zpm>
@@ -300,7 +300,7 @@ func.func @test_mont_mul_fold() -> !Zpm {
 // CHECK-LABEL: @test_mont_mul_tensor_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_mont_mul_tensor_fold() -> tensor<2x!Zpm> {
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<[17, 22]> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<[17, 22]> : [[T]]
   %0 = mod_arith.constant dense<[2, 3]> : tensor<2x!Zpm>
   %1 = mod_arith.constant dense<[4, 2]> : tensor<2x!Zpm>
   %2 = mod_arith.mont_mul %0, %1 : tensor<2x!Zpm>
@@ -323,7 +323,7 @@ func.func @test_square_fold() -> !Zp {
 // CHECK-LABEL: @test_square_tensor_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_square_tensor_fold() -> tensor<2x!Zp> {
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<[4, 9]> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<[4, 9]> : [[T]]
   %0 = mod_arith.constant dense<[2, 3]> : tensor<2x!Zp>
   %1 = mod_arith.square %0 : tensor<2x!Zp>
   // CHECK-NOT: mod_arith.square
@@ -334,7 +334,7 @@ func.func @test_square_tensor_fold() -> tensor<2x!Zp> {
 // CHECK-LABEL: @test_square_splat_tensor_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_square_splat_tensor_fold() -> tensor<2x!Zp> {
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<4> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<4> : [[T]]
   %0 = mod_arith.constant dense<2> : tensor<2x!Zp>
   %1 = mod_arith.square %0 : tensor<2x!Zp>
   // CHECK-NOT: mod_arith.square
@@ -356,7 +356,7 @@ func.func @test_square_mont_fold() -> !Zpm {
 // CHECK-LABEL: @test_square_mont_tensor_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_square_mont_tensor_fold() -> tensor<2x!Zpm> {
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<[27, 33]> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<[27, 33]> : [[T]]
   %0 = mod_arith.constant dense<[2, 3]> : tensor<2x!Zpm>
   %1 = mod_arith.square %0 : tensor<2x!Zpm>
   // CHECK-NOT: mod_arith.square
@@ -367,7 +367,7 @@ func.func @test_square_mont_tensor_fold() -> tensor<2x!Zpm> {
 // CHECK-LABEL: @test_square_mont_splat_tensor_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_square_mont_splat_tensor_fold() -> tensor<2x!Zpm> {
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<27> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<27> : [[T]]
   %0 = mod_arith.constant dense<2> : tensor<2x!Zpm>
   %1 = mod_arith.square %0 : tensor<2x!Zpm>
   // CHECK-NOT: mod_arith.square
@@ -389,7 +389,7 @@ func.func @test_mont_square_fold() -> !Zpm {
 // CHECK-LABEL: @test_mont_square_tensor_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_mont_square_tensor_fold() -> tensor<2x!Zpm> {
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<[27, 33]> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<[27, 33]> : [[T]]
   %0 = mod_arith.constant dense<[2, 3]> : tensor<2x!Zpm>
   %1 = mod_arith.mont_square %0 : tensor<2x!Zpm>
   // CHECK-NOT: mod_arith.mont_square
@@ -400,7 +400,7 @@ func.func @test_mont_square_tensor_fold() -> tensor<2x!Zpm> {
 // CHECK-LABEL: @test_mont_square_splat_tensor_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_mont_square_splat_tensor_fold() -> tensor<2x!Zpm> {
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<27> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<27> : [[T]]
   %0 = mod_arith.constant dense<2> : tensor<2x!Zpm>
   %1 = mod_arith.mont_square %0 : tensor<2x!Zpm>
   // CHECK-NOT: mod_arith.mont_square
@@ -422,7 +422,7 @@ func.func @test_inverse_fold() -> !Zp {
 // CHECK-LABEL: @test_inverse_tensor_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_inverse_tensor_fold() -> tensor<2x!Zp> {
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<[19, 25]> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<[19, 25]> : [[T]]
   %0 = mod_arith.constant dense<[2, 3]> : tensor<2x!Zp>
   %1 = mod_arith.inverse %0 : tensor<2x!Zp>
   // CHECK-NOT: mod_arith.inverse
@@ -433,7 +433,7 @@ func.func @test_inverse_tensor_fold() -> tensor<2x!Zp> {
 // CHECK-LABEL: @test_inverse_splat_tensor_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_inverse_splat_tensor_fold() -> tensor<2x!Zp> {
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<19> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<19> : [[T]]
   %0 = mod_arith.constant dense<2> : tensor<2x!Zp>
   %1 = mod_arith.inverse %0 : tensor<2x!Zp>
   // CHECK-NOT: mod_arith.inverse
@@ -455,7 +455,7 @@ func.func @test_inverse_mont_fold() -> !Zpm {
 // CHECK-LABEL: @test_inverse_mont_tensor_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_inverse_mont_tensor_fold() -> tensor<2x!Zpm> {
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<[6, 4]> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<[6, 4]> : [[T]]
   %0 = mod_arith.constant dense<[2, 3]> : tensor<2x!Zpm>
   %1 = mod_arith.inverse %0 : tensor<2x!Zpm>
   // CHECK-NOT: mod_arith.inverse
@@ -466,7 +466,7 @@ func.func @test_inverse_mont_tensor_fold() -> tensor<2x!Zpm> {
 // CHECK-LABEL: @test_mont_inverse_splat_tensor_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_mont_inverse_splat_tensor_fold() -> tensor<2x!Zpm> {
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<6> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<6> : [[T]]
   %0 = mod_arith.constant dense<2> : tensor<2x!Zpm>
   %1 = mod_arith.mont_inverse %0 : tensor<2x!Zpm>
   // CHECK-NOT: mod_arith.mont_inverse
@@ -488,7 +488,7 @@ func.func @test_mont_inverse_fold() -> !Zpm {
 // CHECK-LABEL: @test_mont_inverse_tensor_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_mont_inverse_tensor_fold() -> tensor<2x!Zpm> {
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<[6, 4]> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<[6, 4]> : [[T]]
   %0 = mod_arith.constant dense<[2, 3]> : tensor<2x!Zpm>
   %1 = mod_arith.mont_inverse %0 : tensor<2x!Zpm>
   // CHECK-NOT: mod_arith.mont_inverse
@@ -521,7 +521,7 @@ func.func @test_negate_zero_fold() -> !Zp {
 // CHECK-LABEL: @test_negate_tensor_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_negate_tensor_fold() -> tensor<2x!Zp> {
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<[36, 35]> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<[36, 35]> : [[T]]
   %0 = mod_arith.constant dense<[1, 2]> : tensor<2x!Zp>
   %1 = mod_arith.negate %0 : tensor<2x!Zp>
   // CHECK-NOT: mod_arith.negate
@@ -532,7 +532,7 @@ func.func @test_negate_tensor_fold() -> tensor<2x!Zp> {
 // CHECK-LABEL: @test_negate_splat_tensor_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_negate_splat_tensor_fold() -> tensor<2x!Zp> {
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<35> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<35> : [[T]]
   %0 = mod_arith.constant dense<2> : tensor<2x!Zp>
   %1 = mod_arith.negate %0 : tensor<2x!Zp>
   // CHECK-NOT: mod_arith.negate
@@ -543,7 +543,7 @@ func.func @test_negate_splat_tensor_fold() -> tensor<2x!Zp> {
 // CHECK-LABEL: @test_negate_tensor_zero_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_negate_tensor_zero_fold() -> tensor<2x!Zp> {
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<0> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<0> : [[T]]
   %0 = mod_arith.constant dense<0> : tensor<2x!Zp>
   %1 = mod_arith.negate %0 : tensor<2x!Zp>
   // CHECK-NOT: mod_arith.negate
@@ -565,7 +565,7 @@ func.func @test_from_mont_fold() -> !Zp {
 // CHECK-LABEL: @test_from_mont_tensor_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_from_mont_tensor_fold() -> tensor<4x!Zp> {
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<[16, 32, 11, 27]> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<[16, 32, 11, 27]> : [[T]]
   %0 = mod_arith.constant dense<[1, 2, 3, 4]> : tensor<4x!Zpm>
   %1 = mod_arith.from_mont %0 : tensor<4x!Zp>
   // CHECK-NOT: mod_arith.from_mont
@@ -576,7 +576,7 @@ func.func @test_from_mont_tensor_fold() -> tensor<4x!Zp> {
 // CHECK-LABEL: @test_from_mont_splat_tensor_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_from_mont_splat_tensor_fold() -> tensor<2x!Zp> {
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<32> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<32> : [[T]]
   %0 = mod_arith.constant dense<2> : tensor<2x!Zpm>
   %1 = mod_arith.from_mont %0 : tensor<2x!Zp>
   // CHECK-NOT: mod_arith.from_mont
@@ -598,7 +598,7 @@ func.func @test_to_mont_fold() -> !Zpm {
 // CHECK-LABEL: @test_to_mont_tensor_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_to_mont_tensor_fold() -> tensor<4x!Zpm> {
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<[1, 2, 3, 4]> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<[1, 2, 3, 4]> : [[T]]
   %0 = mod_arith.constant dense<[16, 32, 11, 27]> : tensor<4x!Zp>
   %1 = mod_arith.to_mont %0 : tensor<4x!Zpm>
   // CHECK-NOT: mod_arith.to_mont
@@ -609,7 +609,7 @@ func.func @test_to_mont_tensor_fold() -> tensor<4x!Zpm> {
 // CHECK-LABEL: @test_to_mont_splat_tensor_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_to_mont_splat_tensor_fold() -> tensor<2x!Zpm> {
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<2> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<2> : [[T]]
   %0 = mod_arith.constant dense<32> : tensor<2x!Zp>
   %1 = mod_arith.to_mont %0 : tensor<2x!Zpm>
   // CHECK-NOT: mod_arith.to_mont
@@ -995,7 +995,7 @@ func.func @test_mul_by_mont_zero_is_zero(%arg0: !Zpm) -> !Zpm {
 func.func @test_mul_tensor_by_zero_is_zero(%arg0: tensor<2x!Zp>) -> tensor<2x!Zp> {
   %0 = mod_arith.constant dense<0> : tensor<2x!Zp>
   %1 = mod_arith.mul %arg0, %0 : tensor<2x!Zp>
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<0> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<0> : [[T]]
   // CHECK: return %[[C]] : [[T]]
   return %1 : tensor<2x!Zp>
 }
@@ -1005,7 +1005,7 @@ func.func @test_mul_tensor_by_zero_is_zero(%arg0: tensor<2x!Zp>) -> tensor<2x!Zp
 func.func @test_mul_tensor_by_mont_zero_is_zero(%arg0: tensor<2x!Zpm>) -> tensor<2x!Zpm> {
   %0 = mod_arith.constant dense<0> : tensor<2x!Zpm>
   %1 = mod_arith.mul %arg0, %0 : tensor<2x!Zpm>
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<0> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<0> : [[T]]
   // CHECK: return %[[C]] : [[T]]
   return %1 : tensor<2x!Zpm>
 }
@@ -1204,7 +1204,7 @@ func.func @test_mont_mul_by_zero_is_zero(%arg0: !Zpm) -> !Zpm {
 func.func @test_mont_mul_tensor_by_zero_is_zero(%arg0: tensor<2x!Zpm>) -> tensor<2x!Zpm> {
   %0 = mod_arith.constant dense<0> : tensor<2x!Zpm>
   %1 = mod_arith.mont_mul %arg0, %0 : tensor<2x!Zpm>
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<0> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<0> : [[T]]
   // CHECK: return %[[C]] : [[T]]
   return %1 : tensor<2x!Zpm>
 }
@@ -1239,7 +1239,7 @@ func.func @test_tensor_from_elements() -> tensor<2x!Zp> {
   %0 = mod_arith.constant 1 : !Zp
   %1 = mod_arith.constant 2 : !Zp
   %2 = tensor.from_elements %0, %1 : tensor<2x!Zp>
-  // CHECK: %[[C:.*]] = mod_arith.constant #mod_arith.dense<[1, 2]> : [[T]]
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<[1, 2]> : [[T]]
   // CHECK-NOT: tensor.from_elements
   // CHECK: return %[[C:.*]] : [[T]]
   return %2 : tensor<2x!Zp>
@@ -1255,7 +1255,7 @@ func.func @test_vector_from_elements() -> vector<2x!Zp> {
   %0 = mod_arith.constant 1 : !Zp
   %1 = mod_arith.constant 2 : !Zp
   %2 = vector.from_elements %0, %1 : vector<2x!Zp>
-  // CHECK: %[[FROM_ELEMENTS:.*]] = mod_arith.constant #mod_arith.dense<[1, 2]> : [[T]]
+  // CHECK: %[[FROM_ELEMENTS:.*]] = mod_arith.constant dense<[1, 2]> : [[T]]
   // CHECK-NOT: vector.from_elements
   // CHECK: return %[[FROM_ELEMENTS:.*]] : [[T]]
   return %2 : vector<2x!Zp>
