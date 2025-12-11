@@ -157,9 +157,9 @@ ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
     result.addTypes(parsedType);
     return success();
   }
-  parser.emitError(parser.getCurrentLocation(),
-                   "invalid constant type: expected prime or extension field");
-  return failure();
+  return parser.emitError(
+      parser.getCurrentLocation(),
+      "invalid constant type: expected prime or extension field");
 }
 
 void ConstantOp::print(OpAsmPrinter &p) {
