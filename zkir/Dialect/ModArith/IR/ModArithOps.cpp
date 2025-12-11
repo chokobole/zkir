@@ -639,9 +639,12 @@ ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
     return failure();
   };
 
-  if (parseOptionalModularInteger(parser, parsedInts.emplace_back(), parsedType,
-                                  getModulusCallback)
-          .has_value()) {
+  auto parseResult = parseOptionalModularInteger(
+      parser, parsedInts.emplace_back(), parsedType, getModulusCallback);
+  if (parseResult.has_value()) {
+    if (failed(parseResult.value())) {
+      return failure();
+    }
     result.addAttribute(
         "value",
         IntegerAttr::get(cast<ModArithType>(parsedType).getStorageType(),
