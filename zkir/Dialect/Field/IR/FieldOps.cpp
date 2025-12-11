@@ -22,7 +22,6 @@ limitations under the License.
 // IWYU pragma: begin_keep
 // Headers needed for FieldCanonicalization.cpp.inc
 #include "mlir/IR/Matchers.h"
-#include "zkir/Dialect/TensorExt/IR/TensorExtOps.h"
 // IWYU pragma: end_keep
 namespace mlir::zkir::field {
 
@@ -298,7 +297,6 @@ void MulOp::getCanonicalizationPatterns(RewritePatternSet &patterns,
   patterns.add<MulSelfIsSquare>(context);
   patterns.add<MulConstantTwice>(context);
   patterns.add<MulOfMulByConstant>(context);
-  patterns.add<BitReverseMulBitReverse>(context);
 }
 
 } // namespace mlir::zkir::field

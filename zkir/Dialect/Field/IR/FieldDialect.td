@@ -27,7 +27,6 @@ def Field_Dialect : Dialect {
   let dependentDialects = [
     "arith::ArithDialect",
     "zkir::mod_arith::ModArithDialect",
-    "zkir::tensor_ext::TensorExtDialect",
   ];
 }
 
