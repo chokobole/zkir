@@ -159,4 +159,56 @@ ParseResult parseModularIntegerList(OpAsmParser &parser,
   return success();
 }
 
+ParseResult parseModularOrExtendedModularInteger(
+    OpAsmParser &parser, SmallVector<APInt> &parsedInts, Type &parsedType,
+    GetModulusCallback getModulusCallback) {
+  auto parseResult = parseOptionalModularOrExtendedModularInteger(
+      parser, parsedInts, parsedType, getModulusCallback);
+  if (parseResult.has_value()) {
+    return parseResult.value();
+  }
+  return failure();
+}
+
+OptionalParseResult parseOptionalModularOrExtendedModularInteger(
+    OpAsmParser &parser, SmallVector<APInt> &parsedInts, Type &parsedType,
+    GetModulusCallback getModulusCallback) {
+  assert(parsedInts.empty() && "parsedInts must be empty");
+  if (failed(parser.parseOptionalLSquare())) {
+    APInt val;
+    auto res = parseOptionalModularInteger(parser, val, parsedType,
+                                           getModulusCallback);
+    if (res.has_value() && succeeded(*res)) {
+      parsedInts.push_back(val);
+    }
+    return res;
+  }
+
+  if (failed(parser.parseCommaSeparatedList(
+          [&]() { return parser.parseInteger(parsedInts.emplace_back()); })) ||
+      failed(parser.parseRSquare())) {
+    parsedInts.clear();
+    return failure();
+  }
+
+  if (failed(parser.parseColonType(parsedType))) {
+    parsedInts.clear();
+    return failure();
+  }
+
+  APInt modulus;
+  if (failed(getModulusCallback(modulus))) {
+    parsedInts.clear();
+    return failure();
+  }
+
+  for (APInt &parsedInt : parsedInts) {
+    if (failed(validateModularInteger(parser, modulus, parsedInt))) {
+      parsedInts.clear();
+      return failure();
+    }
+  }
+  return success();
+}
+
 } // namespace mlir::zkir
