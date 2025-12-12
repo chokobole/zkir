@@ -17,12 +17,7 @@ limitations under the License.
 
 #include <utility>
 
-#include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/GPU/Transforms/ParallelLoopMapper.h"
-#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
-#include "mlir/Dialect/MemRef/IR/MemRef.h"
-#include "mlir/Dialect/SCF/IR/SCF.h"
-#include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/ImplicitLocOpBuilder.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "zkir/Dialect/TensorExt/IR/TensorExtDialect.h"
@@ -114,12 +109,15 @@ void TensorExtToTensor::runOnOperation() {
   ConversionTarget target(*context);
 
   target.addIllegalDialect<TensorExtDialect>();
-  target.addLegalDialect<tensor::TensorDialect>();
-  target.addLegalDialect<memref::MemRefDialect>();
-  target.addLegalDialect<arith::ArithDialect>();
-  target.addLegalDialect<bufferization::BufferizationDialect>();
-  target.addLegalDialect<LLVM::LLVMDialect>();
-  target.addLegalDialect<scf::SCFDialect>();
+  target.addLegalDialect<
+      // clang-format off
+      arith::ArithDialect,
+      bufferization::BufferizationDialect,
+      LLVM::LLVMDialect,
+      memref::MemRefDialect,
+      scf::SCFDialect
+      // clang-format on
+      >();
   RewritePatternSet patterns(context);
 
   patterns.add<ConvertBitReverse>(context);

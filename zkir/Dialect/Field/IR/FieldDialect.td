@@ -25,8 +25,9 @@ def Field_Dialect : Dialect {
   let useDefaultTypePrinterParser = 1;
   let useDefaultAttributePrinterParser = 1;
   let dependentDialects = [
-    "scf::SCFDialect",
+    "arith::ArithDialect",
     "zkir::mod_arith::ModArithDialect",
+    "zkir::tensor_ext::TensorExtDialect",
   ];
 }
 

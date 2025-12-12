@@ -29,10 +29,9 @@ def TensorExtToTensor : Pass<"tensor-ext-to-tensor", "ModuleOp"> {
   let dependentDialects = [
     "arith::ArithDialect",
     "bufferization::BufferizationDialect",
+    "LLVM::LLVMDialect",
     "memref::MemRefDialect",
-    "scf::SCFDialect",
-    "tensor::TensorDialect",
-    "zkir::tensor_ext::TensorExtDialect",
+    "scf::SCFDialect"
   ];
 }
 

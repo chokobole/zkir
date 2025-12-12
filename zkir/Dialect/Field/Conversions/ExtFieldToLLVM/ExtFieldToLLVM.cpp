@@ -19,11 +19,9 @@ limitations under the License.
 #include "mlir/Conversion/LLVMCommon/ConversionTarget.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 #include "mlir/Conversion/MemRefToLLVM/MemRefToLLVM.h"
-#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "zkir/Dialect/Field/IR/FieldDialect.h"
 #include "zkir/Dialect/Field/IR/FieldOps.h"
 #include "zkir/Dialect/Field/IR/FieldTypes.h"
-#include "zkir/Utils/SimpleStructBuilder.h"
 
 namespace mlir::zkir::field {
 
