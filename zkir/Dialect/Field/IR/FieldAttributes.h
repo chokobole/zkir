@@ -21,6 +21,7 @@ limitations under the License.
 #include "llvm/Support/LogicalResult.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/Diagnostics.h"
+#include "mlir/IR/OpImplementation.h"
 #include "zkir/Dialect/Field/IR/FieldTypes.h"
 // IWYU pragma: end_keep
 

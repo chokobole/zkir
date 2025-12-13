@@ -35,7 +35,7 @@
 
 !coeff_ty = !field.pf<7681:i32>
 !coeff_ty_mont = !field.pf<7681:i32, true>
-#root_of_unity = #field.root_of_unity<3383:i32, 4:i32> : !coeff_ty
+#root_of_unity = #field.root_of_unity<3383:i32, 4:i32> : !coeff_ty_mont
 !poly_ty = !poly.polynomial<!coeff_ty_mont, 3>
 
 func.func private @printMemrefI32(memref<*xi32>) attributes { llvm.emit_c_interface }

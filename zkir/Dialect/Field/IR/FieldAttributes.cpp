@@ -18,38 +18,46 @@ limitations under the License.
 #include "llvm/ADT/SmallString.h"
 #include "mlir/Support/LLVM.h"
 #include "zkir/Dialect/Field/IR/FieldAttributesInterfaces.cpp.inc"
-#include "zkir/Utils/APIntUtils.h"
+#include "zkir/Dialect/Field/IR/FieldOperation.h"
+#include "zkir/Dialect/Field/IR/FieldTypes.h"
 
 namespace mlir::zkir::field {
+
+// static
+Attribute RootOfUnityAttr::parse(AsmParser &parser, Type odsType) {
+  IntegerAttr root, degree;
+  PrimeFieldType type;
+  if (failed(parser.parseLess()) || failed(parser.parseAttribute(root)) ||
+      failed(parser.parseComma()) || failed(parser.parseAttribute(degree)) ||
+      failed(parser.parseGreater()) || failed(parser.parseColonType(type)))
+    return nullptr;
+
+  root = cast<IntegerAttr>(maybeToMontgomery(type, root));
+
+  return RootOfUnityAttr::get(parser.getContext(), type, root, degree);
+}
+
+void RootOfUnityAttr::print(AsmPrinter &printer) const {
+  Attribute root = cast<IntegerAttr>(maybeToStandard(getType(), getRoot()));
+  printer << '<' << root << ',' << getDegree() << "> : " << getType();
+}
 
 // static
 LogicalResult
 RootOfUnityAttr::verify(llvm::function_ref<InFlightDiagnostic()> emitError,
                         PrimeFieldType type, IntegerAttr root,
                         IntegerAttr degree) {
-  if (type.isMontgomery()) {
-    // NOTE(batzor): Montgomery form is not supported for root of unity because
-    // verification logic assumes standard form. Also, `PrimitiveRootAttr` in
-    // the `Poly` dialect should also handle it if we want to allow this in the
-    // future.
-    emitError() << "root of unity must be in standard form";
-    return failure();
-  }
-  APInt modulus = type.getModulus().getValue();
-  APInt rootOfUnity = root.getValue();
+  PrimeFieldOperation rootOp(root, type);
   APInt degreeValue = degree.getValue();
-
-  if (!expMod(rootOfUnity, degreeValue, modulus).isOne()) {
-    SmallString<40> rootOfUnityStr;
-    rootOfUnity.toString(rootOfUnityStr, 10, false);
-    SmallString<40> degreeValueStr;
-    degreeValue.toString(degreeValueStr, 10, false);
-    emitError() << rootOfUnityStr << " is not a root of unity of degree "
-                << degreeValueStr;
-    return failure();
+  if (rootOp.Power(degreeValue).isOne()) {
+    return success();
   }
 
-  return success();
+  SmallString<40> degreeValueStr;
+  degreeValue.toString(degreeValueStr, 10, false);
+  emitError() << rootOp.toString() << " is not a root of unity of degree "
+              << degreeValueStr;
+  return failure();
 }
 
 } // namespace mlir::zkir::field
