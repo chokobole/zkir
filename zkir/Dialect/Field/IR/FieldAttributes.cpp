@@ -16,10 +16,7 @@ limitations under the License.
 #include "zkir/Dialect/Field/IR/FieldAttributes.h"
 
 #include "llvm/ADT/SmallString.h"
-#include "mlir/IR/BuiltinAttributes.h"
-#include "mlir/IR/Diagnostics.h"
 #include "mlir/Support/LLVM.h"
-#include "mlir/Support/LogicalResult.h"
 #include "zkir/Dialect/Field/IR/FieldAttributesInterfaces.cpp.inc"
 #include "zkir/Utils/APIntUtils.h"
 

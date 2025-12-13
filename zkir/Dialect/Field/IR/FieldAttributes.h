@@ -18,6 +18,9 @@ limitations under the License.
 
 // IWYU pragma: begin_keep
 // Headers needed for FieldAttributes.h.inc
+#include "llvm/Support/LogicalResult.h"
+#include "mlir/IR/BuiltinAttributes.h"
+#include "mlir/IR/Diagnostics.h"
 #include "zkir/Dialect/Field/IR/FieldTypes.h"
 // IWYU pragma: end_keep
 
