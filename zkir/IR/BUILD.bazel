@@ -20,18 +20,11 @@ package(
 )
 
 cc_library(
-    name = "AttributesHdrs",
-    hdrs = ["Attributes.h"],
-    deps = ["@llvm-project//mlir:IR"],
-)
-
-cc_library(
     name = "Attributes",
     srcs = ["Attributes.cpp"],
+    hdrs = ["Attributes.h"],
     deps = [
-        ":AttributesHdrs",
         "//zkir/Dialect/ModArith/IR:ModArith",
-        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
     ],
 )

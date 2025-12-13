@@ -35,7 +35,7 @@ struct ConstantFolderConfig {
   using NativeInputType = APInt;
   using NativeOutputType = APInt;
   using ScalarAttr = IntegerAttr;
-  using TensorAttr = mod_arith::DenseModArithElementsAttr;
+  using TensorAttr = DenseIntElementsAttr;
 };
 
 class UnaryModArithConstantFolder
@@ -53,7 +53,8 @@ public:
 
   OpFoldResult getTensorAttr(ShapedType type,
                              ArrayRef<APInt> values) const final {
-    return ZkirDenseElementsAttr::get(type, values);
+    return DenseIntElementsAttr::get(type.clone(modArithType.getStorageType()),
+                                     values);
   }
 
   ModArithType modArithType;
@@ -77,7 +78,8 @@ public:
 
   OpFoldResult getTensorAttr(ShapedType type,
                              ArrayRef<APInt> values) const final {
-    return ZkirDenseElementsAttr::get(type, values);
+    return DenseIntElementsAttr::get(type.clone(modArithType.getStorageType()),
+                                     values);
   }
 
   ModArithType modArithType;
@@ -107,7 +109,8 @@ public:
 
   OpFoldResult getTensorAttr(ShapedType type,
                              ArrayRef<APInt> values) const final {
-    return ZkirDenseElementsAttr::get(type, values);
+    return DenseIntElementsAttr::get(type.clone(modArithType.getStorageType()),
+                                     values);
   }
 
   ModArithType modArithType;
@@ -205,8 +208,7 @@ ConstantOp ConstantOp::materialize(OpBuilder &builder, Attribute value,
 
   if (auto intAttr = dyn_cast<IntegerAttr>(value)) {
     return builder.create<ConstantOp>(loc, type, intAttr);
-  } else if (auto denseElementsAttr =
-                 dyn_cast<DenseModArithElementsAttr>(value)) {
+  } else if (auto denseElementsAttr = dyn_cast<DenseIntElementsAttr>(value)) {
     return builder.create<ConstantOp>(loc, type, denseElementsAttr);
   }
   return nullptr;
@@ -218,27 +220,18 @@ Operation *ModArithDialect::materializeConstant(OpBuilder &builder,
   if (auto boolAttr = dyn_cast<BoolAttr>(value)) {
     return builder.create<arith::ConstantOp>(loc, boolAttr);
   } else if (auto denseElementsAttr = dyn_cast<DenseIntElementsAttr>(value)) {
-    return builder.create<arith::ConstantOp>(loc, denseElementsAttr);
+    if (!isa<ModArithType>(getElementTypeOrSelf(type))) {
+      // This could be a folding result of CmpOp.
+      return builder.create<arith::ConstantOp>(loc, denseElementsAttr);
+    }
   }
   return ConstantOp::materialize(builder, value, type, loc);
 }
 
 OpFoldResult BitcastOp::fold(FoldAdaptor adaptor) {
-  if (isa_and_present<IntegerAttr>(adaptor.getInput())) {
+  if (isa_and_present<IntegerAttr>(adaptor.getInput()) ||
+      isa_and_present<DenseIntElementsAttr>(adaptor.getInput())) {
     return adaptor.getInput();
-  } else if (auto denseElementsAttr = dyn_cast_if_present<DenseIntElementsAttr>(
-                 adaptor.getInput())) {
-    // TODO(chokobole): Can we remove this clone?
-    return ZkirDenseElementsAttr::get(
-        denseElementsAttr.getType().clone(getResultModArithType(*this)),
-        SmallVector<APInt>(denseElementsAttr.getValues<APInt>().begin(),
-                           denseElementsAttr.getValues<APInt>().end()));
-  } else if (auto denseElementsAttr =
-                 dyn_cast_if_present<DenseModArithElementsAttr>(
-                     adaptor.getInput())) {
-    return denseElementsAttr.bitcast(
-        cast<ModArithType>(denseElementsAttr.getElementType())
-            .getStorageType());
   }
   return {};
 }
@@ -297,7 +290,7 @@ struct CmpConstantFolderConfig {
   using NativeInputType = APInt;
   using NativeOutputType = bool;
   using ScalarAttr = IntegerAttr;
-  using TensorAttr = mod_arith::DenseModArithElementsAttr;
+  using TensorAttr = DenseIntElementsAttr;
 };
 
 class CmpConstantFolder
@@ -624,12 +617,12 @@ OpFoldResult MontMulOp::fold(FoldAdaptor adaptor) {
 }
 
 ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
-  APInt parsedInt;
+  SmallVector<APInt> parsedInts;
   Type parsedType;
-  ZkirDenseElementsAttr valueAttr;
 
   auto getModulusCallback = [&](APInt &modulus) -> ParseResult {
-    if (auto modArithType = dyn_cast<ModArithType>(parsedType)) {
+    if (auto modArithType =
+            dyn_cast<ModArithType>(getElementTypeOrSelf(parsedType))) {
       modulus = modArithType.getModulus().getValue();
       return success();
     }
@@ -639,36 +632,33 @@ ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
     return failure();
   };
 
-  if (parseOptionalModularInteger(parser, parsedInt, parsedType,
-                                  getModulusCallback)
-          .has_value()) {
+  auto parseResult = parseOptionalModularInteger(
+      parser, parsedInts.emplace_back(), parsedType, getModulusCallback);
+  if (parseResult.has_value()) {
+    if (failed(parseResult.value())) {
+      return failure();
+    }
     result.addAttribute(
         "value",
         IntegerAttr::get(cast<ModArithType>(parsedType).getStorageType(),
-                         parsedInt));
+                         parsedInts[0]));
     result.addTypes(parsedType);
     return success();
   }
 
-  if (failed(parser.parseAttribute(valueAttr))) {
-    parser.emitError(parser.getCurrentLocation(),
-                     "expected value to be a scalar or dense elements attr");
+  parsedInts.pop_back();
+  if (failed(parseModularIntegerList(parser, parsedInts, parsedType,
+                                     getModulusCallback))) {
     return failure();
   }
-  if (auto denseElementsAttr = dyn_cast<DenseModArithElementsAttr>(valueAttr)) {
-    // TODO(chokobole): Validate integers in the dense elements attr using the
-    // `validateModularInteger()`. Currently it's impossible because
-    // `validateModularInteger()` requires mutable reference to the integer, but
-    // `getValues<APInt>()` returns a const reference.
-    // But this parsing logic is going to be refactored in the next PR, so we
-    // just ignore the validations for now.
-  } else {
-    parser.emitError(parser.getCurrentLocation(),
-                     "expected value to be a dense elements attr");
-    return failure();
-  }
-  result.addAttribute("value", valueAttr);
-  result.addTypes(valueAttr.getType());
+
+  auto shapedType = cast<ShapedType>(parsedType);
+  auto denseElementsAttr = DenseIntElementsAttr::get(
+      shapedType.clone(
+          cast<ModArithType>(shapedType.getElementType()).getStorageType()),
+      parsedInts);
+  result.addAttribute("value", denseElementsAttr);
+  result.addTypes(parsedType);
   return success();
 }
 

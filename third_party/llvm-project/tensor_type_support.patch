@@ -1,5 +1,5 @@
 diff --git mlir/lib/Dialect/Tensor/IR/TensorOps.cpp mlir/lib/Dialect/Tensor/IR/TensorOps.cpp
-index 22a25fd1a5af..7dad917d5056 100644
+index 22a25fd1a5af..427fd6534eb0 100644
 --- mlir/lib/Dialect/Tensor/IR/TensorOps.cpp
 +++ mlir/lib/Dialect/Tensor/IR/TensorOps.cpp
 @@ -41,6 +41,9 @@
@@ -22,30 +22,29 @@ index 22a25fd1a5af..7dad917d5056 100644
    if (auto op = arith::ConstantOp::materialize(builder, value, type, loc))
      return op;
    if (complex::ConstantOp::isBuildableWith(value, type))
-@@ -1465,8 +1471,12 @@ void FromElementsOp::build(OpBuilder &builder, OperationState &result,
+@@ -1465,8 +1471,10 @@ void FromElementsOp::build(OpBuilder &builder, OperationState &result,
  }
  
  OpFoldResult FromElementsOp::fold(FoldAdaptor adaptor) {
 -  if (!llvm::is_contained(adaptor.getElements(), nullptr))
+-    return DenseElementsAttr::get(getType(), adaptor.getElements());
 +  if (!llvm::is_contained(adaptor.getElements(), nullptr)) {
-+    if (zkir::ZkirDenseElementsAttr::isValidType(getType())) {
-+      return zkir::ZkirDenseElementsAttr::get(getType(), adaptor.getElements());
-+    }
-     return DenseElementsAttr::get(getType(), adaptor.getElements());
++    ShapedType type = zkir::maybeConvertZkirToBuiltinType(getType());
++    return DenseElementsAttr::get(type, adaptor.getElements());
 +  }
    return {};
  }
  
 diff --git utils/bazel/llvm-project-overlay/mlir/BUILD.bazel utils/bazel/llvm-project-overlay/mlir/BUILD.bazel
-index 1bf8488d475b..9286fc7a06c1 100644
+index 4fc82f6c1d27..f37f02dd1c74 100644
 --- utils/bazel/llvm-project-overlay/mlir/BUILD.bazel
 +++ utils/bazel/llvm-project-overlay/mlir/BUILD.bazel
-@@ -7135,6 +7135,8 @@ cc_library(
+@@ -7134,6 +7134,8 @@ cc_library(
          ":ValueBoundsOpInterface",
          ":ViewLikeInterface",
          "//llvm:Support",
 +        "@zkir//zkir/Dialect/ModArith/IR:ModArith",
-+        "@zkir//zkir/IR:AttributesHdrs",
++        "@zkir//zkir/IR:Attributes",
      ],
  )
  

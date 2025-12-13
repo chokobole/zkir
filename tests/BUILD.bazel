@@ -28,7 +28,6 @@ cc_binary(
     linkstatic = False,
     deps = [
         ":printI256",
-        "@zkir//zkir/IR:Attributes",
     ],
 )
 
