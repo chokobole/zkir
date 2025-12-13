@@ -81,7 +81,7 @@ public:
                 return AliasResult::FinalAlias;
               }
               os << "z" << modulus << "_" << modArithType.getStorageType();
-              return AliasResult::FinalAlias;
+              return AliasResult::OverridableAlias;
             })
             .Default([&](Type) { return AliasResult::NoAlias; });
     return res;

@@ -86,7 +86,7 @@ public:
                 return AliasResult::FinalAlias;
               }
               os << "pf" << modulus << "_" << pfElemType.getStorageType();
-              return AliasResult::FinalAlias;
+              return AliasResult::OverridableAlias;
             })
             .Default([&](Type) { return AliasResult::NoAlias; });
     return res;
