@@ -15,6 +15,8 @@ limitations under the License.
 
 #include "zkir/Dialect/EllipticCurve/IR/EllipticCurveAttributes.h"
 
+#include "zkir/Dialect/Field/IR/FieldTypes.h"
+
 namespace mlir::zkir::elliptic_curve {
 
 // static
@@ -26,8 +28,20 @@ Attribute ShortWeierstrassAttr::parse(AsmParser &parser, Type odsType) {
       failed(parser.parseComma()) || failed(parser.parseLParen()) ||
       failed(parser.parseAttribute(gX)) || failed(parser.parseComma()) ||
       failed(parser.parseAttribute(gY)) || failed(parser.parseRParen()) ||
-      failed(parser.parseGreater()) || failed(parser.parseColonType(baseField)))
+      failed(parser.parseGreater()) ||
+      failed(field::parseColonFieldType(parser, baseField)))
     return nullptr;
+
+  if (failed(field::validateAttribute(parser, baseField, a, "a")) ||
+      failed(field::validateAttribute(parser, baseField, b, "b")) ||
+      failed(field::validateAttribute(parser, baseField, gX, "gX")) ||
+      failed(field::validateAttribute(parser, baseField, gY, "gY")))
+    return nullptr;
+
+  a = field::maybeToMontgomery(baseField, a);
+  b = field::maybeToMontgomery(baseField, b);
+  gX = field::maybeToMontgomery(baseField, gX);
+  gY = field::maybeToMontgomery(baseField, gY);
 
   return ShortWeierstrassAttr::get(a.getContext(), baseField,
                                    cast<TypedAttr>(a), cast<TypedAttr>(b),
@@ -35,7 +49,12 @@ Attribute ShortWeierstrassAttr::parse(AsmParser &parser, Type odsType) {
 }
 
 void ShortWeierstrassAttr::print(AsmPrinter &printer) const {
-  printer << '<' << getA() << ',' << getB() << '(' << getGx() << ',' << getGy()
+  Attribute a = field::maybeToStandard(getBaseField(), getA());
+  Attribute b = field::maybeToStandard(getBaseField(), getB());
+  Attribute gX = field::maybeToStandard(getBaseField(), getGx());
+  Attribute gY = field::maybeToStandard(getBaseField(), getGy());
+
+  printer << '<' << a << ',' << b << '(' << gX << ',' << gY
           << ")> : " << getBaseField();
 }
 

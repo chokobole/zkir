@@ -38,6 +38,10 @@ inline unsigned getIntOrModArithBitWidth(Type type) {
 
 IntegerAttr getAttrAsStandardForm(IntegerAttr modulus, IntegerAttr attr);
 IntegerAttr getAttrAsMontgomeryForm(IntegerAttr modulus, IntegerAttr attr);
+DenseElementsAttr getAttrAsStandardForm(IntegerAttr modulus,
+                                        DenseElementsAttr attr);
+DenseElementsAttr getAttrAsMontgomeryForm(IntegerAttr modulus,
+                                          DenseElementsAttr attr);
 } // namespace mlir::zkir::mod_arith
 
 #endif // ZKIR_DIALECT_MODARITH_IR_MODARITHTYPES_H_
