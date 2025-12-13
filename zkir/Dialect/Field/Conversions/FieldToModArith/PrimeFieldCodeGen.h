@@ -28,7 +28,7 @@ public:
       : b(b), value(value) {}
   ~PrimeFieldCodeGen() = default;
 
-  Value getValue() const { return value; }
+  operator Value() const { return value; }
 
   PrimeFieldCodeGen operator+(const PrimeFieldCodeGen &other) const;
   PrimeFieldCodeGen operator-(const PrimeFieldCodeGen &other) const;
