@@ -81,6 +81,9 @@ public:
                      if (alias) {
                        os << "pf_";
                        os << *alias;
+                       if (!pfElemType.isMontgomery()) {
+                         os << "_std";
+                       }
                        return AliasResult::FinalAlias;
                      }
                      os << "pf";
