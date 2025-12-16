@@ -16,7 +16,12 @@ limitations under the License.
 #ifndef ZKIR_DIALECT_FIELD_IR_FIELDTYPES_H_
 #define ZKIR_DIALECT_FIELD_IR_FIELDTYPES_H_
 
+#include <string_view>
+
+#include "mlir/IR/Attributes.h"
+#include "mlir/IR/OpImplementation.h"
 #include "mlir/IR/Types.h"
+#include "zkir/Dialect/ModArith/IR/ModArithTypes.h"
 
 // IWYU pragma: begin_keep
 // Headers needed for FieldTypes.h.inc
@@ -35,6 +40,14 @@ class PrimeFieldType;
 
 bool isMontgomery(Type type);
 unsigned getIntOrPrimeFieldBitWidth(Type type);
+
+mod_arith::ModArithType convertPrimeFieldType(PrimeFieldType type);
+
+ParseResult parseColonFieldType(AsmParser &parser, Type &type);
+ParseResult validateAttribute(AsmParser &parser, Type type, Attribute attr,
+                              std::string_view attrName);
+Attribute maybeToMontgomery(Type type, Attribute attr);
+Attribute maybeToStandard(Type type, Attribute attr);
 
 #include "zkir/Dialect/Field/IR/FieldTypesInterfaces.h.inc"
 

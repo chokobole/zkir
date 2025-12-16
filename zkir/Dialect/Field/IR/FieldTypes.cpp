@@ -18,7 +18,6 @@ limitations under the License.
 #include "mlir/IR/BuiltinTypes.h"
 #include "zkir/Dialect/Field/IR/FieldOps.h"
 #include "zkir/Dialect/ModArith/IR/ModArithAttributes.h"
-#include "zkir/Dialect/ModArith/IR/ModArithTypes.h"
 #include "zkir/Utils/AssemblyFormatUtils.h"
 
 namespace mlir::zkir::field {
@@ -46,6 +45,85 @@ unsigned getIntOrPrimeFieldBitWidth(Type type) {
     return pfType.getStorageBitWidth();
   }
   return cast<IntegerType>(type).getWidth();
+}
+
+mod_arith::ModArithType convertPrimeFieldType(PrimeFieldType type) {
+  IntegerAttr modulus = type.getModulus();
+  bool isMontgomery = type.isMontgomery();
+  return mod_arith::ModArithType::get(type.getContext(), modulus, isMontgomery);
+}
+
+ParseResult parseColonFieldType(AsmParser &parser, Type &type) {
+  if (failed(parser.parseColonType(type)))
+    return failure();
+
+  if (isa<PrimeFieldType>(type)) {
+    return success();
+  } else if (isa<ExtensionFieldTypeInterface>(type)) {
+    return success();
+  }
+  return parser.emitError(parser.getCurrentLocation(),
+                          "expected prime field or extension field type");
+}
+
+ParseResult validateAttribute(AsmParser &parser, Type type, Attribute attr,
+                              std::string_view attrName) {
+  if (auto pfType = dyn_cast<field::PrimeFieldType>(type)) {
+    if (!isa<IntegerAttr>(attr)) {
+      return parser.emitError(parser.getCurrentLocation(),
+                              "expected integer attribute for " +
+                                  std::string(attrName));
+    }
+    return success();
+  }
+  if (!isa<DenseIntElementsAttr>(attr)) {
+    return parser.emitError(parser.getCurrentLocation(),
+                            "expected dense int elements attribute for " +
+                                std::string(attrName));
+  }
+  return success();
+}
+
+Attribute maybeToMontgomery(Type type, Attribute attr) {
+  if (auto pfType = dyn_cast<field::PrimeFieldType>(type)) {
+    auto intAttr = cast<IntegerAttr>(attr);
+    if (pfType.isMontgomery()) {
+      return mod_arith::getAttrAsMontgomeryForm(pfType.getModulus(), intAttr);
+    } else {
+      return intAttr;
+    }
+  }
+
+  auto efType = cast<field::ExtensionFieldTypeInterface>(type);
+  auto denseElementsAttr = cast<DenseElementsAttr>(attr);
+  if (efType.isMontgomery()) {
+    return mod_arith::getAttrAsMontgomeryForm(
+        cast<field::PrimeFieldType>(efType.getBaseFieldType()).getModulus(),
+        denseElementsAttr);
+  } else {
+    return denseElementsAttr;
+  }
+}
+
+Attribute maybeToStandard(Type type, Attribute attr) {
+  if (auto pfType = dyn_cast<field::PrimeFieldType>(type)) {
+    auto intAttr = cast<IntegerAttr>(attr);
+    if (pfType.isMontgomery()) {
+      return mod_arith::getAttrAsStandardForm(pfType.getModulus(), intAttr);
+    } else {
+      return intAttr;
+    }
+  }
+
+  auto efType = cast<field::ExtensionFieldTypeInterface>(type);
+  auto denseElementsAttr = cast<DenseElementsAttr>(attr);
+  if (efType.isMontgomery()) {
+    return mod_arith::getAttrAsStandardForm(
+        cast<field::PrimeFieldType>(efType.getBaseFieldType()).getModulus(),
+        denseElementsAttr);
+  } else {
+    return denseElementsAttr;
+  }
 }
 
 //===----------------------------------------------------------------------===//

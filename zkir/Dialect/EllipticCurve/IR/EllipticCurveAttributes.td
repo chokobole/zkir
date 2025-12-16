@@ -39,5 +39,6 @@ def EllipticCurve_ShortWeierstrassAttr : EllipticCurve_Attr<"ShortWeierstrass", 
   }];
   let parameters = (ins Field_AnyFieldType:$baseField, Field_AnyFieldAttr:$a, Field_AnyFieldAttr:$b, Field_AnyFieldAttr:$Gx, Field_AnyFieldAttr:$Gy);
   let hasCustomAssemblyFormat = 1;
+  let genVerifyDecl = 1;
 }
 #endif  // ZKIR_DIALECT_ELLIPTICCURVE_IR_ELLIPTICCURVEATTRIBUTES_TD_

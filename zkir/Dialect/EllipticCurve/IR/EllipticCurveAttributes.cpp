@@ -15,6 +15,9 @@ limitations under the License.
 
 #include "zkir/Dialect/EllipticCurve/IR/EllipticCurveAttributes.h"
 
+#include "zkir/Dialect/Field/IR/FieldOperation.h"
+#include "zkir/Dialect/Field/IR/FieldTypes.h"
+
 namespace mlir::zkir::elliptic_curve {
 
 // static
@@ -26,8 +29,20 @@ Attribute ShortWeierstrassAttr::parse(AsmParser &parser, Type odsType) {
       failed(parser.parseComma()) || failed(parser.parseLParen()) ||
       failed(parser.parseAttribute(gX)) || failed(parser.parseComma()) ||
       failed(parser.parseAttribute(gY)) || failed(parser.parseRParen()) ||
-      failed(parser.parseGreater()) || failed(parser.parseColonType(baseField)))
+      failed(parser.parseGreater()) ||
+      failed(field::parseColonFieldType(parser, baseField)))
     return nullptr;
+
+  if (failed(field::validateAttribute(parser, baseField, a, "a")) ||
+      failed(field::validateAttribute(parser, baseField, b, "b")) ||
+      failed(field::validateAttribute(parser, baseField, gX, "gX")) ||
+      failed(field::validateAttribute(parser, baseField, gY, "gY")))
+    return nullptr;
+
+  a = field::maybeToMontgomery(baseField, a);
+  b = field::maybeToMontgomery(baseField, b);
+  gX = field::maybeToMontgomery(baseField, gX);
+  gY = field::maybeToMontgomery(baseField, gY);
 
   return ShortWeierstrassAttr::get(a.getContext(), baseField,
                                    cast<TypedAttr>(a), cast<TypedAttr>(b),
@@ -35,8 +50,52 @@ Attribute ShortWeierstrassAttr::parse(AsmParser &parser, Type odsType) {
 }
 
 void ShortWeierstrassAttr::print(AsmPrinter &printer) const {
-  printer << '<' << getA() << ',' << getB() << '(' << getGx() << ',' << getGy()
+  Attribute a = field::maybeToStandard(getBaseField(), getA());
+  Attribute b = field::maybeToStandard(getBaseField(), getB());
+  Attribute gX = field::maybeToStandard(getBaseField(), getGx());
+  Attribute gY = field::maybeToStandard(getBaseField(), getGy());
+
+  printer << '<' << a << ',' << b << '(' << gX << ',' << gY
           << ")> : " << getBaseField();
+}
+
+// static
+LogicalResult
+ShortWeierstrassAttr::verify(llvm::function_ref<InFlightDiagnostic()> emitError,
+                             Type baseField, TypedAttr a, TypedAttr b,
+                             TypedAttr gX, TypedAttr gY) {
+  if (auto pfType = dyn_cast<field::PrimeFieldType>(baseField)) {
+    if (!isa<IntegerAttr>(a) || !isa<IntegerAttr>(b) || !isa<IntegerAttr>(gX) ||
+        !isa<IntegerAttr>(gY)) {
+      emitError() << "a, b, gX, and gY must be integer attributes";
+      return failure();
+    }
+
+    field::PrimeFieldOperation aOp(cast<IntegerAttr>(a), pfType);
+    field::PrimeFieldOperation bOp(cast<IntegerAttr>(b), pfType);
+    field::PrimeFieldOperation gXOp(cast<IntegerAttr>(gX), pfType);
+    field::PrimeFieldOperation gYOp(cast<IntegerAttr>(gY), pfType);
+
+    if (gYOp.Square() != gXOp.Square() * gXOp + aOp * gXOp + bOp) {
+      emitError()
+          << "a, b, gX, and gY must satisfy the equation y² = x³ + ax + b";
+      return failure();
+    }
+  } else if (auto efType =
+                 dyn_cast<field::ExtensionFieldTypeInterface>(baseField)) {
+    if (!isa<DenseIntElementsAttr>(a) || !isa<DenseIntElementsAttr>(b) ||
+        !isa<DenseIntElementsAttr>(gX) || !isa<DenseIntElementsAttr>(gY)) {
+      emitError()
+          << "a, b, gX, and gY must be dense integer elements attributes";
+      return failure();
+    }
+    // TODO(chokobole): Implement this...
+  } else {
+    emitError() << "base field must be a prime field or an extension field";
+    return failure();
+  }
+
+  return success();
 }
 
 } // namespace mlir::zkir::elliptic_curve

@@ -29,7 +29,7 @@ class Field_Attr<string name, string attrMnemonic, list<Trait> traits = []>
 def Field_RootOfUnityAttr : Field_Attr<"RootOfUnity", "root_of_unity", [TypedAttrInterface]> {
   let summary = "An attribute representing a root of unity in a prime field";
   let parameters = (ins "PrimeFieldType":$type, "IntegerAttr":$root, "IntegerAttr":$degree);
-  let assemblyFormat = "`<` $root `,` $degree `>` `:` $type";
+  let hasCustomAssemblyFormat = 1;
   let genVerifyDecl = 1;
 }
 

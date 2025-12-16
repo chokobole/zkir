@@ -21,18 +21,18 @@ namespace mlir::zkir::field {
 
 Value QuadraticExtensionField::square(Value x) {
   ExtensionFieldCodeGen<2> xGen(&b, x.getType(), x, nonResidue);
-  return xGen.Square().getValue();
+  return xGen.Square();
 }
 
 Value QuadraticExtensionField::mul(Value x, Value y) {
   ExtensionFieldCodeGen<2> xGen(&b, x.getType(), x, nonResidue);
   ExtensionFieldCodeGen<2> yGen(&b, y.getType(), y, nonResidue);
-  return (xGen * yGen).getValue();
+  return xGen * yGen;
 }
 
 Value QuadraticExtensionField::inverse(Value x) {
   ExtensionFieldCodeGen<2> xGen(&b, x.getType(), x, nonResidue);
-  return xGen.Inverse().getValue();
+  return xGen.Inverse();
 }
 
 } // namespace mlir::zkir::field

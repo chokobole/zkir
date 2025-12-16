@@ -38,7 +38,7 @@ public:
       : b(b), type(type), value(value), nonResidue(nonResidue) {}
   ~ExtensionFieldCodeGen() = default;
 
-  Value getValue() const { return value; }
+  operator Value() const { return value; }
 
   // zk_dtypes::QuadraticExtensionFieldOperation methods
   std::array<PrimeFieldCodeGen, N> ToBaseField() const {
@@ -53,7 +53,7 @@ public:
   FromBaseFields(const std::array<PrimeFieldCodeGen, N> &values) const {
     SmallVector<Value, N> coeffs;
     for (size_t i = 0; i < N; ++i) {
-      coeffs.push_back(values[i].getValue());
+      coeffs.push_back(values[i]);
     }
     return {b, type, fromCoeffs(*b, type, coeffs), nonResidue};
   }

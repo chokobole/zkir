@@ -59,4 +59,24 @@ IntegerAttr getAttrAsMontgomeryForm(IntegerAttr modulusAttr, IntegerAttr attr) {
 
   return IntegerAttr::get(attr.getType(), value);
 }
+
+DenseElementsAttr getAttrAsStandardForm(IntegerAttr modulusAttr,
+                                        DenseElementsAttr attr) {
+  APInt modulus = modulusAttr.getValue();
+  auto modArithType = ModArithType::get(attr.getContext(), modulusAttr);
+  MontgomeryAttr montAttr = modArithType.getMontgomeryAttr();
+  return attr.mapValues(attr.getElementType(), [&](APInt value) -> APInt {
+    return mulMod(value, montAttr.getRInv().getValue(), modulus);
+  });
+}
+
+DenseElementsAttr getAttrAsMontgomeryForm(IntegerAttr modulusAttr,
+                                          DenseElementsAttr attr) {
+  APInt modulus = modulusAttr.getValue();
+  auto modArithType = ModArithType::get(attr.getContext(), modulusAttr);
+  MontgomeryAttr montAttr = modArithType.getMontgomeryAttr();
+  return attr.mapValues(attr.getElementType(), [&](APInt value) -> APInt {
+    return mulMod(value, montAttr.getR().getValue(), modulus);
+  });
+}
 } // namespace mlir::zkir::mod_arith

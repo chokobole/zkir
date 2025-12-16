@@ -122,7 +122,12 @@ PrimitiveRootAttrStorage::construct(AttributeStorageAllocator &allocator,
   }
 
   APInt mod = rootOfUnity.getType().getModulus().getValue();
-  APInt rootVal = root.getValue();
+  APInt rootVal;
+  if (montgomery != mod_arith::MontgomeryAttr()) {
+    rootVal = mulMod(root.getValue(), montgomery.getRInv().getValue(), mod);
+  } else {
+    rootVal = root.getValue();
+  }
   APInt invRootVal = multiplicativeInverse(rootVal, mod);
   APInt invDegreeVal = multiplicativeInverse(
       degree.getValue().zextOrTrunc(mod.getBitWidth()), mod);
