@@ -127,12 +127,8 @@ Type getStandardFormType(Type type) {
   if (modArithType.isMontgomery()) {
     auto standardType =
         ModArithType::get(type.getContext(), modArithType.getModulus());
-    if (auto memrefType = dyn_cast<MemRefType>(type)) {
-      return MemRefType::get(memrefType.getShape(), standardType,
-                             memrefType.getLayout(),
-                             memrefType.getMemorySpace());
-    } else if (auto shapedType = dyn_cast<ShapedType>(type)) {
-      return shapedType.cloneWith(shapedType.getShape(), standardType);
+    if (auto shapedType = dyn_cast<ShapedType>(type)) {
+      return shapedType.clone(standardType);
     } else {
       return standardType;
     }
@@ -146,12 +142,8 @@ Type getMontgomeryFormType(Type type) {
   if (!modArithType.isMontgomery()) {
     auto montType =
         ModArithType::get(type.getContext(), modArithType.getModulus(), true);
-    if (auto memrefType = dyn_cast<MemRefType>(type)) {
-      return MemRefType::get(memrefType.getShape(), montType,
-                             memrefType.getLayout(),
-                             memrefType.getMemorySpace());
-    } else if (auto shapedType = dyn_cast<ShapedType>(type)) {
-      return shapedType.cloneWith(shapedType.getShape(), montType);
+    if (auto shapedType = dyn_cast<ShapedType>(type)) {
+      return shapedType.clone(montType);
     } else {
       return montType;
     }
