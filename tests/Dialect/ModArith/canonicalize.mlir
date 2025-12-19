@@ -1324,3 +1324,25 @@ func.func @test_extract_fold_from_splat() -> vector<2x!Zp> {
   %1 = vector.extract %0[1] : vector<2x!Zp> from vector<2x2x!Zp>
   return %1 : vector<2x!Zp>
 }
+
+// CHECK-LABEL: @test_broadcast_fold
+// CHECK-SAME: () -> [[T:.*]] {
+func.func @test_broadcast_fold() -> vector<2x2x!Zp> {
+  %0 = mod_arith.constant 5 : !Zp
+  %1 = vector.broadcast %0 : !Zp to vector<2x2x!Zp>
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<5> : [[T]]
+  // CHECK-NOT: vector.broadcast
+  // CHECK: return %[[C]] : [[T]]
+  return %1 : vector<2x2x!Zp>
+}
+
+// CHECK-LABEL: @test_broadcast_splat_fold
+// CHECK-SAME: () -> [[T:.*]] {
+func.func @test_broadcast_splat_fold() -> vector<2x2x!Zp> {
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<5> : [[T]]
+  // CHECK-NOT: vector.broadcast
+  // CHECK: return %[[C]] : [[T]]
+  %1 = mod_arith.constant dense<5> : vector<2x!Zp>
+  %2 = vector.broadcast %1 : vector<2x!Zp> to vector<2x2x!Zp>
+  return %2 : vector<2x2x!Zp>
+}

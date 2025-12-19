@@ -1,5 +1,5 @@
 diff --git mlir/lib/Dialect/Vector/IR/VectorOps.cpp mlir/lib/Dialect/Vector/IR/VectorOps.cpp
-index 1fb8c7a928e0..a5e69a7619b7 100644
+index 1fb8c7a928e0..dd1babe536f5 100644
 --- mlir/lib/Dialect/Vector/IR/VectorOps.cpp
 +++ mlir/lib/Dialect/Vector/IR/VectorOps.cpp
 @@ -38,6 +38,9 @@
@@ -73,7 +73,26 @@ index 1fb8c7a928e0..a5e69a7619b7 100644
    return DenseElementsAttr::get(destVecType, convertedElements);
  }
  
-@@ -3058,8 +3081,9 @@ OpFoldResult vector::ShuffleOp::fold(FoldAdaptor adaptor) {
+@@ -2800,7 +2823,7 @@ BroadcastableToResult mlir::vector::isBroadcastableTo(
+     Type srcType, VectorType dstVectorType,
+     std::pair<VectorDim, VectorDim> *mismatchingDims) {
+   // Broadcast scalar to vector of the same element type.
+-  if (srcType.isIntOrIndexOrFloat() && dstVectorType &&
++  if (isa<VectorElementTypeInterface>(srcType) && dstVectorType &&
+       getElementTypeOrSelf(srcType) == getElementTypeOrSelf(dstVectorType))
+     return BroadcastableToResult::Success;
+   // From now on, only vectors broadcast.
+@@ -2878,7 +2901,8 @@ OpFoldResult BroadcastOp::fold(FoldAdaptor adaptor) {
+     return getSource();
+   if (!adaptor.getSource())
+     return {};
+-  auto vectorType = getResultVectorType();
++  VectorType vectorType = cast<VectorType>(
++      zkir::maybeConvertZkirToBuiltinType(getResultVectorType()));
+   if (auto attr = llvm::dyn_cast<IntegerAttr>(adaptor.getSource())) {
+     if (vectorType.getElementType() != attr.getType())
+       return {};
+@@ -3058,8 +3082,9 @@ OpFoldResult vector::ShuffleOp::fold(FoldAdaptor adaptor) {
  
      results.push_back(indexedElm);
    }
