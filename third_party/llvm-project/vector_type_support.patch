@@ -1,5 +1,5 @@
 diff --git mlir/lib/Dialect/Vector/IR/VectorOps.cpp mlir/lib/Dialect/Vector/IR/VectorOps.cpp
-index 1fb8c7a928e0..c3a09d400811 100644
+index 1fb8c7a928e0..f9d632fdbda0 100644
 --- mlir/lib/Dialect/Vector/IR/VectorOps.cpp
 +++ mlir/lib/Dialect/Vector/IR/VectorOps.cpp
 @@ -38,6 +38,9 @@
@@ -139,6 +139,29 @@ index 1fb8c7a928e0..c3a09d400811 100644
      auto newAttr = DenseElementsAttr::get(destTy, newValues);
      rewriter.replaceOpWithNewOp<arith::ConstantOp>(op, newAttr);
      return success();
+@@ -4057,6 +4094,8 @@ foldExtractStridedSliceNonSplatConstant(ExtractStridedSliceOp op,
+   assert(static_cast<int64_t>(sliceValues.size()) ==
+              sliceVecTy.getNumElements() &&
+          "Invalid number of slice elements");
++  sliceVecTy =
++      cast<VectorType>(zkir::maybeConvertZkirToBuiltinType(sliceVecTy));
+   return DenseElementsAttr::get(sliceVecTy, sliceValues);
+ }
+ 
+@@ -4068,8 +4107,11 @@ OpFoldResult ExtractStridedSliceOp::fold(FoldAdaptor adaptor) {
+ 
+   // ExtractStridedSliceOp(splat ConstantOp) -> ConstantOp.
+   if (auto splat =
+-          llvm::dyn_cast_if_present<SplatElementsAttr>(adaptor.getVector()))
+-    DenseElementsAttr::get(getType(), splat.getSplatValue<Attribute>());
++          llvm::dyn_cast_if_present<SplatElementsAttr>(adaptor.getVector())) {
++    VectorType destTy =
++        cast<VectorType>(zkir::maybeConvertZkirToBuiltinType(getType()));
++    return DenseElementsAttr::get(destTy, splat.getSplatValue<Attribute>());
++  }
+ 
+   // ExtractStridedSliceOp(non-splat ConstantOp) -> ConstantOp.
+   return foldExtractStridedSliceNonSplatConstant(*this, adaptor.getVector());
 diff --git utils/bazel/llvm-project-overlay/mlir/BUILD.bazel utils/bazel/llvm-project-overlay/mlir/BUILD.bazel
 index f7722951646c..008946b81e69 100644
 --- utils/bazel/llvm-project-overlay/mlir/BUILD.bazel
