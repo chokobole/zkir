@@ -1290,3 +1290,15 @@ func.func @test_vector_extract() -> !Zp {
   %1 = vector.extract %0[1] : !Zp from vector<2x!Zp>
   return %1 : !Zp
 }
+
+// CHECK-LABEL: @test_shuffle_fold
+// CHECK-SAME: () -> [[T:.*]] {
+func.func @test_shuffle_fold() -> vector<4x!Zp> {
+  %v1 = mod_arith.constant dense<[10, 20, 30, 36]> : vector<4x!Zp>
+  %v2 = mod_arith.constant dense<[15, 25]> : vector<2x!Zp>
+  %shuffled = vector.shuffle %v1, %v2 [0, 4, 1, 5] : vector<4x!Zp>, vector<2x!Zp>
+  // CHECK: %[[C:.*]] = mod_arith.constant dense<[10, 15, 20, 25]> : [[T]]
+  // CHECK-NOT: vector.shuffle
+  // CHECK: return %[[C]] : [[T]]
+  return %shuffled : vector<4x!Zp>
+}

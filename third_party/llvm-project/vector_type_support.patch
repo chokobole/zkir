@@ -1,5 +1,5 @@
 diff --git mlir/lib/Dialect/Vector/IR/VectorOps.cpp mlir/lib/Dialect/Vector/IR/VectorOps.cpp
-index 1fb8c7a928e0..c0a19a1b5ee4 100644
+index 1fb8c7a928e0..73bd1e0e7f12 100644
 --- mlir/lib/Dialect/Vector/IR/VectorOps.cpp
 +++ mlir/lib/Dialect/Vector/IR/VectorOps.cpp
 @@ -38,6 +38,9 @@
@@ -52,6 +52,18 @@ index 1fb8c7a928e0..c0a19a1b5ee4 100644
    return DenseElementsAttr::get(destVecType, convertedElements);
  }
  
+@@ -3058,8 +3077,9 @@ OpFoldResult vector::ShuffleOp::fold(FoldAdaptor adaptor) {
+ 
+     results.push_back(indexedElm);
+   }
+-
+-  return DenseElementsAttr::get(getResultVectorType(), results);
++  VectorType resType = cast<VectorType>(
++      zkir::maybeConvertZkirToBuiltinType(getResultVectorType()));
++  return DenseElementsAttr::get(resType, results);
+ }
+ 
+ namespace {
 diff --git utils/bazel/llvm-project-overlay/mlir/BUILD.bazel utils/bazel/llvm-project-overlay/mlir/BUILD.bazel
 index f7722951646c..008946b81e69 100644
 --- utils/bazel/llvm-project-overlay/mlir/BUILD.bazel
