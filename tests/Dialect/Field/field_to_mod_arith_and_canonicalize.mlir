@@ -21,17 +21,19 @@
 // CHECK-LABEL: @test_mul
 // CHECK-SAME: (%[[ARG0:.*]]: [[T:.*]], %[[ARG1:.*]]: [[T]]) -> [[T]]
 func.func @test_mul(%a: !QF, %b: !QF) -> !QF {
+  // Karatsuba multiplication with canonicalization (β = 6 ≡ -1 mod 7):
+  // c0 = v0 + β * v1 = v0 - v1, c1 = (a0 + a1)(b0 + b1) - v0 - v1
   // CHECK: %[[LHS:.*]]:2 = field.ext_to_coeffs %[[ARG0]] : ([[T]]) -> (!z7_i32, !z7_i32)
   // CHECK: %[[RHS:.*]]:2 = field.ext_to_coeffs %[[ARG1]] : ([[T]]) -> (!z7_i32, !z7_i32)
-  // CHECK: %[[MUL0:.*]] = mod_arith.mul %[[LHS]]#0, %[[RHS]]#0 : !z7_i32
-  // CHECK: %[[MUL1:.*]] = mod_arith.mul %[[LHS]]#1, %[[RHS]]#1 : !z7_i32
-  // CHECK: %[[SUB:.*]] = mod_arith.sub %[[MUL0]], %[[MUL1]] : !z7_i32
-  // CHECK: %[[ADD0:.*]] = mod_arith.add %[[LHS]]#0, %[[LHS]]#1 : !z7_i32
-  // CHECK: %[[ADD1:.*]] = mod_arith.add %[[RHS]]#0, %[[RHS]]#1 : !z7_i32
-  // CHECK: %[[MUL2:.*]] = mod_arith.mul %[[ADD0]], %[[ADD1]] : !z7_i32
-  // CHECK: %[[SUB2:.*]] = mod_arith.sub %[[MUL2]], %[[MUL0]] : !z7_i32
-  // CHECK: %[[SUB3:.*]] = mod_arith.sub %[[SUB2]], %[[MUL1]] : !z7_i32
-  // CHECK: %[[RESULT:.*]] = field.ext_from_coeffs %[[SUB]], %[[SUB3]] : (!z7_i32, !z7_i32) -> [[T]]
+  // CHECK: %[[V0:.*]] = mod_arith.mul %[[LHS]]#0, %[[RHS]]#0 : !z7_i32
+  // CHECK: %[[V1:.*]] = mod_arith.mul %[[LHS]]#1, %[[RHS]]#1 : !z7_i32
+  // CHECK: %[[SUMLHS:.*]] = mod_arith.add %[[LHS]]#0, %[[LHS]]#1 : !z7_i32
+  // CHECK: %[[SUMRHS:.*]] = mod_arith.add %[[RHS]]#0, %[[RHS]]#1 : !z7_i32
+  // CHECK: %[[SUMPRODUCT:.*]] = mod_arith.mul %[[SUMLHS]], %[[SUMRHS]] : !z7_i32
+  // CHECK: %[[TMP:.*]] = mod_arith.sub %[[SUMPRODUCT]], %[[V0]] : !z7_i32
+  // CHECK: %[[C1:.*]] = mod_arith.sub %[[TMP]], %[[V1]] : !z7_i32
+  // CHECK: %[[C0:.*]] = mod_arith.sub %[[V0]], %[[V1]] : !z7_i32
+  // CHECK: %[[RESULT:.*]] = field.ext_from_coeffs %[[C0]], %[[C1]] : (!z7_i32, !z7_i32) -> [[T]]
   %mul = field.mul %a, %b : !QF
   // CHECK: return %[[RESULT]] : [[T]]
   return %mul: !QF
@@ -40,12 +42,13 @@ func.func @test_mul(%a: !QF, %b: !QF) -> !QF {
 // CHECK-LABEL: @test_square
 // CHECK-SAME: (%[[ARG0:.*]]: [[T:.*]]) -> [[T]]
 func.func @test_square(%a: !QF) -> !QF {
+  // Custom square algorithm: c0 = (x0 - x1)(x0 + x1), c1 = 2 * x0 * x1
   // CHECK: %[[COEFFS:.*]]:2 = field.ext_to_coeffs %[[ARG0]] : ([[T]]) -> (!z7_i32, !z7_i32)
-  // CHECK: %[[SUB:.*]] = mod_arith.sub %[[COEFFS]]#0, %[[COEFFS]]#1 : !z7_i32
   // CHECK: %[[MUL:.*]] = mod_arith.mul %[[COEFFS]]#0, %[[COEFFS]]#1 : !z7_i32
+  // CHECK: %[[DOUBLE:.*]] = mod_arith.double %[[MUL]] : !z7_i32
+  // CHECK: %[[SUB:.*]] = mod_arith.sub %[[COEFFS]]#0, %[[COEFFS]]#1 : !z7_i32
   // CHECK: %[[ADD:.*]] = mod_arith.add %[[COEFFS]]#0, %[[COEFFS]]#1 : !z7_i32
   // CHECK: %[[MUL2:.*]] = mod_arith.mul %[[SUB]], %[[ADD]] : !z7_i32
-  // CHECK: %[[DOUBLE:.*]] = mod_arith.double %[[MUL]] : !z7_i32
   // CHECK: %[[RESULT:.*]] = field.ext_from_coeffs %[[MUL2]], %[[DOUBLE]] : (!z7_i32, !z7_i32) -> [[T]]
   %square = field.square %a : !QF
   // CHECK: return %[[RESULT]] : [[T]]

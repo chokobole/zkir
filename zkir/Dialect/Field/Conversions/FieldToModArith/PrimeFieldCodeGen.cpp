@@ -25,16 +25,34 @@ PrimeFieldCodeGen::operator+(const PrimeFieldCodeGen &other) const {
       b, b->create<mod_arith::AddOp>(value, other.value).getOutput());
 }
 
+PrimeFieldCodeGen &
+PrimeFieldCodeGen::operator+=(const PrimeFieldCodeGen &other) {
+  value = b->create<mod_arith::AddOp>(value, other.value).getOutput();
+  return *this;
+}
+
 PrimeFieldCodeGen
 PrimeFieldCodeGen::operator-(const PrimeFieldCodeGen &other) const {
   return PrimeFieldCodeGen(
       b, b->create<mod_arith::SubOp>(value, other.value).getOutput());
 }
 
+PrimeFieldCodeGen &
+PrimeFieldCodeGen::operator-=(const PrimeFieldCodeGen &other) {
+  value = b->create<mod_arith::SubOp>(value, other.value).getOutput();
+  return *this;
+}
+
 PrimeFieldCodeGen
 PrimeFieldCodeGen::operator*(const PrimeFieldCodeGen &other) const {
   return PrimeFieldCodeGen(
       b, b->create<mod_arith::MulOp>(value, other.value).getOutput());
+}
+
+PrimeFieldCodeGen &
+PrimeFieldCodeGen::operator*=(const PrimeFieldCodeGen &other) {
+  value = b->create<mod_arith::MulOp>(value, other.value).getOutput();
+  return *this;
 }
 
 PrimeFieldCodeGen PrimeFieldCodeGen::operator-() const {

@@ -32,8 +32,11 @@ public:
   operator Value() const { return value; }
 
   PrimeFieldCodeGen operator+(const PrimeFieldCodeGen &other) const;
+  PrimeFieldCodeGen &operator+=(const PrimeFieldCodeGen &other);
   PrimeFieldCodeGen operator-(const PrimeFieldCodeGen &other) const;
+  PrimeFieldCodeGen &operator-=(const PrimeFieldCodeGen &other);
   PrimeFieldCodeGen operator*(const PrimeFieldCodeGen &other) const;
+  PrimeFieldCodeGen &operator*=(const PrimeFieldCodeGen &other);
   PrimeFieldCodeGen operator-() const;
   PrimeFieldCodeGen Double() const;
   PrimeFieldCodeGen Square() const;
