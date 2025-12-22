@@ -85,33 +85,7 @@ Type getMontgomeryFormType(Type type) {
   }
 }
 
-OpFoldResult ConstantOp::fold(FoldAdaptor adaptor) {
-  return adaptor.getValue();
-}
-
-// static
-ConstantOp ConstantOp::materialize(OpBuilder &builder, Attribute value,
-                                   Type type, Location loc) {
-  if (!isa<PrimeFieldType>(getElementTypeOrSelf(type)) &&
-      !isa<ExtensionFieldTypeInterface>(getElementTypeOrSelf(type))) {
-    return nullptr;
-  }
-
-  if (auto intAttr = dyn_cast<IntegerAttr>(value)) {
-    return builder.create<ConstantOp>(loc, type, intAttr);
-  } else if (auto denseElementsAttr = dyn_cast<DenseIntElementsAttr>(value)) {
-    return builder.create<ConstantOp>(loc, type, denseElementsAttr);
-  }
-  return nullptr;
-}
-
-Operation *FieldDialect::materializeConstant(OpBuilder &builder,
-                                             Attribute value, Type type,
-                                             Location loc) {
-  return ConstantOp::materialize(builder, value, type, loc);
-}
-
-ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
+ParseResult parseFieldConstant(OpAsmParser &parser, OperationState &result) {
   // TODO(chokboole): support towers of extension fields
   SmallVector<APInt> parsedInts;
   Type parsedType;
@@ -187,6 +161,36 @@ ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
   return parser.emitError(parser.getCurrentLocation(),
                           "dense attribute is only supported for shaped types "
                           "with a prime field element type");
+}
+
+OpFoldResult ConstantOp::fold(FoldAdaptor adaptor) {
+  return adaptor.getValue();
+}
+
+// static
+ConstantOp ConstantOp::materialize(OpBuilder &builder, Attribute value,
+                                   Type type, Location loc) {
+  if (!isa<PrimeFieldType>(getElementTypeOrSelf(type)) &&
+      !isa<ExtensionFieldTypeInterface>(getElementTypeOrSelf(type))) {
+    return nullptr;
+  }
+
+  if (auto intAttr = dyn_cast<IntegerAttr>(value)) {
+    return builder.create<ConstantOp>(loc, type, intAttr);
+  } else if (auto denseElementsAttr = dyn_cast<DenseIntElementsAttr>(value)) {
+    return builder.create<ConstantOp>(loc, type, denseElementsAttr);
+  }
+  return nullptr;
+}
+
+Operation *FieldDialect::materializeConstant(OpBuilder &builder,
+                                             Attribute value, Type type,
+                                             Location loc) {
+  return ConstantOp::materialize(builder, value, type, loc);
+}
+
+ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
+  return parseFieldConstant(parser, result);
 }
 
 void ConstantOp::print(OpAsmPrinter &p) {

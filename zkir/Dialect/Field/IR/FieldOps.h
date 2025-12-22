@@ -16,6 +16,8 @@ limitations under the License.
 #ifndef ZKIR_DIALECT_FIELD_IR_FIELDOPS_H_
 #define ZKIR_DIALECT_FIELD_IR_FIELDOPS_H_
 
+#include "mlir/IR/OpImplementation.h"
+#include "mlir/IR/OperationSupport.h"
 #include "zkir/Dialect/Field/IR/FieldAttributes.h"
 #include "zkir/Dialect/Field/IR/FieldTypes.h"
 
@@ -37,6 +39,8 @@ PrimeFieldType getResultPrimeFieldType(OpType op) {
 
 Type getStandardFormType(Type type);
 Type getMontgomeryFormType(Type type);
+
+ParseResult parseFieldConstant(OpAsmParser &parser, OperationState &result);
 
 } // namespace mlir::zkir::field
 
