@@ -18,6 +18,8 @@ limitations under the License.
 
 #include <cstddef>
 
+#include "llvm/ADT/APInt.h"
+#include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/ImplicitLocOpBuilder.h"
 #include "mlir/IR/Types.h"
 #include "mlir/IR/Value.h"
@@ -25,6 +27,7 @@ limitations under the License.
 #include "zkir/Dialect/Field/Conversions/FieldToModArith/ConversionUtils.h"
 #include "zkir/Dialect/Field/Conversions/FieldToModArith/PrimeFieldCodeGen.h"
 #include "zkir/Dialect/Field/IR/FieldTypes.h"
+#include "zkir/Dialect/ModArith/IR/ModArithOps.h"
 
 namespace mlir::zkir::field {
 
@@ -63,6 +66,19 @@ public:
   }
   PrimeFieldCodeGen NonResidue() const {
     return PrimeFieldCodeGen(b, nonResidue);
+  }
+  zk_dtypes::ExtensionFieldMulAlgorithm GetSquareAlgorithm() const {
+    return zk_dtypes::ExtensionFieldMulAlgorithm::kKaratsuba;
+  }
+  PrimeFieldCodeGen CreateZeroBaseField() const {
+    auto extField = cast<ExtensionFieldTypeInterface>(type);
+    auto baseField = cast<PrimeFieldType>(extField.getBaseFieldType());
+    unsigned bitWidth = baseField.getStorageType().getWidth();
+    APInt zeroVal(bitWidth, 0);
+    auto convertedType = convertPrimeFieldType(baseField);
+    Value zero = b->create<mod_arith::ConstantOp>(
+        convertedType, IntegerAttr::get(baseField.getStorageType(), zeroVal));
+    return PrimeFieldCodeGen(b, zero);
   }
 
 private:

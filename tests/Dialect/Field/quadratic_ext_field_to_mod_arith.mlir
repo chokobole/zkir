@@ -59,18 +59,24 @@ func.func @test_lower_add(%arg0: !QF, %arg1: !QF) -> !QF {
 // CHECK-LABEL: @test_lower_mul
 // CHECK-SAME: (%[[ARG0:.*]]: [[T:.*]], %[[ARG1:.*]]: [[T]]) -> [[T]] {
 func.func @test_lower_mul(%arg0: !QF, %arg1: !QF) -> !QF {
+    // Karatsuba multiplication:
+    // c0 = v0 + β * v1, c1 = (a0 + a1)(b0 + b1) - v0 - v1
     // CHECK: %[[BETA:.*]] = mod_arith.constant 6 : !z7_i32
     // CHECK: %[[LHS:.*]]:2 = field.ext_to_coeffs %[[ARG0]] : ([[T]]) -> (!z7_i32, !z7_i32)
     // CHECK: %[[RHS:.*]]:2 = field.ext_to_coeffs %[[ARG1]] : ([[T]]) -> (!z7_i32, !z7_i32)
     // CHECK: %[[V0:.*]] = mod_arith.mul %[[LHS]]#0, %[[RHS]]#0 : !z7_i32
     // CHECK: %[[V1:.*]] = mod_arith.mul %[[LHS]]#1, %[[RHS]]#1 : !z7_i32
-    // CHECK: %[[BETATIMESV1:.*]] = mod_arith.mul %[[BETA]], %[[V1]] : !z7_i32
-    // CHECK: %[[C0:.*]] = mod_arith.add %[[V0]], %[[BETATIMESV1]] : !z7_i32
     // CHECK: %[[SUMLHS:.*]] = mod_arith.add %[[LHS]]#0, %[[LHS]]#1 : !z7_i32
     // CHECK: %[[SUMRHS:.*]] = mod_arith.add %[[RHS]]#0, %[[RHS]]#1 : !z7_i32
     // CHECK: %[[SUMPRODUCT:.*]] = mod_arith.mul %[[SUMLHS]], %[[SUMRHS]] : !z7_i32
-    // CHECK: %[[TMP:.*]] = mod_arith.sub %[[SUMPRODUCT]], %[[V0]] : !z7_i32
-    // CHECK: %[[C1:.*]] = mod_arith.sub %[[TMP]], %[[V1]] : !z7_i32
+    // CHECK: %[[TMP0:.*]] = mod_arith.sub %[[SUMPRODUCT]], %[[V0]] : !z7_i32
+    // CHECK: %[[TMP1:.*]] = mod_arith.sub %[[TMP0]], %[[V1]] : !z7_i32
+    // CHECK: %[[ZERO:.*]] = mod_arith.constant 0 : !z7_i32
+    // CHECK: %[[TMP2:.*]] = mod_arith.add %[[ZERO]], %[[V0]] : !z7_i32
+    // CHECK: %[[TMP3:.*]] = mod_arith.add %[[ZERO]], %[[V1]] : !z7_i32
+    // CHECK: %[[C1:.*]] = mod_arith.add %[[ZERO]], %[[TMP1]] : !z7_i32
+    // CHECK: %[[BETATIMESV1:.*]] = mod_arith.mul %[[BETA]], %[[TMP3]] : !z7_i32
+    // CHECK: %[[C0:.*]] = mod_arith.add %[[TMP2]], %[[BETATIMESV1]] : !z7_i32
     // CHECK: %[[RESULT:.*]] = field.ext_from_coeffs %[[C0]], %[[C1]] : (!z7_i32, !z7_i32) -> [[T]]
     // CHECK: return %[[RESULT]] : [[T]]
     %0 = field.mul %arg0, %arg1 : !QF
