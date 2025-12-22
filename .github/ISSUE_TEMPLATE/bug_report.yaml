@@ -1,0 +1,52 @@
+name: Bug Report
+description: Report any bug found in this project to help us improve.
+labels: ["bug"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Tag or commit hash
+      placeholder: e.g. v1.0.0 or d7903192
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: OS platform and distribution
+      placeholder: e.g. Linux Ubuntu 24.04 or Mac Tahoe 26.0.1
+    validations:
+      required: true
+
+  - type: textarea
+    id: current-behavior
+    attributes:
+      label: Current behavior
+      description: Describe the bug.
+      placeholder: A clear and concise description of what the bug is.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: A clear and concise description of what you expected to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: step-to-reproduce
+    attributes:
+      label: Standalone code or description to reproduce the issue
+      description: Provide a reproducible test case that is the bare minimum necessary to generate the problem.
+      placeholder: Use this code, or follow these steps to reproduce the issue.
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Please copy and paste any relevant log output. Or add any other context or screenshots about the bug report.
