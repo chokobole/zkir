@@ -42,20 +42,20 @@ Value QuarticExtensionField::toomCookInterpolate(Value v0, Value v1, Value v2,
   auto baseField = cast<PrimeFieldType>(type.getBaseFieldType());
 
   // Create constants.
-  auto inv2 = createInvConst(b, baseField, converter, 2);
-  auto inv3 = createInvConst(b, baseField, converter, 3);
-  auto inv4 = createInvConst(b, baseField, converter, 4);
-  auto inv6 = createInvConst(b, baseField, converter, 6);
-  auto inv12 = createInvConst(b, baseField, converter, 12);
-  auto inv20 = createInvConst(b, baseField, converter, 20);
-  auto inv24 = createInvConst(b, baseField, converter, 24);
-  auto inv30 = createInvConst(b, baseField, converter, 30);
-  auto inv120 = createInvConst(b, baseField, converter, 120);
-  auto const3 = createConst(b, baseField, converter, 3);
-  auto const5 = createConst(b, baseField, converter, 5);
-  auto const7 = createConst(b, baseField, converter, 7);
-  auto const12 = createConst(b, baseField, converter, 12);
-  auto const15 = createConst(b, baseField, converter, 15);
+  auto inv2 = createInvConst(b, baseField, 2);
+  auto inv3 = createInvConst(b, baseField, 3);
+  auto inv4 = createInvConst(b, baseField, 4);
+  auto inv6 = createInvConst(b, baseField, 6);
+  auto inv12 = createInvConst(b, baseField, 12);
+  auto inv20 = createInvConst(b, baseField, 20);
+  auto inv24 = createInvConst(b, baseField, 24);
+  auto inv30 = createInvConst(b, baseField, 30);
+  auto inv120 = createInvConst(b, baseField, 120);
+  auto const3 = createConst(b, baseField, 3);
+  auto const5 = createConst(b, baseField, 5);
+  auto const7 = createConst(b, baseField, 7);
+  auto const12 = createConst(b, baseField, 12);
+  auto const15 = createConst(b, baseField, 15);
 
   // Compute intermediate values for the result
   auto v1Plusv2 = b.create<mod_arith::AddOp>(v1, v2);
@@ -149,9 +149,9 @@ Value QuarticExtensionField::square(Value x) {
   // v₆ = x₃²
 
   auto baseField = cast<PrimeFieldType>(type.getBaseFieldType());
-  auto const3 = createConst(b, baseField, converter, 3);
-  auto const9 = createConst(b, baseField, converter, 9);
-  auto const27 = createConst(b, baseField, converter, 27);
+  auto const3 = createConst(b, baseField, 3);
+  auto const9 = createConst(b, baseField, 9);
+  auto const27 = createConst(b, baseField, 27);
 
   auto xCoeffs = toCoeffs(b, x);
   auto x0 = xCoeffs[0];
@@ -231,9 +231,9 @@ Value QuarticExtensionField::mul(Value x, Value y) {
   // v₆ = x₃ * y₃
 
   auto baseField = cast<PrimeFieldType>(type.getBaseFieldType());
-  auto const3 = createConst(b, baseField, converter, 3);
-  auto const9 = createConst(b, baseField, converter, 9);
-  auto const27 = createConst(b, baseField, converter, 27);
+  auto const3 = createConst(b, baseField, 3);
+  auto const9 = createConst(b, baseField, 9);
+  auto const27 = createConst(b, baseField, 27);
 
   auto xCoeffs = toCoeffs(b, x);
   auto x0 = xCoeffs[0];

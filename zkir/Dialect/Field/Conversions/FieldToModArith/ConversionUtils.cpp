@@ -17,8 +17,8 @@ limitations under the License.
 
 #include "mlir/Support/LLVM.h"
 #include "zkir/Dialect/Field/IR/FieldOps.h"
+#include "zkir/Dialect/ModArith/IR/ModArithOperation.h"
 #include "zkir/Dialect/ModArith/IR/ModArithOps.h"
-#include "zkir/Utils/APIntUtils.h"
 
 namespace mlir::zkir::field {
 namespace {
@@ -45,22 +45,36 @@ Value fromCoeffs(ImplicitLocOpBuilder &b, Type type, ValueRange coeffs) {
 }
 
 Value createConst(ImplicitLocOpBuilder &b, PrimeFieldType baseField,
-                  const TypeConverter *converter, uint64_t n) {
-  unsigned bitWidth = baseField.getModulus().getValue().getBitWidth();
-  auto convertedType = converter->convertType(baseField);
-  llvm::APInt nVal(bitWidth, n);
+                  int64_t n) {
+  APInt modulus = baseField.getModulus().getValue();
+  unsigned bitWidth = baseField.getStorageBitWidth();
+  auto convertedType = convertPrimeFieldType(baseField);
+
+  APInt nVal;
+  if (n < 0) {
+    nVal = modulus - APInt(bitWidth, -n);
+  } else {
+    nVal = APInt(bitWidth, n);
+  }
+
   return b.create<mod_arith::ConstantOp>(
       convertedType, IntegerAttr::get(baseField.getStorageType(), nVal));
 }
 
 Value createInvConst(ImplicitLocOpBuilder &b, PrimeFieldType baseField,
-                     const TypeConverter *converter, uint64_t n) {
-  llvm::APInt modulus = baseField.getModulus().getValue();
-  unsigned bitWidth = modulus.getBitWidth();
-  auto convertedType = converter->convertType(baseField);
-  // Reduce n modulo modulus first, since multiplicativeInverse requires x < m.
-  llvm::APInt nReduced = llvm::APInt(bitWidth, n).urem(modulus);
-  llvm::APInt inv = multiplicativeInverse(nReduced, modulus);
+                     int64_t n) {
+  APInt modulus = baseField.getModulus().getValue();
+  unsigned bitWidth = baseField.getStorageBitWidth();
+  auto convertedType = convertPrimeFieldType(baseField);
+
+  APInt nVal;
+  if (n < 0) {
+    nVal = modulus - APInt(bitWidth, -n);
+  } else {
+    nVal = APInt(bitWidth, n);
+  }
+
+  APInt inv = mod_arith::ModArithOperation(nVal, convertedType).Inverse();
   return b.create<mod_arith::ConstantOp>(
       convertedType, IntegerAttr::get(baseField.getStorageType(), inv));
 }
