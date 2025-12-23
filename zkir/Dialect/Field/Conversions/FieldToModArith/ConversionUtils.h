@@ -37,6 +37,10 @@ Value createConst(ImplicitLocOpBuilder &b, PrimeFieldType baseField, int64_t n);
 Value createInvConst(ImplicitLocOpBuilder &b, PrimeFieldType baseField,
                      int64_t n);
 
+// Create a mod_arith constant with value numerator / denominator.
+Value createRationalConst(ImplicitLocOpBuilder &b, PrimeFieldType baseField,
+                          int64_t numerator, int64_t denominator);
+
 } // namespace mlir::zkir::field
 
 #endif // ZKIR_DIALECT_FIELD_CONVERSIONS_FIELDTOMODARITH_CONVERSIONUTILS_H_

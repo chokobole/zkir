@@ -50,6 +50,9 @@ Value createConst(ImplicitLocOpBuilder &b, PrimeFieldType baseField,
   unsigned bitWidth = baseField.getStorageBitWidth();
   auto convertedType = convertPrimeFieldType(baseField);
 
+  assert(n > -modulus.getSExtValue() && n < modulus.getSExtValue() &&
+         "n must be in range (-P, P)");
+
   APInt nVal;
   if (n < 0) {
     nVal = modulus - APInt(bitWidth, -n);
@@ -67,6 +70,9 @@ Value createInvConst(ImplicitLocOpBuilder &b, PrimeFieldType baseField,
   unsigned bitWidth = baseField.getStorageBitWidth();
   auto convertedType = convertPrimeFieldType(baseField);
 
+  assert(n > -modulus.getSExtValue() && n < modulus.getSExtValue() &&
+         "n must be in range (-P, P)");
+
   APInt nVal;
   if (n < 0) {
     nVal = modulus - APInt(bitWidth, -n);
@@ -77,6 +83,40 @@ Value createInvConst(ImplicitLocOpBuilder &b, PrimeFieldType baseField,
   APInt inv = mod_arith::ModArithOperation(nVal, convertedType).Inverse();
   return b.create<mod_arith::ConstantOp>(
       convertedType, IntegerAttr::get(baseField.getStorageType(), inv));
+}
+
+Value createRationalConst(ImplicitLocOpBuilder &b, PrimeFieldType baseField,
+                          int64_t num, int64_t denom) {
+  APInt modulus = baseField.getModulus().getValue();
+  unsigned bitWidth = baseField.getStorageType().getWidth();
+  auto convertedType = convertPrimeFieldType(baseField);
+
+  assert(num > -modulus.getSExtValue() && num < modulus.getSExtValue() &&
+         "num must be in range (-P, P)");
+  assert(denom > -modulus.getSExtValue() && denom < modulus.getSExtValue() &&
+         "denom must be in range (-P, P)");
+
+  APInt numVal;
+  if (num < 0) {
+    numVal = modulus - APInt(bitWidth, -num);
+  } else {
+    numVal = APInt(bitWidth, num);
+  }
+
+  APInt denomVal;
+  if (denom < 0) {
+    denomVal = modulus - APInt(bitWidth, -denom);
+  } else {
+    denomVal = APInt(bitWidth, denom);
+  }
+
+  // Compute num * denom⁻¹ mod modulus
+  mod_arith::ModArithOperation numOp(numVal, convertedType);
+  mod_arith::ModArithOperation denomOp(denomVal, convertedType);
+  APInt result = numOp / denomOp;
+
+  return b.create<mod_arith::ConstantOp>(
+      convertedType, IntegerAttr::get(baseField.getStorageType(), result));
 }
 
 } // namespace mlir::zkir::field
