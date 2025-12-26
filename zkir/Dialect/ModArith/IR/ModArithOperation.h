@@ -34,6 +34,8 @@ public:
   ModArithOperation(IntegerAttr attr, ModArithType type)
       : value(attr.getValue()), type(type) {}
 
+  ModArithOperation getOne() const;
+
   operator APInt() const { return value; }
 
   ModArithOperation operator+(const ModArithOperation &other) const;

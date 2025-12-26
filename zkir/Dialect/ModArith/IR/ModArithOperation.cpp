@@ -15,10 +15,31 @@ limitations under the License.
 
 #include "zkir/Dialect/ModArith/IR/ModArithOperation.h"
 
+#include "zk_dtypes/include/bit_iterator.h"
 #include "zk_dtypes/include/byinverter.h"
 #include "zk_dtypes/include/field/modular_operations.h"
 #include "zk_dtypes/include/field/mont_multiplication.h"
 #include "zkir/Utils/APIntUtils.h"
+
+namespace zk_dtypes {
+
+template <>
+class BitTraits<mlir::APInt> {
+public:
+  static size_t GetNumBits(const mlir::APInt &value) {
+    return value.getBitWidth();
+  }
+
+  static bool TestBit(const mlir::APInt &value, size_t index) {
+    return value[index];
+  }
+
+  static void SetBit(mlir::APInt &value, size_t index, bool bitValue) {
+    value.setBitVal(index, bitValue);
+  }
+};
+
+} // namespace zk_dtypes
 
 namespace mlir::zkir::mod_arith {
 namespace {
@@ -129,6 +150,17 @@ APInt executeBinaryModOp(const APInt &a, const APInt &b,
 }
 
 } // namespace
+
+ModArithOperation ModArithOperation::getOne() const {
+  APInt one;
+  if (type.isMontgomery()) {
+    MontgomeryAttr montAttr = type.getMontgomeryAttr();
+    one = montAttr.getR().getValue();
+  } else {
+    one = APInt(value.getBitWidth(), 1);
+  }
+  return ModArithOperation(one, type);
+}
 
 ModArithOperation
 ModArithOperation::operator+(const ModArithOperation &other) const {
@@ -330,18 +362,26 @@ ModArithOperation ModArithOperation::Square() const {
   return ModArithOperation(mulMod(value, value, modulus), type);
 }
 
+namespace {
+
+ModArithOperation power(const ModArithOperation &value, const APInt &exponent) {
+  auto ret = value.getOne();
+  auto it = zk_dtypes::BitIteratorBE<APInt>::begin(&exponent, true);
+  auto end = zk_dtypes::BitIteratorBE<APInt>::end(&exponent);
+  while (it != end) {
+    ret = ret.Square();
+    if (*it) {
+      ret *= value;
+    }
+    ++it;
+  }
+  return ret;
+}
+
+} // namespace
+
 ModArithOperation ModArithOperation::Power(APInt exponent) const {
-  APInt base = value;
-  if (type.isMontgomery()) {
-    base = FromMont().value;
-  }
-  APInt modulus = type.getModulus().getValue();
-  APInt power = expMod(base, exponent, modulus);
-  if (type.isMontgomery()) {
-    MontgomeryAttr montAttr = type.getMontgomeryAttr();
-    power = mulMod(power, montAttr.getR().getValue(), modulus);
-  }
-  return ModArithOperation(power, type);
+  return mod_arith::power(*this, exponent);
 }
 
 namespace {
