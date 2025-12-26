@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "zkir/Dialect/ModArith/IR/ModArithOperation.h"
 
+#include "zk_dtypes/include/byinverter.h"
 #include "zk_dtypes/include/field/modular_operations.h"
 #include "zk_dtypes/include/field/mont_multiplication.h"
 #include "zkir/Utils/APIntUtils.h"
@@ -343,14 +344,75 @@ ModArithOperation ModArithOperation::Power(APInt exponent) const {
   return ModArithOperation(power, type);
 }
 
-ModArithOperation ModArithOperation::Inverse() const {
+namespace {
+
+struct InverseOp {
+  template <typename T>
+  static void apply(const T &a, T &b, const T &mod, const T &adjuster) {
+    if constexpr (std::is_integral_v<T>) {
+      using BigInt = zk_dtypes::BigInt<1>;
+      auto inverter = zk_dtypes::BYInverter<1>(BigInt(mod), BigInt(adjuster));
+      BigInt result;
+      [[maybe_unused]] bool ok = inverter.Invert(BigInt(a), result);
+      assert(ok);
+      b = static_cast<uint64_t>(result);
+    } else {
+      auto inverter = zk_dtypes::BYInverter<T::kLimbNums>(mod, adjuster);
+      [[maybe_unused]] bool ok = inverter.Invert(a, b);
+      assert(ok);
+    }
+  }
+};
+
+template <size_t CurrentN, size_t MaxN>
+struct InverseDispatcher {
+  static void dispatch(size_t targetN, const APInt &a, APInt &b,
+                       const APInt &mod, const APInt &adjuster) {
+    if (targetN == CurrentN) {
+      using T = zk_dtypes::BigInt<CurrentN>;
+      InverseOp::apply<T>(
+          *reinterpret_cast<const T *>(a.getRawData()),
+          *const_cast<T *>(reinterpret_cast<const T *>(b.getRawData())),
+          *reinterpret_cast<const T *>(mod.getRawData()),
+          *reinterpret_cast<const T *>(adjuster.getRawData()));
+    } else if constexpr (CurrentN < MaxN) {
+      InverseDispatcher<CurrentN + 1, MaxN>::dispatch(targetN, a, b, mod,
+                                                      adjuster);
+    }
+  }
+};
+
+APInt executeInverseOp(const APInt &a, const ModArithType &type) {
   APInt modulus = type.getModulus().getValue();
-  auto inverse = multiplicativeInverse(value, modulus);
+  unsigned bitWidth = modulus.getBitWidth();
+
+  APInt b(bitWidth, 0);
+  size_t neededLimbs = (bitWidth + 63) / 64;
+  APInt adjuster;
   if (type.isMontgomery()) {
     MontgomeryAttr montAttr = type.getMontgomeryAttr();
-    inverse = mulMod(inverse, montAttr.getRSquared().getValue(), modulus);
+    adjuster = montAttr.getRSquared().getValue();
+  } else {
+    adjuster = APInt(bitWidth, 1);
   }
-  return ModArithOperation(inverse, type);
+
+  if (neededLimbs > 1 && neededLimbs <= kMaximumLimbNum) {
+    InverseDispatcher<1, kMaximumLimbNum>::dispatch(neededLimbs, a, b, modulus,
+                                                    adjuster);
+  } else if (neededLimbs == 1) {
+    InverseOp::apply<uint64_t>(a.getZExtValue(),
+                               *const_cast<uint64_t *>(b.getRawData()),
+                               modulus.getZExtValue(), adjuster.getZExtValue());
+  } else {
+    llvm_unreachable("Unsupported limb size");
+  }
+  return b;
+}
+
+} // namespace
+
+ModArithOperation ModArithOperation::Inverse() const {
+  return ModArithOperation(executeInverseOp(value, type), type);
 }
 
 namespace {
