@@ -35,6 +35,9 @@ public:
   }
 
   operator APInt() const { return static_cast<APInt>(op); }
+  IntegerAttr getIntegerAttr() const {
+    return IntegerAttr::get(type.getStorageType(), op);
+  }
 
   PrimeFieldOperation operator+(const PrimeFieldOperation &other) const {
     assert(type == other.type);
