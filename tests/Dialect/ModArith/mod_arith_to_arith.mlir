@@ -197,3 +197,55 @@ func.func @test_lower_cmp(%lhs : !Zp) {
   %greaterThanOrEquals = mod_arith.cmp uge, %lhs, %rhs : !Zp
   return
 }
+
+// -----
+
+// Babybear: modWidth = 31, storageWidth = 32
+// storageWidth - modWidth = 1, so nsw is NOT safe (only nuw is safe)
+!Babybear = !mod_arith.int<2013265921 : i32>
+
+// CHECK-LABEL: @test_add_narrow_headroom
+// CHECK-SAME: (%[[LHS:.*]]: [[T:.*]], %[[RHS:.*]]: [[T]]) -> [[T]] {
+func.func @test_add_narrow_headroom(%lhs : !Babybear, %rhs : !Babybear) -> !Babybear {
+  // CHECK-NOT: mod_arith.add
+  // CHECK: %[[ADD:.*]] = arith.addi %[[LHS]], %[[RHS]] overflow<nuw> : [[T]]
+  // CHECK-NOT: nsw
+  %res = mod_arith.add %lhs, %rhs : !Babybear
+  return %res : !Babybear
+}
+
+// CHECK-LABEL: @test_double_narrow_headroom
+// CHECK-SAME: (%[[INPUT:.*]]: [[T:.*]]) -> [[T]] {
+func.func @test_double_narrow_headroom(%input : !Babybear) -> !Babybear {
+  // CHECK-NOT: mod_arith.double
+  // CHECK: %[[ONE:.*]] = arith.constant 1 : [[T]]
+  // CHECK: %[[SHL:.*]] = arith.shli %[[INPUT]], %[[ONE]] overflow<nuw> : [[T]]
+  // CHECK-NOT: nsw
+  %res = mod_arith.double %input : !Babybear
+  return %res : !Babybear
+}
+
+// -----
+
+// modWidth = 30, storageWidth = 32
+// storageWidth - modWidth = 2, so both nuw and nsw are safe
+!Zp30 = !mod_arith.int<1073741789 : i32>
+
+// CHECK-LABEL: @test_add_wide_headroom
+// CHECK-SAME: (%[[LHS:.*]]: [[T:.*]], %[[RHS:.*]]: [[T]]) -> [[T]] {
+func.func @test_add_wide_headroom(%lhs : !Zp30, %rhs : !Zp30) -> !Zp30 {
+  // CHECK-NOT: mod_arith.add
+  // CHECK: %[[ADD:.*]] = arith.addi %[[LHS]], %[[RHS]] overflow<nsw, nuw> : [[T]]
+  %res = mod_arith.add %lhs, %rhs : !Zp30
+  return %res : !Zp30
+}
+
+// CHECK-LABEL: @test_double_wide_headroom
+// CHECK-SAME: (%[[INPUT:.*]]: [[T:.*]]) -> [[T]] {
+func.func @test_double_wide_headroom(%input : !Zp30) -> !Zp30 {
+  // CHECK-NOT: mod_arith.double
+  // CHECK: %[[ONE:.*]] = arith.constant 1 : [[T]]
+  // CHECK: %[[SHL:.*]] = arith.shli %[[INPUT]], %[[ONE]] overflow<nsw, nuw> : [[T]]
+  %res = mod_arith.double %input : !Zp30
+  return %res : !Zp30
+}
