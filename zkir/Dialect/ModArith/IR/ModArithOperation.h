@@ -29,10 +29,18 @@ namespace mlir::zkir::mod_arith {
 
 class ModArithOperation {
 public:
+  ModArithOperation() = default;
   ModArithOperation(APInt value, ModArithType type)
       : value(value), type(type) {}
   ModArithOperation(IntegerAttr attr, ModArithType type)
       : value(attr.getValue()), type(type) {}
+
+  static ModArithOperation fromUnchecked(APInt value, ModArithType type) {
+    ModArithOperation ret;
+    ret.value = value;
+    ret.type = type;
+    return ret;
+  }
 
   ModArithOperation getOne() const;
 

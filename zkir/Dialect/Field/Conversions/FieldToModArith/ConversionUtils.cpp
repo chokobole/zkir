@@ -68,7 +68,8 @@ Value createConst(ImplicitLocOpBuilder &b, PrimeFieldType baseField,
   if (baseField.getIsMontgomery()) {
     auto modArithType =
         mod_arith::ModArithType::get(b.getContext(), baseField.getModulus());
-    nVal = mod_arith::ModArithOperation(nVal, modArithType).toMont();
+    nVal = mod_arith::ModArithOperation::fromUnchecked(nVal, modArithType)
+               .toMont();
   }
 
   return b.create<mod_arith::ConstantOp>(
@@ -91,7 +92,8 @@ Value createInvConst(ImplicitLocOpBuilder &b, PrimeFieldType baseField,
     nVal = APInt(bitWidth, n);
   }
 
-  APInt inv = mod_arith::ModArithOperation(nVal, convertedType).inverse();
+  APInt inv = mod_arith::ModArithOperation::fromUnchecked(nVal, convertedType)
+                  .inverse();
   return b.create<mod_arith::ConstantOp>(
       convertedType, IntegerAttr::get(baseField.getStorageType(), inv));
 }
@@ -122,8 +124,10 @@ Value createRationalConst(ImplicitLocOpBuilder &b, PrimeFieldType baseField,
   }
 
   // Compute num * denom⁻¹ mod modulus
-  mod_arith::ModArithOperation numOp(numVal, convertedType);
-  mod_arith::ModArithOperation denomOp(denomVal, convertedType);
+  auto numOp =
+      mod_arith::ModArithOperation::fromUnchecked(numVal, convertedType);
+  auto denomOp =
+      mod_arith::ModArithOperation::fromUnchecked(denomVal, convertedType);
   APInt result = numOp / denomOp;
 
   return b.create<mod_arith::ConstantOp>(

@@ -427,8 +427,9 @@ static Value fastNTT(ImplicitLocOpBuilder &b, NTTOpAdaptor adaptor,
   // of the degree.
   if (kInverse) {
     APInt modulus = coeffType.getModulus().getValue();
-    field::PrimeFieldOperation degreeOp(APInt(modulus.getBitWidth(), degree),
-                                        coeffType);
+    auto degreeOp = field::PrimeFieldOperation::fromUnchecked(
+        APInt(modulus.getBitWidth(), degree), coeffType);
+    // TODO(chokobole): remove this later!
     if (coeffType.isMontgomery()) {
       degreeOp = degreeOp.toMont();
     }

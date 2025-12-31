@@ -60,12 +60,13 @@ PrimitiveRootAttrStorage::construct(AttributeStorageAllocator &allocator,
   field::RootOfUnityAttr rootOfUnity = std::get<0>(key);
   mod_arith::MontgomeryAttr montgomery = std::get<1>(key);
 
-  field::PrimeFieldOperation root(
+  auto root = field::PrimeFieldOperation::fromUnchecked(
       rootOfUnity.getRoot(),
       cast<field::PrimeFieldType>(rootOfUnity.getType()));
   field::PrimeFieldOperation invRoot = root.inverse();
-  field::PrimeFieldOperation degree(rootOfUnity.getDegree().getValue(),
-                                    rootOfUnity.getType());
+  auto degree = field::PrimeFieldOperation::fromUnchecked(
+      rootOfUnity.getDegree().getValue(), rootOfUnity.getType());
+  // TODO(chokobole): remove this later!
   if (rootOfUnity.getType().isMontgomery()) {
     degree = degree.toMont();
   }
