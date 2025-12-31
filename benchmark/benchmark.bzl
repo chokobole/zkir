@@ -173,6 +173,7 @@ def zkir_benchmark(name, srcs, deps, data = [], copts = [], linkopts = [], tags 
             "@com_google_googletest//:gtest",
             "@llvm-project//mlir:mlir_runner_utils",
             "//zkir/Dialect/ModArith/IR:ModArith",
+            "//zkir/Dialect/Field/IR:Field",
         ],
         tags = tags,
         copts = copts,

@@ -24,7 +24,7 @@ cc_library(
     srcs = ["Attributes.cpp"],
     hdrs = ["Attributes.h"],
     deps = [
-        "//zkir/Dialect/Field/IR:Field",
+        "//zkir/Dialect/Field/IR:FieldHdrs",
         "//zkir/Dialect/ModArith/IR:ModArithHdrs",
         "@llvm-project//mlir:IR",
     ],
