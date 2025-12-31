@@ -30,6 +30,10 @@ public:
       : op(value, convertPrimeFieldType(type)), type(type) {}
   PrimeFieldOperation(IntegerAttr attr, PrimeFieldType type)
       : op(attr, convertPrimeFieldType(type)), type(type) {}
+  PrimeFieldOperation(int64_t value, PrimeFieldType type)
+      : op(value, convertPrimeFieldType(type)), type(type) {}
+  PrimeFieldOperation(uint64_t value, PrimeFieldType type)
+      : op(value, convertPrimeFieldType(type)), type(type) {}
 
   static PrimeFieldOperation fromUnchecked(APInt value, PrimeFieldType type) {
     return fromUnchecked(mod_arith::ModArithOperation::fromUnchecked(

@@ -64,12 +64,8 @@ PrimitiveRootAttrStorage::construct(AttributeStorageAllocator &allocator,
       rootOfUnity.getRoot(),
       cast<field::PrimeFieldType>(rootOfUnity.getType()));
   field::PrimeFieldOperation invRoot = root.inverse();
-  auto degree = field::PrimeFieldOperation::fromUnchecked(
-      rootOfUnity.getDegree().getValue(), rootOfUnity.getType());
-  // TODO(chokobole): remove this later!
-  if (rootOfUnity.getType().isMontgomery()) {
-    degree = degree.toMont();
-  }
+  auto degree = field::PrimeFieldOperation(rootOfUnity.getDegree().getValue(),
+                                           rootOfUnity.getType());
   field::PrimeFieldOperation invDegree = degree.inverse();
   // Compute the exponent table.
   SmallVector<APInt> roots, invRoots;
