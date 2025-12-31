@@ -59,6 +59,7 @@ patches=(
     "$patch_dir/tensor_type_support.patch"
     "$patch_dir/vector_type_support.patch"
     "$patch_dir/memref_folding.patch"
+    "$patch_dir/lazy_linking.patch"
 )
 shopt -u nullglob
 

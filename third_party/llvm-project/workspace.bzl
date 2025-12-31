@@ -37,4 +37,5 @@ LLVM_PATCHES = [
     "@zkir//third_party/llvm-project:tensor_type_support.patch",
     "@zkir//third_party/llvm-project:vector_type_support.patch",
     "@zkir//third_party/llvm-project:memref_folding.patch",
+    "@zkir//third_party/llvm-project:lazy_linking.patch",
 ]
