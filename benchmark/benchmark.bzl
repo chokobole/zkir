@@ -174,6 +174,7 @@ def zkir_benchmark(name, srcs, deps, data = [], copts = [], linkopts = [], tags 
             "@llvm-project//mlir:mlir_runner_utils",
             "//zkir/Dialect/ModArith/IR:ModArith",
             "//zkir/Dialect/Field/IR:Field",
+            "//zkir/Dialect/EllipticCurve/IR:EllipticCurve",
         ],
         tags = tags,
         copts = copts,
