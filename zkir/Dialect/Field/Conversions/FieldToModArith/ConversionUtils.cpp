@@ -19,6 +19,7 @@ limitations under the License.
 #include "zkir/Dialect/Field/IR/FieldOps.h"
 #include "zkir/Dialect/ModArith/IR/ModArithOperation.h"
 #include "zkir/Dialect/ModArith/IR/ModArithOps.h"
+#include "zkir/Dialect/ModArith/IR/ModArithTypes.h"
 
 namespace mlir::zkir::field {
 namespace {
@@ -58,6 +59,16 @@ Value createConst(ImplicitLocOpBuilder &b, PrimeFieldType baseField,
     nVal = modulus - APInt(bitWidth, -n);
   } else {
     nVal = APInt(bitWidth, n);
+  }
+
+  // TODO(junbeomlee): This conversion should be handled at a lower level (e.g.,
+  // constructor) to avoid manual conversion errors. createInvConst and
+  // createRationalConst have the same issue.
+  // https://github.com/fractalyze/zkir/issues/164
+  if (baseField.getIsMontgomery()) {
+    auto modArithType =
+        mod_arith::ModArithType::get(b.getContext(), baseField.getModulus());
+    nVal = mod_arith::ModArithOperation(nVal, modArithType).toMont();
   }
 
   return b.create<mod_arith::ConstantOp>(
