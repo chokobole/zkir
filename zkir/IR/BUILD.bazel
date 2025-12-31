@@ -25,7 +25,7 @@ cc_library(
     hdrs = ["Attributes.h"],
     deps = [
         "//zkir/Dialect/Field/IR:Field",
-        "//zkir/Dialect/ModArith/IR:ModArith",
+        "//zkir/Dialect/ModArith/IR:ModArithHdrs",
         "@llvm-project//mlir:IR",
     ],
 )

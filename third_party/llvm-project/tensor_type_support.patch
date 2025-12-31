@@ -50,7 +50,7 @@ index 22a25fd1a5af..1832036990e4 100644
  
  //===----------------------------------------------------------------------===//
 diff --git a/utils/bazel/llvm-project-overlay/mlir/BUILD.bazel b/utils/bazel/llvm-project-overlay/mlir/BUILD.bazel
-index 4fc82f6c1d27..f7722951646c 100644
+index 7b3c38bac3cf..181d51758616 100644
 --- a/utils/bazel/llvm-project-overlay/mlir/BUILD.bazel
 +++ b/utils/bazel/llvm-project-overlay/mlir/BUILD.bazel
 @@ -7134,6 +7134,9 @@ cc_library(
@@ -58,7 +58,7 @@ index 4fc82f6c1d27..f7722951646c 100644
          ":ViewLikeInterface",
          "//llvm:Support",
 +        "@zkir//zkir/Dialect/Field/IR:Field",
-+        "@zkir//zkir/Dialect/ModArith/IR:ModArith",
++        "@zkir//zkir/Dialect/ModArith/IR:ModArithHdrs",
 +        "@zkir//zkir/IR:Attributes",
      ],
  )
