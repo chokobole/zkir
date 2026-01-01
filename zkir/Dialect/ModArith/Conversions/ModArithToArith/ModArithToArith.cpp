@@ -516,13 +516,6 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
           auto rhsStdOp =
               ModArithOperation::fromUnchecked(rhsInt.getValue(), modType);
           if (modType.isMontgomery()) {
-            // NOTE(chokobole): Ideally, we should convert the underlying
-            // 'modType' to standard form here. Normalizing to standard form
-            // would improve performance by allowing us to bypass redundant
-            // Montgomery reductions during comparisons.
-            //
-            // For now, we perform a local 'fromMont()' conversion to extract
-            // the values only.
             rhsStdOp = rhsStdOp.fromMont();
           }
           rhsStd = rhsStdOp.getIntegerAttr();

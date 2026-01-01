@@ -41,20 +41,20 @@ ModArithType::getABIAlignment(DataLayout const &dataLayout,
 }
 
 IntegerAttr getAttrAsStandardForm(IntegerAttr modulusAttr, IntegerAttr attr) {
-  auto modArithType = ModArithType::get(attr.getContext(), modulusAttr);
+  auto modArithType = ModArithType::get(attr.getContext(), modulusAttr, true);
   auto value = ModArithOperation::fromUnchecked(attr.getValue(), modArithType);
   return value.fromMont().getIntegerAttr();
 }
 
 IntegerAttr getAttrAsMontgomeryForm(IntegerAttr modulusAttr, IntegerAttr attr) {
-  auto modArithType = ModArithType::get(attr.getContext(), modulusAttr);
+  auto modArithType = ModArithType::get(attr.getContext(), modulusAttr, false);
   auto value = ModArithOperation::fromUnchecked(attr.getValue(), modArithType);
   return value.toMont().getIntegerAttr();
 }
 
 DenseElementsAttr getAttrAsStandardForm(IntegerAttr modulusAttr,
                                         DenseElementsAttr attr) {
-  auto modArithType = ModArithType::get(attr.getContext(), modulusAttr);
+  auto modArithType = ModArithType::get(attr.getContext(), modulusAttr, true);
   return attr.mapValues(attr.getElementType(), [&](APInt value) -> APInt {
     auto valueOp = ModArithOperation::fromUnchecked(value, modArithType);
     return valueOp.fromMont();
@@ -63,7 +63,7 @@ DenseElementsAttr getAttrAsStandardForm(IntegerAttr modulusAttr,
 
 DenseElementsAttr getAttrAsMontgomeryForm(IntegerAttr modulusAttr,
                                           DenseElementsAttr attr) {
-  auto modArithType = ModArithType::get(attr.getContext(), modulusAttr);
+  auto modArithType = ModArithType::get(attr.getContext(), modulusAttr, false);
   return attr.mapValues(attr.getElementType(), [&](APInt value) -> APInt {
     auto valueOp = ModArithOperation::fromUnchecked(value, modArithType);
     return valueOp.toMont();

@@ -19,6 +19,7 @@ limitations under the License.
 #include "zk_dtypes/include/byinverter.h"
 #include "zk_dtypes/include/field/modular_operations.h"
 #include "zk_dtypes/include/field/mont_multiplication.h"
+#include "zkir/Dialect/ModArith/IR/ModArithTypes.h"
 #include "zkir/Utils/APIntUtils.h"
 
 namespace zk_dtypes {
@@ -533,13 +534,19 @@ APInt executeFromMontOp(const APInt &a, const ModArithType &type) {
 } // namespace
 
 ModArithOperation ModArithOperation::fromMont() const {
-  return ModArithOperation::fromUnchecked(executeFromMontOp(value, type), type);
+  assert(type.isMontgomery());
+  auto stdType = ModArithType::get(type.getContext(), type.getModulus(), false);
+  return ModArithOperation::fromUnchecked(executeFromMontOp(value, stdType),
+                                          stdType);
 }
 
 ModArithOperation ModArithOperation::toMont() const {
-  MontgomeryAttr montAttr = type.getMontgomeryAttr();
+  assert(!type.isMontgomery());
+  auto montType = ModArithType::get(type.getContext(), type.getModulus(), true);
+  MontgomeryAttr montAttr = montType.getMontgomeryAttr();
   return ModArithOperation::fromUnchecked(
-      executeMontMulOp(value, montAttr.getRSquared().getValue(), type), type);
+      executeMontMulOp(value, montAttr.getRSquared().getValue(), montType),
+      montType);
 }
 
 bool ModArithOperation::isOne() const {

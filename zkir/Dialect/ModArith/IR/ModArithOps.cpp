@@ -228,7 +228,9 @@ public:
   using UnaryModArithConstantFolder::UnaryModArithConstantFolder;
 
   APInt operate(const APInt &value) const final {
-    return ModArithOperation::fromUnchecked(value, modArithType).toMont();
+    auto stdType = cast<ModArithType>(
+        getElementTypeOrSelf(getStandardFormType(modArithType)));
+    return ModArithOperation::fromUnchecked(value, stdType).toMont();
   }
 };
 
@@ -246,7 +248,9 @@ public:
   using UnaryModArithConstantFolder::UnaryModArithConstantFolder;
 
   APInt operate(const APInt &value) const final {
-    return ModArithOperation::fromUnchecked(value, modArithType).fromMont();
+    auto montType = cast<ModArithType>(
+        getElementTypeOrSelf(getMontgomeryFormType(modArithType)));
+    return ModArithOperation::fromUnchecked(value, montType).fromMont();
   }
 };
 
@@ -594,7 +598,7 @@ bool isNegativeOf(Attribute attr, Value val, uint32_t offset) {
     ModArithType stdType = modArithType;
     if (modArithType.isMontgomery()) {
       stdType = cast<ModArithType>(getStandardFormType(modArithType));
-      valueOp = ModArithOperation(valueOp.fromMont(), stdType);
+      valueOp = valueOp.fromMont();
     }
     ModArithOperation offsetOp(APInt(intAttr.getValue().getBitWidth(), offset),
                                stdType);
