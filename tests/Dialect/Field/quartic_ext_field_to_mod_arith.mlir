@@ -68,48 +68,68 @@ func.func @test_lower_square(%arg0: !QF) -> !QF {
 
 // CHECK-LABEL: @test_lower_inverse
 func.func @test_lower_inverse(%arg0: !QF) -> !QF {
-    // Frobenius-based inverse: x⁻¹ = Frobenius_product(x) * Norm(x)⁻¹
-    // Frobenius_product = φ¹(x) * φ²(x) * φ³(x)
-    //
-    // Frobenius φ¹(x): coeffs scaled by ξ^(i * (p - 1) / 4)
+    // Fp4 inverse via quadratic tower (u⁴ = ξ) with v = u²:
+    // Write x = A + B·u, where A, B are in Fp² = Fp[v]/(v²-ξ), with A=x₀+x₂v, B=x₁+x₃v.
+    // Then x⁻¹ = (A − B·u) · (A² − v·B²)⁻¹. If D = A² − v·B² = D₀ + D₁·v,
+    // we invert D in Fp₂ by D⁻¹ = (D₀ − D₁·v)/(D₀² − ξ·D₁²), and expand back to
+    // {1,u,u²,u³}.
+
+    // CHECK: mod_arith.constant 2 : !z127_i32
     // CHECK: field.ext_to_coeffs
-    // CHECK-COUNT-3: mod_arith.mul
-    // CHECK: field.ext_from_coeffs
+
+    //   x₀², x₁², x₂², x₃²
+    // CHECK: mod_arith.square
+    // CHECK: mod_arith.square
+    // CHECK: mod_arith.square
+    // CHECK: mod_arith.square
     //
-    // Frobenius φ²(x): coeffs scaled by ξ^(i * (p² - 1) / 4)
-    // CHECK: field.ext_to_coeffs
-    // CHECK-COUNT-3: mod_arith.mul
-    // CHECK: field.ext_from_coeffs
-    //
-    // Frobenius φ³(x): coeffs scaled by ξ^(i * (p³ - 1) / 4)
-    // CHECK: field.ext_to_coeffs
-    // CHECK-COUNT-3: mod_arith.mul
-    // CHECK: field.ext_from_coeffs
-    //
-    // Toom-Cook mul: φ²(x) * φ³(x)
-    // CHECK-COUNT-2: field.ext_to_coeffs
-    // CHECK-COUNT-7: mod_arith.mul
-    // CHECK: field.ext_from_coeffs
-    //
-    // Toom-Cook mul: result * φ¹(x)
-    // CHECK-COUNT-2: field.ext_to_coeffs
-    // CHECK-COUNT-7: mod_arith.mul
-    // CHECK: field.ext_from_coeffs
-    //
-    // Direct mul: x * frob_product (for norm)
-    // CHECK-COUNT-2: mod_arith.mul
-    // CHECK: mod_arith.add
+    //   D₀ = (x₀² + 2·x₂²) − 4·x₁·x₃
+    //   D₁ = (2·x₀·x₂) − (x₁² + 2·x₃²)
     // CHECK: mod_arith.mul
     // CHECK: mod_arith.add
-    // CHECK-COUNT-2: mod_arith.mul
+    // CHECK: mod_arith.mul
+    // CHECK: mod_arith.double
+    // CHECK: mod_arith.mul
     // CHECK: mod_arith.add
+    // CHECK: mod_arith.mul
+    // CHECK: mod_arith.double
+    // CHECK: mod_arith.mul
+    // CHECK: mod_arith.sub
+    // CHECK: mod_arith.sub
     //
-    // Norm inverse:
+    //   denom = D₀² − 2·D₁²
+    // CHECK: mod_arith.square
+    // CHECK: mod_arith.square
+    // CHECK: mod_arith.mul
+    // CHECK: mod_arith.sub
+    //
+    //   a = D₀ * denom⁻¹
+    //   b = -D₁ * denom⁻¹
     // CHECK: mod_arith.inverse
+    // CHECK: mod_arith.mul
+    // CHECK: mod_arith.negate
+    // CHECK: mod_arith.mul
     //
-    // Final scaling: frob_product * norm⁻¹
-    // CHECK: field.ext_to_coeffs
-    // CHECK-COUNT-4: mod_arith.mul
+    //   y₀ = x₀ * a + 2 * x₂ * b
+    //   y₁ = -(x₁ * a + 2 * x₃ * b)
+    //   y₂ = x₂ * a + x₀ * b
+    //   y₃ = -(x₃ * a + x₁ * b)
+    // CHECK: mod_arith.mul
+    // CHECK: mod_arith.mul
+    // CHECK: mod_arith.mul
+    // CHECK: mod_arith.add
+    // CHECK: mod_arith.mul
+    // CHECK: mod_arith.mul
+    // CHECK: mod_arith.mul
+    // CHECK: mod_arith.add
+    // CHECK: mod_arith.negate
+    // CHECK: mod_arith.mul
+    // CHECK: mod_arith.mul
+    // CHECK: mod_arith.add
+    // CHECK: mod_arith.mul
+    // CHECK: mod_arith.mul
+    // CHECK: mod_arith.add
+    // CHECK: mod_arith.negate
     // CHECK: field.ext_from_coeffs
     %inv = field.inverse %arg0 : !QF
     return %inv : !QF

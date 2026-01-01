@@ -62,43 +62,31 @@ func.func @test_lower_square(%arg0: !CF) -> !CF {
 
 // CHECK-LABEL: @test_lower_inverse
 func.func @test_lower_inverse(%arg0: !CF) -> !CF {
-    // TODO(junbeomlee): After canonicalization, this should be optimized to:
+    // CHECK: mod_arith.constant 2 : !z7_i32
+    // CHECK: field.ext_to_coeffs
     //   t₀ = x₀² - ξ * x₁ * x₂
+    // CHECK: mod_arith.square
+    // CHECK: mod_arith.mul
+    // CHECK: mod_arith.mul
+    // CHECK: mod_arith.sub
     //   t₁ = ξ * x₂² - x₀ * x₁
+    // CHECK: mod_arith.square
+    // CHECK: mod_arith.mul
+    // CHECK: mod_arith.mul
+    // CHECK: mod_arith.sub
     //   t₂ = x₁² - x₀ * x₂
+    // CHECK: mod_arith.square
+    // CHECK: mod_arith.mul
+    // CHECK: mod_arith.sub
     //   t₃ = x₀ * t₀ + ξ * (x₂ * t₁ + x₁ * t₂)
+    // CHECK: mod_arith.mul
+    // CHECK: mod_arith.mul
+    // CHECK: mod_arith.mul
+    // CHECK: mod_arith.add
+    // CHECK: mod_arith.mul
+    // CHECK: mod_arith.add
     //   (y₀, y₁, y₂) = (t₀, t₁, t₂) * t₃⁻¹
-    // (3 squares + 12 muls + 1 inverse)
-    //
-    // Frobenius-based inverse: x⁻¹ = Frobenius_product(x) * Norm(x)⁻¹
-    // Frobenius_product = φ¹(x) * φ²(x)
-    //
-    // Frobenius φ¹(x): coeffs scaled by ξ^(i * (p - 1) / 3)
-    // CHECK: field.ext_to_coeffs
-    // CHECK-COUNT-2: mod_arith.mul
-    // CHECK: field.ext_from_coeffs
-    //
-    // Frobenius φ²(x): coeffs scaled by ξ^(i * (p² - 1) / 3)
-    // CHECK: field.ext_to_coeffs
-    // CHECK-COUNT-2: mod_arith.mul
-    // CHECK: field.ext_from_coeffs
-    //
-    // Karatsuba mul: φ¹(x) * φ²(x)
-    // CHECK-COUNT-2: field.ext_to_coeffs
-    // CHECK-COUNT-6: mod_arith.mul
-    // CHECK: field.ext_from_coeffs
-    //
-    // Direct mul: x * frob_product (for norm)
-    // CHECK-COUNT-2: mod_arith.mul
-    // CHECK: mod_arith.add
-    // CHECK-COUNT-2: mod_arith.mul
-    // CHECK: mod_arith.add
-    //
-    // Norm inverse:
     // CHECK: mod_arith.inverse
-    //
-    // Final scaling: frob_product * norm⁻¹
-    // CHECK: field.ext_to_coeffs
     // CHECK-COUNT-3: mod_arith.mul
     // CHECK: field.ext_from_coeffs
     %inv = field.inverse %arg0 : !CF
