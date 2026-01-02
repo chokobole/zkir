@@ -64,6 +64,7 @@ cc_library(
         ":types_inc_gen",
         "//zkir/Dialect/ModArith/IR:ModArith",
         "//zkir/Utils:AssemblyFormatUtils",
+        "//zkir/Utils:CanonicalizationPatterns",
         "//zkir/Utils:KnownModulus",
         "//zkir/Utils:OpUtils",
         "//zkir/Utils:SimpleStructBuilder",
@@ -88,6 +89,7 @@ td_library(
     includes = ["../../../.."],
     deps = [
         "//zkir/Dialect/ModArith/IR:td_files",
+        "//zkir/Utils:CanonicalizationTd",
         "@llvm-project//mlir:ArithOpsTdFiles",
         "@llvm-project//mlir:BuiltinDialectTdFiles",
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",

@@ -607,13 +607,22 @@ bool isNegativeOf(Attribute attr, Value val, uint32_t offset) {
   return false;
 }
 
-bool isEqualTo(Attribute attr, uint32_t offset) {
+bool isEqualTo(Attribute attr, Value val, uint32_t offset) {
   IntegerAttr intAttr = dyn_cast_if_present<IntegerAttr>(attr);
   if (auto denseIntAttr = dyn_cast_if_present<SplatElementsAttr>(attr)) {
     intAttr = denseIntAttr.getSplatValue<IntegerAttr>();
   }
   if (intAttr) {
-    return (intAttr.getValue() - offset).isZero();
+    auto modArithType = cast<ModArithType>(getElementTypeOrSelf(val.getType()));
+    ModArithOperation valueOp(intAttr.getValue(), modArithType);
+    ModArithType stdType = modArithType;
+    if (modArithType.isMontgomery()) {
+      stdType = cast<ModArithType>(getStandardFormType(modArithType));
+      valueOp = valueOp.fromMont();
+    }
+    ModArithOperation offsetOp(APInt(intAttr.getValue().getBitWidth(), offset),
+                               stdType);
+    return valueOp == offsetOp;
   }
   return false;
 }
@@ -623,51 +632,27 @@ namespace {
 #include "zkir/Dialect/ModArith/IR/ModArithCanonicalization.cpp.inc"
 }
 
+#include "zkir/Utils/CanonicalizationPatterns.inc"
+
 void AddOp::getCanonicalizationPatterns(RewritePatternSet &patterns,
                                         MLIRContext *context) {
-  patterns.add<AddConstantTwice>(context);
-  patterns.add<AddConstantToSubLhs>(context);
-  patterns.add<AddConstantToSubRhs>(context);
-  patterns.add<AddSelfIsDouble>(context);
-  patterns.add<AddBothNegated>(context);
-  patterns.add<AddAfterSub>(context);
-  patterns.add<AddAfterNegLhs>(context);
-  patterns.add<AddAfterNegRhs>(context);
-  patterns.add<FactorMulAdd>(context);
+#define ZKIR_ADD_PATTERN(Name) patterns.add<ModArith##Name>(context);
+  ZKIR_ADD_PATTERN_LIST(ZKIR_ADD_PATTERN)
+#undef ZKIR_ADD_PATTERN
 }
 
 void SubOp::getCanonicalizationPatterns(RewritePatternSet &patterns,
                                         MLIRContext *context) {
-  patterns.add<SubConstantFromAdd>(context);
-  patterns.add<SubConstantTwiceLhs>(context);
-  patterns.add<SubConstantTwiceRhs>(context);
-  patterns.add<SubAddFromConstant>(context);
-  patterns.add<SubSubFromConstantLhs>(context);
-  patterns.add<SubSubFromConstantRhs>(context);
-  patterns.add<SubSelfIsZero>(context);
-  patterns.add<SubLhsAfterAdd>(context);
-  patterns.add<SubRhsAfterAdd>(context);
-  patterns.add<SubLhsAfterSub>(context);
-  patterns.add<SubAfterNegLhs>(context);
-  patterns.add<SubAfterNegRhs>(context);
-  patterns.add<SubBothNegated>(context);
-  patterns.add<SubAfterSquareBoth>(context);
-  patterns.add<FactorMulSub>(context);
+#define ZKIR_SUB_PATTERN(Name) patterns.add<ModArith##Name>(context);
+  ZKIR_SUB_PATTERN_LIST(ZKIR_SUB_PATTERN)
+#undef ZKIR_SUB_PATTERN
 }
 
 void MulOp::getCanonicalizationPatterns(RewritePatternSet &patterns,
                                         MLIRContext *context) {
-  patterns.add<MulByTwoIsDouble>(context);
-  patterns.add<MulSelfIsSquare>(context);
-  patterns.add<MulNegativeOneRhs>(context);
-  patterns.add<MulNegativeTwoRhs>(context);
-  patterns.add<MulNegativeThreeRhs>(context);
-  patterns.add<MulNegativeFourRhs>(context);
-  patterns.add<MulConstantTwice>(context);
-  patterns.add<MulOfMulByConstant>(context);
-  patterns.add<MulAddDistributeConstant>(context);
-  patterns.add<MulSubDistributeConstantRhs>(context);
-  patterns.add<MulSubDistributeConstantLhs>(context);
+#define ZKIR_MUL_PATTERN(Name) patterns.add<ModArith##Name>(context);
+  ZKIR_MUL_PATTERN_LIST(ZKIR_MUL_PATTERN)
+#undef ZKIR_MUL_PATTERN
 }
 
 } // namespace mlir::zkir::mod_arith

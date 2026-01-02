@@ -18,8 +18,8 @@ limitations under the License.
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/IR/TypeUtilities.h"
 #include "zkir/Dialect/Field/IR/FieldDialect.h"
+#include "zkir/Dialect/Field/IR/FieldOperation.h"
 #include "zkir/Dialect/Field/IR/FieldTypes.h"
-#include "zkir/Dialect/ModArith/IR/ModArithTypes.h"
 #include "zkir/Utils/AssemblyFormatUtils.h"
 
 // IWYU pragma: begin_keep
@@ -288,46 +288,76 @@ LogicalResult ExtFromCoeffsOp::verify() {
 }
 
 namespace {
+
+bool isNegativeOf(Attribute attr, Value val, uint32_t offset) {
+  IntegerAttr intAttr = dyn_cast_if_present<IntegerAttr>(attr);
+  if (auto denseIntAttr = dyn_cast_if_present<SplatElementsAttr>(attr)) {
+    intAttr = denseIntAttr.getSplatValue<IntegerAttr>();
+  }
+  if (intAttr) {
+    auto primeFieldType =
+        cast<PrimeFieldType>(getElementTypeOrSelf(val.getType()));
+    PrimeFieldOperation valueOp(intAttr.getValue(), primeFieldType);
+    PrimeFieldType stdType = primeFieldType;
+    if (primeFieldType.isMontgomery()) {
+      stdType = cast<PrimeFieldType>(getStandardFormType(primeFieldType));
+      valueOp = valueOp.fromMont();
+    }
+    PrimeFieldOperation offsetOp(
+        APInt(intAttr.getValue().getBitWidth(), offset), stdType);
+    return valueOp == -offsetOp;
+  }
+  return false;
+}
+
+bool isEqualTo(Attribute attr, Value val, uint32_t offset) {
+  IntegerAttr intAttr = dyn_cast_if_present<IntegerAttr>(attr);
+  if (auto denseIntAttr = dyn_cast_if_present<SplatElementsAttr>(attr)) {
+    intAttr = denseIntAttr.getSplatValue<IntegerAttr>();
+  }
+  if (intAttr) {
+    auto primeFieldType =
+        cast<PrimeFieldType>(getElementTypeOrSelf(val.getType()));
+    PrimeFieldOperation valueOp(intAttr.getValue(), primeFieldType);
+    PrimeFieldType stdType = primeFieldType;
+    if (primeFieldType.isMontgomery()) {
+      stdType = cast<PrimeFieldType>(getStandardFormType(primeFieldType));
+      valueOp = valueOp.fromMont();
+    }
+    PrimeFieldOperation offsetOp(
+        APInt(intAttr.getValue().getBitWidth(), offset), stdType);
+    return valueOp == offsetOp;
+  }
+  return false;
+}
+
+} // namespace
+
+namespace {
 #include "zkir/Dialect/Field/IR/FieldCanonicalization.cpp.inc"
 }
 
+#include "zkir/Utils/CanonicalizationPatterns.inc"
+
 void AddOp::getCanonicalizationPatterns(RewritePatternSet &patterns,
                                         MLIRContext *context) {
-  patterns.add<AddConstantTwice>(context);
-  patterns.add<AddConstantToSubLhs>(context);
-  patterns.add<AddConstantToSubRhs>(context);
-  patterns.add<AddSelfIsDouble>(context);
-  patterns.add<AddBothNegated>(context);
-  patterns.add<AddAfterSub>(context);
-  patterns.add<AddAfterNegLhs>(context);
-  patterns.add<AddAfterNegRhs>(context);
-  patterns.add<FactorMulAdd>(context);
+#define ZKIR_ADD_PATTERN(Name) patterns.add<Field##Name>(context);
+  ZKIR_ADD_PATTERN_LIST(ZKIR_ADD_PATTERN)
+#undef ZKIR_ADD_PATTERN
 }
 
 void SubOp::getCanonicalizationPatterns(RewritePatternSet &patterns,
                                         MLIRContext *context) {
-  patterns.add<SubConstantFromAdd>(context);
-  patterns.add<SubConstantTwiceLhs>(context);
-  patterns.add<SubConstantTwiceRhs>(context);
-  patterns.add<SubAddFromConstant>(context);
-  patterns.add<SubSubFromConstantLhs>(context);
-  patterns.add<SubSubFromConstantRhs>(context);
-  patterns.add<SubLhsAfterAdd>(context);
-  patterns.add<SubRhsAfterAdd>(context);
-  patterns.add<SubLhsAfterSub>(context);
-  patterns.add<SubAfterNegLhs>(context);
-  patterns.add<SubAfterNegRhs>(context);
-  patterns.add<SubBothNegated>(context);
-  patterns.add<SubAfterSquareBoth>(context);
-  patterns.add<SubAfterSumSquare>(context);
-  patterns.add<FactorMulSub>(context);
+#define ZKIR_SUB_PATTERN(Name) patterns.add<Field##Name>(context);
+  ZKIR_SUB_PATTERN_LIST(ZKIR_SUB_PATTERN)
+#undef ZKIR_SUB_PATTERN
 }
 
 void MulOp::getCanonicalizationPatterns(RewritePatternSet &patterns,
                                         MLIRContext *context) {
-  patterns.add<MulSelfIsSquare>(context);
-  patterns.add<MulConstantTwice>(context);
-  patterns.add<MulOfMulByConstant>(context);
+#define ZKIR_MUL_PATTERN(Name) patterns.add<Field##Name>(context);
+  ZKIR_MUL_PATTERN_LIST(ZKIR_MUL_PATTERN)
+#undef ZKIR_MUL_PATTERN
 }
 
 namespace {
