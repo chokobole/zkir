@@ -71,6 +71,8 @@ def Field_ConstantOp : Op<Field_Dialect, "constant", [ConstantLike, Pure]> {
     OpBuilder<(ins "Type":$ty, "uint64_t":$value), [{
       if (auto pfType = dyn_cast<PrimeFieldType>(ty)) {
         return build($_builder, $_state, pfType, value);
+      } else if (auto efType = dyn_cast<ExtensionFieldType>(ty)) {
+        return build($_builder, $_state, efType, value);
       } else if (auto f2Type = dyn_cast<QuadraticExtFieldType>(ty)) {
         return build($_builder, $_state, f2Type, value);
       } else if (auto f3Type = dyn_cast<CubicExtFieldType>(ty)) {
@@ -119,6 +121,25 @@ def Field_ConstantOp : Op<Field_Dialect, "constant", [ConstantLike, Pure]> {
       APInt c3Int(bitWidth, c3);
       auto tensorType = RankedTensorType::get({4}, IntegerType::get(ty.getContext(), bitWidth));
       return build($_builder, $_state, ty, DenseIntElementsAttr::get(tensorType, {c0Int, c1Int, c2Int, c3Int}));
+    }]>,
+    OpBuilder<(ins "ExtensionFieldType":$ty, "uint64_t":$c0), [{
+      auto baseField = ty.getBaseField();
+      unsigned degree = ty.getDegree();
+      unsigned bitWidth = baseField.getStorageBitWidth();
+      SmallVector<APInt> coeffs(degree, APInt(bitWidth, 0));
+      coeffs[0] = static_cast<APInt>(PrimeFieldOperation::fromUnchecked(APInt(bitWidth, c0), baseField));
+      auto tensorType = RankedTensorType::get({static_cast<int64_t>(degree)}, baseField.getStorageType());
+      return build($_builder, $_state, ty, DenseIntElementsAttr::get(tensorType, coeffs));
+    }]>,
+    OpBuilder<(ins "ExtensionFieldType":$ty, "llvm::ArrayRef<uint64_t>":$coeffs), [{
+      assert(coeffs.size() == ty.getDegree() && "coefficient count must match extension degree");
+      auto baseField = ty.getBaseField();
+      unsigned bitWidth = baseField.getStorageBitWidth();
+      SmallVector<APInt> coeffInts;
+      for (auto c : coeffs)
+        coeffInts.push_back(static_cast<APInt>(PrimeFieldOperation::fromUnchecked(APInt(bitWidth, c), baseField)));
+      auto tensorType = RankedTensorType::get({static_cast<int64_t>(coeffs.size())}, baseField.getStorageType());
+      return build($_builder, $_state, ty, DenseIntElementsAttr::get(tensorType, coeffInts));
     }]>,
   ];
   let extraClassDeclaration = [{
