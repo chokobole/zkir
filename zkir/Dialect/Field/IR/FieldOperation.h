@@ -113,10 +113,16 @@ public:
     return PrimeFieldOperation::fromUnchecked(op.inverse(), type);
   }
   PrimeFieldOperation fromMont() const {
-    return PrimeFieldOperation::fromUnchecked(op.fromMont(), type);
+    assert(type.isMontgomery());
+    auto stdType =
+        PrimeFieldType::get(type.getContext(), type.getModulus(), false);
+    return PrimeFieldOperation::fromUnchecked(op.fromMont(), stdType);
   }
   PrimeFieldOperation toMont() const {
-    return PrimeFieldOperation::fromUnchecked(op.toMont(), type);
+    assert(!type.isMontgomery());
+    auto montType =
+        PrimeFieldType::get(type.getContext(), type.getModulus(), true);
+    return PrimeFieldOperation::fromUnchecked(op.toMont(), montType);
   }
   bool isOne() const { return op.isOne(); }
   bool isZero() const { return op.isZero(); }

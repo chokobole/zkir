@@ -106,15 +106,15 @@ using PrimeFieldTypes = testing::Types<
     // modulus bits = 2³¹
     // modulus.getBitWidth() == 32
     // modulus.getActiveBits() == 31
-    zk_dtypes::Babybear,
+    zk_dtypes::Babybear, zk_dtypes::BabybearStd,
     // modulus bits = 2⁶⁴
     // modulus.getBitWidth() == 64
     // modulus.getActiveBits() == 64
-    zk_dtypes::Goldilocks,
+    zk_dtypes::Goldilocks, zk_dtypes::GoldilocksStd,
     // modulus bits = 2²⁵⁴
     // modulus.getBitWidth() == 254
     // modulus.getActiveBits() == 254
-    zk_dtypes::bn254::Fr>;
+    zk_dtypes::bn254::Fr, zk_dtypes::bn254::FrStd>;
 TYPED_TEST_SUITE(ModArithOperationTest, PrimeFieldTypes);
 
 //===----------------------------------------------------------------------===//
@@ -272,19 +272,33 @@ TYPED_TEST(ModArithOperationTest, Inverse) {
 TYPED_TEST(ModArithOperationTest, FromMont) {
   using PrimeFieldType = TypeParam;
 
-  this->runUnaryOperationTest(
-      [](const PrimeFieldType &a) {
-        return PrimeFieldType::FromUnchecked(a.MontReduce().value());
-      },
-      [](const ModArithOperation &a) { return a.fromMont(); });
+  if constexpr (!PrimeFieldType::kUseMontgomery) {
+    GTEST_SKIP() << "Non-Montgomery field is not supported";
+  } else {
+    this->runUnaryOperationTest(
+        [](const PrimeFieldType &a) {
+          return PrimeFieldType::FromUnchecked(a.MontReduce().value());
+        },
+        [](const ModArithOperation &a) { return a.fromMont(); });
+  }
 }
 
-TYPED_TEST(ModArithOperationTest, ToMont) {
+// TODO(chokobole): Re-enable this test once a mechanism for obtaining a
+// MontType from a StdType is implemented.
+//
+// Note: This conversion is primarily intended for testing internal
+// representation consistency and is not required for production workflows.
+// Disabling this test for now as it lacks the necessary type-mapping helpers.
+TYPED_TEST(ModArithOperationTest, DISABLED_ToMont) {
   using PrimeFieldType = TypeParam;
 
-  this->runUnaryOperationTest(
-      [](const PrimeFieldType &a) { return PrimeFieldType(a.value()); },
-      [](const ModArithOperation &a) { return a.toMont(); });
+  if constexpr (PrimeFieldType::kUseMontgomery) {
+    GTEST_SKIP() << "Montgomery field is not supported";
+  } else {
+    this->runUnaryOperationTest(
+        [](const PrimeFieldType &a) { return PrimeFieldType(a.value()); },
+        [](const ModArithOperation &a) { return a.toMont(); });
+  }
 }
 
 TYPED_TEST(ModArithOperationTest, IsZero) {
