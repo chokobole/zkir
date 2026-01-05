@@ -95,9 +95,8 @@ public:
       ExtensionFieldCodeGen<N>>::GetVandermondeInverseMatrix;
   using FrobeniusCoeffs<ExtensionFieldCodeGen<N>, N>::GetFrobeniusCoeffs;
 
-  ExtensionFieldCodeGen(ImplicitLocOpBuilder *b, Type type, Value value,
-                        Value nonResidue)
-      : b(b), type(type), value(value), nonResidue(nonResidue) {}
+  ExtensionFieldCodeGen(ImplicitLocOpBuilder *b, Value value, Value nonResidue)
+      : b(b), value(value), nonResidue(nonResidue) {}
   ~ExtensionFieldCodeGen() = default;
 
   operator Value() const { return value; }
@@ -107,7 +106,7 @@ public:
     assert(b);
     return *b;
   }
-  Type getType() const { return type; }
+  Type getType() const { return value.getType(); }
 
   ExtensionFieldCodeGen operator*(const PrimeFieldCodeGen &scalar) const {
     std::array<PrimeFieldCodeGen, N> coeffs = ToBaseFields();
@@ -132,7 +131,7 @@ public:
     for (size_t i = 0; i < N; ++i) {
       coeffs.push_back(values[i]);
     }
-    return {b, type, fromCoeffs(*b, type, coeffs), nonResidue};
+    return {b, fromCoeffs(*b, value.getType(), coeffs), nonResidue};
   }
   PrimeFieldCodeGen NonResidue() const {
     return PrimeFieldCodeGen(b, nonResidue);
@@ -154,14 +153,13 @@ public:
     }
   }
   PrimeFieldCodeGen CreateZeroBaseField() const {
-    auto extField = cast<ExtensionFieldTypeInterface>(type);
+    auto extField = cast<ExtensionFieldTypeInterface>(value.getType());
     auto baseField = cast<PrimeFieldType>(extField.getBaseFieldType());
     return PrimeFieldCodeGen(b, createConst(*b, baseField, 0));
   }
 
 private:
   ImplicitLocOpBuilder *b = nullptr; // not owned
-  Type type;
   Value value;
   Value nonResidue;
 };

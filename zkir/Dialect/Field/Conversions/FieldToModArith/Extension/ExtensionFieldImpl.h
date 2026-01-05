@@ -25,18 +25,18 @@ template <size_t Degree>
 class ExtensionFieldImpl : public ExtensionField {
 public:
   Value square(Value x) override {
-    ExtensionFieldCodeGen<Degree> xGen(&b, x.getType(), x, nonResidue);
+    ExtensionFieldCodeGen<Degree> xGen(&b, x, nonResidue);
     return xGen.Square();
   }
 
   Value mul(Value x, Value y) override {
-    ExtensionFieldCodeGen<Degree> xGen(&b, x.getType(), x, nonResidue);
-    ExtensionFieldCodeGen<Degree> yGen(&b, y.getType(), y, nonResidue);
+    ExtensionFieldCodeGen<Degree> xGen(&b, x, nonResidue);
+    ExtensionFieldCodeGen<Degree> yGen(&b, y, nonResidue);
     return xGen * yGen;
   }
 
   Value inverse(Value x) override {
-    ExtensionFieldCodeGen<Degree> xGen(&b, x.getType(), x, nonResidue);
+    ExtensionFieldCodeGen<Degree> xGen(&b, x, nonResidue);
     return *xGen.Inverse();
   }
 
