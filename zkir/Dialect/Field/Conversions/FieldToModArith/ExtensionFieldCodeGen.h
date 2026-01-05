@@ -134,10 +134,6 @@ public:
     }
     return {b, type, fromCoeffs(*b, type, coeffs), nonResidue};
   }
-  size_t DegreeOverBasePrimeField() const {
-    assert(isa<ExtensionFieldTypeInterface>(type));
-    return N * cast<ExtensionFieldTypeInterface>(type).getDegreeOverBase();
-  }
   PrimeFieldCodeGen NonResidue() const {
     return PrimeFieldCodeGen(b, nonResidue);
   }
