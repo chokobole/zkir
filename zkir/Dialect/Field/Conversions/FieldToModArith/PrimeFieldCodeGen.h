@@ -22,6 +22,9 @@ limitations under the License.
 
 namespace mlir::zkir::field {
 
+// NOTE(chokobole): This class is not used directly. It is used to generate
+// MLIR operations that implement prime field arithmetic. User should use
+// FieldCodeGen instead.
 class PrimeFieldCodeGen {
 public:
   PrimeFieldCodeGen() = default;

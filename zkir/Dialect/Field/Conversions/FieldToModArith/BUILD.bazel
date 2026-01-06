@@ -52,6 +52,18 @@ cc_library(
 )
 
 cc_library(
+    name = "FieldCodeGen",
+    srcs = ["FieldCodeGen.cpp"],
+    hdrs = ["FieldCodeGen.h"],
+    deps = [
+        ":ExtensionFieldCodeGen",
+        ":PrimeFieldCodeGen",
+        "//zkir/Dialect/Field/IR:Field",
+        "@llvm-project//mlir:TransformUtils",
+    ],
+)
+
+cc_library(
     name = "FieldToModArith",
     srcs = ["FieldToModArith.cpp"],
     hdrs = [
@@ -59,9 +71,9 @@ cc_library(
     ],
     deps = [
         ":ConversionUtils",
+        ":FieldCodeGen",
         ":pass_inc_gen",
         "//zkir/Dialect/EllipticCurve/IR:EllipticCurve",
-        "//zkir/Dialect/Field/Conversions/FieldToModArith/Extension:ExtensionField",
         "//zkir/Dialect/Field/IR:Field",
         "//zkir/Dialect/ModArith/IR:ModArith",
         "//zkir/Dialect/TensorExt/IR:TensorExt",

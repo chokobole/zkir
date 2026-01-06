@@ -75,6 +75,9 @@ struct ExtensionFieldOperationSelector<4> {
   using Type = zk_dtypes::QuarticExtensionFieldOperation<Derived>;
 };
 
+// NOTE(chokobole): This class is not used directly. It is used to generate
+// MLIR operations that implement extension field arithmetic. User should use
+// FieldCodeGen instead.
 template <size_t N>
 class ExtensionFieldCodeGen
     : public ExtensionFieldOperationSelector<N>::template Type<
