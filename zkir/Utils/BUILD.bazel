@@ -54,6 +54,16 @@ td_library(
     deps = ["@llvm-project//mlir:BuiltinDialectTdFiles"],
 )
 
+td_library(
+    name = "CanonicalizationTd",
+    srcs = [
+        "AdditiveCanonicalization.td",
+        "MultiplicativeCanonicalization.td",
+    ],
+    includes = ["../.."],
+    deps = ["@llvm-project//mlir:OpBaseTdFiles"],
+)
+
 cc_library(
     name = "ConstantFolder",
     hdrs = ["ConstantFolder.h"],
@@ -61,6 +71,11 @@ cc_library(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
     ],
+)
+
+cc_library(
+    name = "CanonicalizationPatterns",
+    hdrs = ["CanonicalizationPatterns.inc"],
 )
 
 cc_library(

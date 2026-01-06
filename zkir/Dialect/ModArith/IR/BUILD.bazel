@@ -63,6 +63,7 @@ cc_library(
         ":types_inc_gen",
         "//zkir/Utils:APIntUtils",
         "//zkir/Utils:AssemblyFormatUtils",
+        "//zkir/Utils:CanonicalizationPatterns",
         "//zkir/Utils:ConstantFolder",
         "//zkir/Utils:KnownModulus",
         "//zkir/Utils:OpUtils",
@@ -91,6 +92,7 @@ td_library(
     ],
     includes = ["../../../.."],
     deps = [
+        "//zkir/Utils:CanonicalizationTd",
         "//zkir/Utils:CommonTraits",
         "@llvm-project//mlir:ArithOpsTdFiles",
         "@llvm-project//mlir:BuiltinDialectTdFiles",
