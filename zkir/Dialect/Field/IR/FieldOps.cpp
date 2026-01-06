@@ -531,21 +531,25 @@ public:
 
 // Helper to dispatch extension field folding by degree using fold expression.
 // Eliminates repetitive if-else chains for degree 2, 3, 4.
-template <template <size_t> class FolderT, size_t N, typename Adaptor>
+template <template <typename> class ConstantFolderT,
+          template <size_t> class FolderT, size_t N, typename Adaptor>
 void tryFoldOne(Type type, size_t degree, Adaptor adaptor,
                 OpFoldResult &result) {
   if (!result && degree == N) {
     FolderT<N> folder(type);
-    result = ExtensionFieldUnaryConstantFolder<
-        ExtensionFieldConstantFolderConfig>::fold(adaptor, &folder);
+    result = ConstantFolderT<ExtensionFieldConstantFolderConfig>::fold(adaptor,
+                                                                       &folder);
   }
 }
 
-template <template <size_t> class FolderT, typename Adaptor, size_t... Ns>
+template <template <typename> class ConstantFolderT,
+          template <size_t> class FolderT, typename Adaptor, size_t... Ns>
 OpFoldResult foldExtFieldImpl(Type type, size_t degree, Adaptor adaptor,
                               std::index_sequence<Ns...>) {
   OpFoldResult result;
-  (tryFoldOne<FolderT, Ns + kMinExtDegree>(type, degree, adaptor, result), ...);
+  (tryFoldOne<ConstantFolderT, FolderT, Ns + kMinExtDegree>(type, degree,
+                                                            adaptor, result),
+   ...);
   return result;
 }
 
@@ -554,29 +558,9 @@ OpFoldResult foldExtField(Type type, Adaptor adaptor) {
   auto extFieldType = dyn_cast<ExtensionFieldTypeInterface>(type);
   if (!extFieldType)
     return {};
-  return foldExtFieldImpl<FolderT>(type, extFieldType.getDegreeOverBase(),
-                                   adaptor,
-                                   std::make_index_sequence<kNumExtDegrees>{});
-}
-
-// Helper to dispatch extension field binary folding by degree.
-template <template <size_t> class FolderT, size_t N, typename Adaptor>
-void tryFoldOneBinary(Type type, size_t degree, Adaptor adaptor,
-                      OpFoldResult &result) {
-  if (!result && degree == N) {
-    FolderT<N> folder(type);
-    result = ExtensionFieldBinaryConstantFolder<
-        ExtensionFieldConstantFolderConfig>::fold(adaptor, &folder);
-  }
-}
-
-template <template <size_t> class FolderT, typename Adaptor, size_t... Ns>
-OpFoldResult foldExtFieldBinaryImpl(Type type, size_t degree, Adaptor adaptor,
-                                    std::index_sequence<Ns...>) {
-  OpFoldResult result;
-  (tryFoldOneBinary<FolderT, Ns + kMinExtDegree>(type, degree, adaptor, result),
-   ...);
-  return result;
+  return foldExtFieldImpl<ExtensionFieldUnaryConstantFolder, FolderT>(
+      type, extFieldType.getDegreeOverBase(), adaptor,
+      std::make_index_sequence<kNumExtDegrees>{});
 }
 
 template <template <size_t> class FolderT, typename Adaptor>
@@ -584,7 +568,7 @@ OpFoldResult foldExtFieldBinary(Type type, Adaptor adaptor) {
   auto extFieldType = dyn_cast<ExtensionFieldTypeInterface>(type);
   if (!extFieldType)
     return {};
-  return foldExtFieldBinaryImpl<FolderT>(
+  return foldExtFieldImpl<ExtensionFieldBinaryConstantFolder, FolderT>(
       type, extFieldType.getDegreeOverBase(), adaptor,
       std::make_index_sequence<kNumExtDegrees>{});
 }
