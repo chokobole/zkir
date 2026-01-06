@@ -223,12 +223,7 @@ template <size_t N>
 class ExtensionFieldOperation
     : public ExtensionFieldOperationSelector<N>::template Type<
           ExtensionFieldOperation<N>> {
-  using Base = typename ExtensionFieldOperationSelector<N>::template Type<
-      ExtensionFieldOperation<N>>;
-
 public:
-  using Base::operator*;
-
   // Construct from APInt coefficients (convenient one-liner usage)
   ExtensionFieldOperation(const SmallVector<APInt> &coeffs,
                           const APInt &nonResidue, PrimeFieldType baseFieldType)
@@ -255,16 +250,6 @@ public:
       result.push_back(static_cast<APInt>(c));
     }
     return result;
-  }
-
-  // TODO(junbeomlee): Add scalar multiplication (ExtensionField * BaseField)
-  // to zk_dtypes and reuse here.
-  ExtensionFieldOperation operator*(const PrimeFieldOperation &scalar) const {
-    std::array<PrimeFieldOperation, N> result;
-    for (size_t i = 0; i < N; ++i) {
-      result[i] = coeffs[i] * scalar;
-    }
-    return ExtensionFieldOperation(result, nonResidue, baseFieldType);
   }
 
 private:
