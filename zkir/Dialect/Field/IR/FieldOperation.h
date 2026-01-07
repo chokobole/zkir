@@ -227,6 +227,12 @@ class ExtensionFieldOperation
     : public ExtensionFieldOperationSelector<N>::template Type<
           ExtensionFieldOperation<N>> {
 public:
+  ExtensionFieldOperation(int64_t coeff, ExtensionFieldTypeInterface efType)
+      : efType(efType) {
+    auto baseFieldType = cast<PrimeFieldType>(efType.getBaseFieldType());
+    coeffs[0] = PrimeFieldOperation(coeff, baseFieldType);
+  }
+
   // Construct from APInt coefficients (convenient one-liner usage)
   ExtensionFieldOperation(const SmallVector<APInt> &coeffs,
                           ExtensionFieldTypeInterface efType)
