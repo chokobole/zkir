@@ -22,6 +22,7 @@ limitations under the License.
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/ConversionUtils.h"
 #include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/MSM/Pippengers/Generic.h"
 #include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/PointOperations/Jacobian/Add.h"
 #include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/PointOperations/Jacobian/Double.h"
@@ -38,26 +39,6 @@ namespace mlir::zkir::elliptic_curve {
 #define GEN_PASS_DEF_ELLIPTICCURVETOFIELD
 #include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/EllipticCurveToField.h.inc"
 
-namespace {
-SmallVector<Type> coordsTypeRange(Type type) {
-  if (auto affineType = dyn_cast<AffineType>(type)) {
-    return SmallVector<Type>(2, affineType.getCurve().getBaseField());
-  } else if (auto jacobianType = dyn_cast<JacobianType>(type)) {
-    return SmallVector<Type>(3, jacobianType.getCurve().getBaseField());
-  } else if (auto xyzzType = dyn_cast<XYZZType>(type)) {
-    return SmallVector<Type>(4, xyzzType.getCurve().getBaseField());
-  } else {
-    llvm_unreachable("Unsupported point-like type for coords type range");
-    return SmallVector<Type>();
-  }
-}
-
-Operation::result_range extractCoords(ImplicitLocOpBuilder &b, Value point) {
-  return b.create<ExtractOp>(coordsTypeRange(point.getType()), point)
-      .getOutput();
-}
-} // namespace
-
 struct ConvertIsZero : public OpConversionPattern<IsZeroOp> {
   explicit ConvertIsZero(MLIRContext *context)
       : OpConversionPattern<IsZeroOp>(context) {}
@@ -69,7 +50,7 @@ struct ConvertIsZero : public OpConversionPattern<IsZeroOp> {
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    Operation::result_range coords = extractCoords(b, op.getInput());
+    Operation::result_range coords = toCoords(b, op.getInput());
     Type baseFieldType =
         getCurveFromPointLike(op.getInput().getType()).getBaseField();
     Value zeroBF =
@@ -103,7 +84,7 @@ struct ConvertConvertPointType
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    Operation::result_range coords = extractCoords(b, op.getInput());
+    Operation::result_range coords = toCoords(b, op.getInput());
     Type inputType = op.getInput().getType();
     Type outputType = op.getType();
     Type baseFieldType = getCurveFromPointLike(inputType).getBaseField();
@@ -232,8 +213,7 @@ struct ConvertConvertPointType
         outputCoords.push_back(output.getResult(0));
       }
     }
-    auto outputPt = b.create<PointOp>(outputType, outputCoords);
-    rewriter.replaceOp(op, outputPt);
+    rewriter.replaceOp(op, fromCoords(b, outputType, outputCoords));
     return success();
   }
 };
@@ -253,8 +233,8 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
 
     Value p1 = op.getLhs();
     Value p2 = op.getRhs();
-    Operation::result_range p1Coords = extractCoords(b, op.getLhs());
-    Operation::result_range p2Coords = extractCoords(b, op.getRhs());
+    Operation::result_range p1Coords = toCoords(b, op.getLhs());
+    Operation::result_range p2Coords = toCoords(b, op.getRhs());
     Type p1Type = p1.getType();
     Type p2Type = p2.getType();
     Type outputType = op.getType();
@@ -305,8 +285,7 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
                 } else {
                   llvm_unreachable("Unsupported point types for addition");
                 }
-                Value outputPt = b.create<PointOp>(op.getType(), sum);
-                b.create<scf::YieldOp>(outputPt);
+                b.create<scf::YieldOp>(fromCoords(b, op.getType(), sum));
               });
           b.create<scf::YieldOp>(output.getResults());
         });
@@ -327,7 +306,7 @@ struct ConvertDouble : public OpConversionPattern<DoubleOp> {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     Type outputType = op.getType();
-    Operation::result_range coords = extractCoords(b, op.getInput());
+    Operation::result_range coords = toCoords(b, op.getInput());
     SmallVector<Value> doubled;
 
     if (auto xyzzType = dyn_cast<XYZZType>(outputType)) {
@@ -338,8 +317,7 @@ struct ConvertDouble : public OpConversionPattern<DoubleOp> {
       llvm_unreachable("Unsupported point type for doubling");
     }
 
-    auto outputPt = b.create<PointOp>(outputType, doubled);
-    rewriter.replaceOp(op, outputPt);
+    rewriter.replaceOp(op, fromCoords(b, outputType, doubled));
     return success();
   }
 };
@@ -355,14 +333,13 @@ struct ConvertNegate : public OpConversionPattern<NegateOp> {
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    Operation::result_range coords = extractCoords(b, op.getInput());
+    Operation::result_range coords = toCoords(b, op.getInput());
 
     auto negatedY = b.create<field::NegateOp>(coords[1]);
     SmallVector<Value> outputCoords(coords);
     outputCoords[1] = negatedY;
 
-    auto outputPt = b.create<PointOp>(op.getType(), outputCoords);
-    rewriter.replaceOp(op, outputPt);
+    rewriter.replaceOp(op, fromCoords(b, op.getType(), outputCoords));
     return success();
   }
 };
@@ -399,8 +376,8 @@ struct ConvertCmp : public OpConversionPattern<CmpOp> {
 
     Value lhs = op.getLhs();
     Value rhs = op.getRhs();
-    Operation::result_range lhsCoords = extractCoords(b, lhs);
-    Operation::result_range rhsCoords = extractCoords(b, rhs);
+    Operation::result_range lhsCoords = toCoords(b, lhs);
+    Operation::result_range rhsCoords = toCoords(b, rhs);
     llvm::SmallVector<Value, 4> cmps;
     for (auto [lhsCoord, rhsCoord] : llvm::zip(lhsCoords, rhsCoords)) {
       cmps.push_back(

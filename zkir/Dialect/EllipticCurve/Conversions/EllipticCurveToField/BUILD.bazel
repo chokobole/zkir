@@ -21,12 +21,24 @@ package(
 )
 
 cc_library(
+    name = "ConversionUtils",
+    srcs = ["ConversionUtils.cpp"],
+    hdrs = ["ConversionUtils.h"],
+    deps = [
+        "//zkir/Dialect/EllipticCurve/IR:EllipticCurve",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
     name = "EllipticCurveToField",
     srcs = ["EllipticCurveToField.cpp"],
     hdrs = [
         "EllipticCurveToField.h",
     ],
     deps = [
+        ":ConversionUtils",
         ":pass_inc_gen",
         "//zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/MSM/Pippengers:Generic",
         "//zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/PointOperations/Jacobian:Add",
