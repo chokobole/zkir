@@ -34,6 +34,27 @@ cc_library(
 )
 
 cc_library(
+    name = "PointCodeGen",
+    srcs = ["PointCodeGen.cpp"],
+    hdrs = ["PointCodeGen.h"],
+    deps = [
+        ":FieldCodeGen",
+        ":PointCodeGenBaseForward",
+        "//zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField:ConversionUtils",
+        "//zkir/Dialect/EllipticCurve/IR:EllipticCurve",
+        "//zkir/Dialect/EllipticCurve/IR:PointOperationSelector",
+        "//zkir/Dialect/Field/IR:Field",
+        "//zkir/Utils:BuilderContext",
+        "//zkir/Utils:ControlFlowOperation",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+        "@zk_dtypes//zk_dtypes:curve_type",
+        "@zk_dtypes//zk_dtypes:point_traits",
+    ],
+)
+
+cc_library(
     name = "PointCodeGenBaseForward",
     hdrs = ["PointCodeGenBaseForward.h"],
     deps = ["//zkir/Dialect/EllipticCurve/IR:PointKind"],
