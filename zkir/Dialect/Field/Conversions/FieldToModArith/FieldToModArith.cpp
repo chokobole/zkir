@@ -37,7 +37,7 @@ limitations under the License.
 #include "mlir/Transforms/DialectConversion.h"
 #include "zkir/Dialect/EllipticCurve/IR/EllipticCurveOps.h"
 #include "zkir/Dialect/Field/Conversions/FieldToModArith/ConversionUtils.h"
-#include "zkir/Dialect/Field/Conversions/FieldToModArith/Extension/ExtensionField.h"
+#include "zkir/Dialect/Field/Conversions/FieldToModArith/FieldCodeGen.h"
 #include "zkir/Dialect/Field/IR/FieldDialect.h"
 #include "zkir/Dialect/Field/IR/FieldOps.h"
 #include "zkir/Dialect/Field/IR/FieldTypes.h"
@@ -240,17 +240,9 @@ struct ConvertInverse : public OpConversionPattern<InverseOp> {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     Type fieldType = getElementTypeOrSelf(op.getOutput());
-    if (isa<PrimeFieldType>(fieldType)) {
-      auto inv = b.create<mod_arith::InverseOp>(adaptor.getInput());
-      rewriter.replaceOp(op, inv);
-      return success();
-    }
-    if (auto efType = dyn_cast<ExtensionFieldTypeInterface>(fieldType)) {
-      auto extensionField = ExtensionField::create(b, efType, typeConverter);
-      rewriter.replaceOp(op, extensionField->inverse(adaptor.getInput()));
-      return success();
-    }
-    return failure();
+    FieldCodeGen codeGen(&b, fieldType, adaptor.getInput(), typeConverter);
+    rewriter.replaceOp(op, {codeGen.inverse()});
+    return success();
   }
 };
 
@@ -266,17 +258,9 @@ struct ConvertNegate : public OpConversionPattern<NegateOp> {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     Type fieldType = getElementTypeOrSelf(op.getOutput());
-    if (isa<PrimeFieldType>(fieldType)) {
-      auto neg = b.create<mod_arith::NegateOp>(adaptor.getInput());
-      rewriter.replaceOp(op, neg);
-      return success();
-    }
-    if (auto efType = dyn_cast<ExtensionFieldTypeInterface>(fieldType)) {
-      auto extensionField = ExtensionField::create(b, efType, typeConverter);
-      rewriter.replaceOp(op, extensionField->negate(adaptor.getInput()));
-      return success();
-    }
-    return failure();
+    FieldCodeGen codeGen(&b, fieldType, adaptor.getInput(), typeConverter);
+    rewriter.replaceOp(op, {codeGen.negate()});
+    return success();
   }
 };
 
@@ -292,18 +276,10 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     Type fieldType = getElementTypeOrSelf(op.getOutput());
-    if (isa<PrimeFieldType>(fieldType)) {
-      auto add = b.create<mod_arith::AddOp>(adaptor.getLhs(), adaptor.getRhs());
-      rewriter.replaceOp(op, add);
-      return success();
-    }
-    if (auto efType = dyn_cast<ExtensionFieldTypeInterface>(fieldType)) {
-      auto extensionField = ExtensionField::create(b, efType, typeConverter);
-      rewriter.replaceOp(
-          op, extensionField->add(adaptor.getLhs(), adaptor.getRhs()));
-      return success();
-    }
-    return failure();
+    FieldCodeGen lhsCodeGen(&b, fieldType, adaptor.getLhs(), typeConverter);
+    FieldCodeGen rhsCodeGen(&b, fieldType, adaptor.getRhs(), typeConverter);
+    rewriter.replaceOp(op, {lhsCodeGen + rhsCodeGen});
+    return success();
   }
 };
 
@@ -319,17 +295,9 @@ struct ConvertDouble : public OpConversionPattern<DoubleOp> {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     Type fieldType = getElementTypeOrSelf(op.getOutput());
-    if (isa<PrimeFieldType>(fieldType)) {
-      auto doubled = b.create<mod_arith::DoubleOp>(adaptor.getInput());
-      rewriter.replaceOp(op, doubled);
-      return success();
-    }
-    if (auto efType = dyn_cast<ExtensionFieldTypeInterface>(fieldType)) {
-      auto extensionField = ExtensionField::create(b, efType, typeConverter);
-      rewriter.replaceOp(op, extensionField->dbl(adaptor.getInput()));
-      return success();
-    }
-    return failure();
+    FieldCodeGen codeGen(&b, fieldType, adaptor.getInput(), typeConverter);
+    rewriter.replaceOp(op, {codeGen.dbl()});
+    return success();
   }
 };
 
@@ -345,18 +313,10 @@ struct ConvertSub : public OpConversionPattern<SubOp> {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     Type fieldType = getElementTypeOrSelf(op.getOutput());
-    if (isa<PrimeFieldType>(fieldType)) {
-      auto sub = b.create<mod_arith::SubOp>(adaptor.getLhs(), adaptor.getRhs());
-      rewriter.replaceOp(op, sub);
-      return success();
-    }
-    if (auto efType = dyn_cast<ExtensionFieldTypeInterface>(fieldType)) {
-      auto extensionField = ExtensionField::create(b, efType, typeConverter);
-      rewriter.replaceOp(
-          op, extensionField->sub(adaptor.getLhs(), adaptor.getRhs()));
-      return success();
-    }
-    return failure();
+    FieldCodeGen lhsCodeGen(&b, fieldType, adaptor.getLhs(), typeConverter);
+    FieldCodeGen rhsCodeGen(&b, fieldType, adaptor.getRhs(), typeConverter);
+    rewriter.replaceOp(op, {lhsCodeGen - rhsCodeGen});
+    return success();
   }
 };
 
@@ -372,18 +332,10 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     Type fieldType = getElementTypeOrSelf(op.getOutput());
-    if (isa<PrimeFieldType>(fieldType)) {
-      auto mul = b.create<mod_arith::MulOp>(adaptor.getLhs(), adaptor.getRhs());
-      rewriter.replaceOp(op, mul);
-      return success();
-    }
-    if (auto efType = dyn_cast<ExtensionFieldTypeInterface>(fieldType)) {
-      auto extensionField = ExtensionField::create(b, efType, typeConverter);
-      rewriter.replaceOp(
-          op, extensionField->mul(adaptor.getLhs(), adaptor.getRhs()));
-      return success();
-    }
-    return failure();
+    FieldCodeGen lhsCodeGen(&b, fieldType, adaptor.getLhs(), typeConverter);
+    FieldCodeGen rhsCodeGen(&b, fieldType, adaptor.getRhs(), typeConverter);
+    rewriter.replaceOp(op, {lhsCodeGen * rhsCodeGen});
+    return success();
   }
 };
 
@@ -399,17 +351,9 @@ struct ConvertSquare : public OpConversionPattern<SquareOp> {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
     Type fieldType = getElementTypeOrSelf(op.getOutput());
-    if (isa<PrimeFieldType>(fieldType)) {
-      auto square = b.create<mod_arith::SquareOp>(adaptor.getInput());
-      rewriter.replaceOp(op, square);
-      return success();
-    }
-    if (auto efType = dyn_cast<ExtensionFieldTypeInterface>(fieldType)) {
-      auto extensionField = ExtensionField::create(b, efType, typeConverter);
-      rewriter.replaceOp(op, extensionField->square(adaptor.getInput()));
-      return success();
-    }
-    return failure();
+    FieldCodeGen codeGen(&b, fieldType, adaptor.getInput(), typeConverter);
+    rewriter.replaceOp(op, {codeGen.square()});
+    return success();
   }
 };
 

@@ -22,6 +22,9 @@ limitations under the License.
 
 namespace mlir::zkir::field {
 
+// NOTE(chokobole): This class is not used directly. It is used to generate
+// MLIR operations that implement prime field arithmetic. User should use
+// FieldCodeGen instead.
 class PrimeFieldCodeGen {
 public:
   PrimeFieldCodeGen() = default;
@@ -30,9 +33,6 @@ public:
   ~PrimeFieldCodeGen() = default;
 
   operator Value() const { return value; }
-
-  // TODO(junbeomlee): Remove this and use DegreeOverBasePrimeField() instead.
-  static constexpr size_t ExtensionDegree() { return 1; }
 
   PrimeFieldCodeGen operator+(const PrimeFieldCodeGen &other) const;
   PrimeFieldCodeGen &operator+=(const PrimeFieldCodeGen &other);
