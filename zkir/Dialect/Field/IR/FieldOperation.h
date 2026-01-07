@@ -19,7 +19,6 @@
 #include <array>
 #include <cassert>
 
-#include "absl/status/statusor.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "zk_dtypes/include/field/cubic_extension_field_operation.h"
 #include "zk_dtypes/include/field/quadratic_extension_field_operation.h"
@@ -180,11 +179,8 @@ private:
 
   PrimeFieldOperation Double() const { return dbl(); }
   PrimeFieldOperation Square() const { return square(); }
-  absl::StatusOr<PrimeFieldOperation> Inverse() const {
-    if (op.isZero())
-      return absl::InvalidArgumentError("Cannot invert zero");
-    return inverse();
-  }
+  // Returns Zero() if not invertible.
+  PrimeFieldOperation Inverse() const { return inverse(); }
   // Prime field has extension degree 1 (used by Frobenius)
   static constexpr size_t ExtensionDegree() { return 1; }
 
@@ -288,12 +284,10 @@ private:
   template <typename>
   friend class zk_dtypes::FrobeniusOperation;
 
-  const std::array<PrimeFieldOperation, N> &ToBaseFields() const {
-    return coeffs;
-  }
+  const std::array<PrimeFieldOperation, N> &ToCoeffs() const { return coeffs; }
 
   ExtensionFieldOperation
-  FromBaseFields(const std::array<PrimeFieldOperation, N> &c) const {
+  FromCoeffs(const std::array<PrimeFieldOperation, N> &c) const {
     return ExtensionFieldOperation(c, nonResidue, baseFieldType);
   }
 
@@ -311,9 +305,8 @@ private:
     return zk_dtypes::ExtensionFieldMulAlgorithm::kKaratsuba;
   }
 
-  PrimeFieldOperation CreateZeroBaseField() const {
-    APInt zero(baseFieldType.getStorageBitWidth(), 0);
-    return PrimeFieldOperation(zero, baseFieldType);
+  PrimeFieldOperation CreateConstBaseField(int64_t x) const {
+    return PrimeFieldOperation(x, baseFieldType);
   }
 
   // Frobenius coefficients: coeffs[e-1][i-1] = ξ^(i * e * (p - 1) / n)
