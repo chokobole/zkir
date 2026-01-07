@@ -261,6 +261,14 @@ public:
     return result;
   }
 
+  DenseIntElementsAttr getDenseIntElementsAttr() const {
+    return DenseIntElementsAttr::get(
+        RankedTensorType::get(
+            {N},
+            cast<PrimeFieldType>(efType.getBaseFieldType()).getStorageType()),
+        toAPInts());
+  }
+
 private:
   // PascalCase methods (zk_dtypes compatible)
   template <typename>
