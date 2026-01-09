@@ -1,4 +1,4 @@
-# Copyright 2025 The ZKIR Authors.
+# Copyright 2026 The ZKIR Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,33 +20,42 @@ package(
 )
 
 cc_library(
-    name = "Add",
-    srcs = ["Add.cpp"],
-    hdrs = [
-        "Add.h",
-    ],
+    name = "FieldCodeGen",
+    srcs = ["FieldCodeGen.cpp"],
+    hdrs = ["FieldCodeGen.h"],
     deps = [
-        ":Double",
-        "//zkir/Dialect/EllipticCurve/IR:EllipticCurve",
+        ":PointCodeGenBaseForward",
         "//zkir/Dialect/Field/IR:Field",
-        "@llvm-project//mlir:ArithDialect",
+        "//zkir/Utils:BuilderContext",
+        "@com_google_absl//absl/status:statusor",
         "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:SCFDialect",
-        "@llvm-project//mlir:Support",
+        "@zk_dtypes//zk_dtypes:point_declarations",
     ],
 )
 
 cc_library(
-    name = "Double",
-    srcs = ["Double.cpp"],
-    hdrs = [
-        "Double.h",
-    ],
+    name = "PointCodeGen",
+    srcs = ["PointCodeGen.cpp"],
+    hdrs = ["PointCodeGen.h"],
     deps = [
+        ":FieldCodeGen",
+        ":PointCodeGenBaseForward",
+        "//zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField:ConversionUtils",
         "//zkir/Dialect/EllipticCurve/IR:EllipticCurve",
+        "//zkir/Dialect/EllipticCurve/IR:PointOperationSelector",
         "//zkir/Dialect/Field/IR:Field",
+        "//zkir/Utils:BuilderContext",
+        "//zkir/Utils:ControlFlowOperation",
+        "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
-        "@llvm-project//mlir:TensorDialect",
+        "@zk_dtypes//zk_dtypes:curve_type",
+        "@zk_dtypes//zk_dtypes:point_traits",
     ],
+)
+
+cc_library(
+    name = "PointCodeGenBaseForward",
+    hdrs = ["PointCodeGenBaseForward.h"],
+    deps = ["//zkir/Dialect/EllipticCurve/IR:PointKind"],
 )

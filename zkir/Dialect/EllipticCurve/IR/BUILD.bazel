@@ -74,6 +74,33 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "PointKind",
+    hdrs = ["PointKind.h"],
+)
+
+cc_library(
+    name = "PointKindConversion",
+    srcs = ["PointKindConversion.cpp"],
+    hdrs = ["PointKindConversion.h"],
+    deps = [
+        ":PointKind",
+        "//zkir/Dialect/EllipticCurve/IR:EllipticCurve",
+        "@llvm-project//mlir:IR",
+    ],
+)
+
+cc_library(
+    name = "PointOperationSelector",
+    hdrs = ["PointOperationSelector.h"],
+    deps = [
+        ":PointKind",
+        "@zk_dtypes//zk_dtypes:sw_affine_point_operation",
+        "@zk_dtypes//zk_dtypes:sw_jacobian_point_operation",
+        "@zk_dtypes//zk_dtypes:sw_point_xyzz_operation",
+    ],
+)
+
 td_library(
     name = "td_files",
     srcs = [

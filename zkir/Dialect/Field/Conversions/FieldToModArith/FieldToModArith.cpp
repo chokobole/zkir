@@ -44,6 +44,7 @@ limitations under the License.
 #include "zkir/Dialect/ModArith/IR/ModArithOps.h"
 #include "zkir/Dialect/ModArith/IR/ModArithTypes.h"
 #include "zkir/Dialect/TensorExt/IR/TensorExtOps.h"
+#include "zkir/Utils/BuilderContext.h"
 #include "zkir/Utils/ConversionUtils.h"
 #include "zkir/Utils/ShapedTypeConverter.h"
 
@@ -130,8 +131,7 @@ struct ConvertConstant : public OpConversionPattern<ConstantOp> {
       auto coeffAttr = IntegerAttr::get(modType.getStorageType(), coeff);
       coeffs.push_back(b.create<mod_arith::ConstantOp>(modType, coeffAttr));
     }
-    auto ext = b.create<ExtFromCoeffsOp>(TypeRange{op.getType()}, coeffs);
-    rewriter.replaceOp(op, ext);
+    rewriter.replaceOp(op, fromCoeffs(b, op.getType(), coeffs));
     return success();
   }
 };
@@ -183,8 +183,7 @@ struct ConvertToMont : public OpConversionPattern<ToMontOp> {
         montCoeffs.push_back(
             b.create<mod_arith::ToMontOp>(baseModArithType, coeff));
       }
-      auto ext = b.create<ExtFromCoeffsOp>(TypeRange{fieldType}, montCoeffs);
-      rewriter.replaceOp(op, ext);
+      rewriter.replaceOp(op, fromCoeffs(b, fieldType, montCoeffs));
       return success();
     }
     return failure();
@@ -220,8 +219,7 @@ struct ConvertFromMont : public OpConversionPattern<FromMontOp> {
         stdCoeffs.push_back(
             b.create<mod_arith::FromMontOp>(baseModArithType, coeff));
       }
-      auto ext = b.create<ExtFromCoeffsOp>(TypeRange{fieldType}, stdCoeffs);
-      rewriter.replaceOp(op, ext);
+      rewriter.replaceOp(op, fromCoeffs(b, fieldType, stdCoeffs));
       return success();
     }
     return failure();
@@ -238,9 +236,10 @@ struct ConvertInverse : public OpConversionPattern<InverseOp> {
   matchAndRewrite(InverseOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    ScopedBuilderContext scopedBuilderContext(&b);
 
     Type fieldType = getElementTypeOrSelf(op.getOutput());
-    FieldCodeGen codeGen(&b, fieldType, adaptor.getInput(), typeConverter);
+    FieldCodeGen codeGen(fieldType, adaptor.getInput(), typeConverter);
     rewriter.replaceOp(op, {codeGen.inverse()});
     return success();
   }
@@ -256,9 +255,10 @@ struct ConvertNegate : public OpConversionPattern<NegateOp> {
   matchAndRewrite(NegateOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    ScopedBuilderContext scopedBuilderContext(&b);
 
     Type fieldType = getElementTypeOrSelf(op.getOutput());
-    FieldCodeGen codeGen(&b, fieldType, adaptor.getInput(), typeConverter);
+    FieldCodeGen codeGen(fieldType, adaptor.getInput(), typeConverter);
     rewriter.replaceOp(op, {codeGen.negate()});
     return success();
   }
@@ -274,10 +274,11 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
   matchAndRewrite(AddOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    ScopedBuilderContext scopedBuilderContext(&b);
 
     Type fieldType = getElementTypeOrSelf(op.getOutput());
-    FieldCodeGen lhsCodeGen(&b, fieldType, adaptor.getLhs(), typeConverter);
-    FieldCodeGen rhsCodeGen(&b, fieldType, adaptor.getRhs(), typeConverter);
+    FieldCodeGen lhsCodeGen(fieldType, adaptor.getLhs(), typeConverter);
+    FieldCodeGen rhsCodeGen(fieldType, adaptor.getRhs(), typeConverter);
     rewriter.replaceOp(op, {lhsCodeGen + rhsCodeGen});
     return success();
   }
@@ -293,9 +294,10 @@ struct ConvertDouble : public OpConversionPattern<DoubleOp> {
   matchAndRewrite(DoubleOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    ScopedBuilderContext scopedBuilderContext(&b);
 
     Type fieldType = getElementTypeOrSelf(op.getOutput());
-    FieldCodeGen codeGen(&b, fieldType, adaptor.getInput(), typeConverter);
+    FieldCodeGen codeGen(fieldType, adaptor.getInput(), typeConverter);
     rewriter.replaceOp(op, {codeGen.dbl()});
     return success();
   }
@@ -311,10 +313,11 @@ struct ConvertSub : public OpConversionPattern<SubOp> {
   matchAndRewrite(SubOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    ScopedBuilderContext scopedBuilderContext(&b);
 
     Type fieldType = getElementTypeOrSelf(op.getOutput());
-    FieldCodeGen lhsCodeGen(&b, fieldType, adaptor.getLhs(), typeConverter);
-    FieldCodeGen rhsCodeGen(&b, fieldType, adaptor.getRhs(), typeConverter);
+    FieldCodeGen lhsCodeGen(fieldType, adaptor.getLhs(), typeConverter);
+    FieldCodeGen rhsCodeGen(fieldType, adaptor.getRhs(), typeConverter);
     rewriter.replaceOp(op, {lhsCodeGen - rhsCodeGen});
     return success();
   }
@@ -330,10 +333,11 @@ struct ConvertMul : public OpConversionPattern<MulOp> {
   matchAndRewrite(MulOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    ScopedBuilderContext scopedBuilderContext(&b);
 
     Type fieldType = getElementTypeOrSelf(op.getOutput());
-    FieldCodeGen lhsCodeGen(&b, fieldType, adaptor.getLhs(), typeConverter);
-    FieldCodeGen rhsCodeGen(&b, fieldType, adaptor.getRhs(), typeConverter);
+    FieldCodeGen lhsCodeGen(fieldType, adaptor.getLhs(), typeConverter);
+    FieldCodeGen rhsCodeGen(fieldType, adaptor.getRhs(), typeConverter);
     rewriter.replaceOp(op, {lhsCodeGen * rhsCodeGen});
     return success();
   }
@@ -349,9 +353,10 @@ struct ConvertSquare : public OpConversionPattern<SquareOp> {
   matchAndRewrite(SquareOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    ScopedBuilderContext scopedBuilderContext(&b);
 
     Type fieldType = getElementTypeOrSelf(op.getOutput());
-    FieldCodeGen codeGen(&b, fieldType, adaptor.getInput(), typeConverter);
+    FieldCodeGen codeGen(fieldType, adaptor.getInput(), typeConverter);
     rewriter.replaceOp(op, {codeGen.square()});
     return success();
   }
@@ -587,9 +592,8 @@ struct ConvertF2Create : public OpConversionPattern<F2CreateOp> {
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto f2 = b.create<ExtFromCoeffsOp>(
-        op.getType(), ValueRange{adaptor.getC0(), adaptor.getC1()});
-    rewriter.replaceOp(op, f2);
+    rewriter.replaceOp(
+        op, fromCoeffs(b, op.getType(), {adaptor.getC0(), adaptor.getC1()}));
     return success();
   }
 };
@@ -605,10 +609,9 @@ struct ConvertF3Create : public OpConversionPattern<F3CreateOp> {
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto f3 = b.create<ExtFromCoeffsOp>(
-        op.getType(),
-        ValueRange{adaptor.getC0(), adaptor.getC1(), adaptor.getC2()});
-    rewriter.replaceOp(op, f3);
+    rewriter.replaceOp(
+        op, fromCoeffs(b, op.getType(),
+                       {adaptor.getC0(), adaptor.getC1(), adaptor.getC2()}));
     return success();
   }
 };
@@ -624,10 +627,9 @@ struct ConvertF4Create : public OpConversionPattern<F4CreateOp> {
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto f4 = b.create<ExtFromCoeffsOp>(
-        op.getType(), ValueRange{adaptor.getC0(), adaptor.getC1(),
-                                 adaptor.getC2(), adaptor.getC3()});
-    rewriter.replaceOp(op, f4);
+    rewriter.replaceOp(op, fromCoeffs(b, op.getType(),
+                                      {adaptor.getC0(), adaptor.getC1(),
+                                       adaptor.getC2(), adaptor.getC3()}));
     return success();
   }
 };
@@ -643,9 +645,8 @@ struct ConvertCreate : public OpConversionPattern<CreateOp> {
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    auto ext =
-        b.create<ExtFromCoeffsOp>(op.getType(), adaptor.getCoefficients());
-    rewriter.replaceOp(op, ext);
+    rewriter.replaceOp(op,
+                       fromCoeffs(b, op.getType(), adaptor.getCoefficients()));
     return success();
   }
 };

@@ -40,6 +40,15 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "BuilderContext",
+    hdrs = ["BuilderContext.h"],
+    deps = [
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
 td_library(
     name = "CommonTraits",
     srcs = ["CommonTraits.td"],
@@ -76,6 +85,20 @@ cc_library(
 cc_library(
     name = "CanonicalizationPatterns",
     hdrs = ["CanonicalizationPatterns.inc"],
+)
+
+cc_library(
+    name = "ControlFlowOperation",
+    srcs = ["ControlFlowOperation.cpp"],
+    hdrs = ["ControlFlowOperation.h"],
+    deps = [
+        "//zkir/Dialect/Field/IR:Field",
+        "//zkir/Utils:BuilderContext",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:SCFDialect",
+        "@zk_dtypes//zk_dtypes:control_flow_operation_forward",
+    ],
 )
 
 cc_library(

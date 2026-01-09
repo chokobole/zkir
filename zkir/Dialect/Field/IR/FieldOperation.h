@@ -20,9 +20,7 @@
 #include <cassert>
 
 #include "llvm/Support/ErrorHandling.h"
-#include "zk_dtypes/include/field/cubic_extension_field_operation.h"
-#include "zk_dtypes/include/field/quadratic_extension_field_operation.h"
-#include "zk_dtypes/include/field/quartic_extension_field_operation.h"
+#include "zkir/Dialect/Field/IR/ExtensionFieldOperationSelector.h"
 #include "zkir/Dialect/Field/IR/FieldTypes.h"
 #include "zkir/Dialect/ModArith/IR/ModArithOperation.h"
 
@@ -181,6 +179,9 @@ private:
   PrimeFieldOperation Square() const { return square(); }
   // Returns Zero() if not invertible.
   PrimeFieldOperation Inverse() const { return inverse(); }
+  PrimeFieldOperation CreateConst(int64_t constant) const {
+    return PrimeFieldOperation(constant, type);
+  }
   // Prime field has extension degree 1 (used by Frobenius)
   static constexpr size_t ExtensionDegree() { return 1; }
 
@@ -188,34 +189,12 @@ private:
                                  const PrimeFieldOperation &op);
 
   mod_arith::ModArithOperation op;
-  field::PrimeFieldType type;
+  PrimeFieldType type;
 };
 
 inline raw_ostream &operator<<(raw_ostream &os, const PrimeFieldOperation &op) {
   return os << op.op;
 }
-
-// Selects the appropriate zk_dtypes extension field operation based on degree.
-template <size_t N>
-struct ExtensionFieldOperationSelector;
-
-template <>
-struct ExtensionFieldOperationSelector<2> {
-  template <typename Derived>
-  using Type = zk_dtypes::QuadraticExtensionFieldOperation<Derived>;
-};
-
-template <>
-struct ExtensionFieldOperationSelector<3> {
-  template <typename Derived>
-  using Type = zk_dtypes::CubicExtensionFieldOperation<Derived>;
-};
-
-template <>
-struct ExtensionFieldOperationSelector<4> {
-  template <typename Derived>
-  using Type = zk_dtypes::QuarticExtensionFieldOperation<Derived>;
-};
 
 // Extension field operation class for compile-time evaluation.
 // Inherits from zk_dtypes CRTP operations for Square/Inverse algorithms.
@@ -224,22 +203,28 @@ class ExtensionFieldOperation
     : public ExtensionFieldOperationSelector<N>::template Type<
           ExtensionFieldOperation<N>> {
 public:
+  ExtensionFieldOperation(int64_t coeff, ExtensionFieldTypeInterface efType)
+      : efType(efType) {
+    auto baseFieldType = cast<PrimeFieldType>(efType.getBaseFieldType());
+    coeffs[0] = PrimeFieldOperation(coeff, baseFieldType);
+  }
+
   // Construct from APInt coefficients (convenient one-liner usage)
   ExtensionFieldOperation(const SmallVector<APInt> &coeffs,
-                          const APInt &nonResidue, PrimeFieldType baseFieldType)
-      : baseFieldType(baseFieldType) {
+                          ExtensionFieldTypeInterface efType)
+      : efType(efType) {
     assert(coeffs.size() == N);
+    auto baseFieldType = cast<PrimeFieldType>(efType.getBaseFieldType());
     for (size_t i = 0; i < N; ++i) {
       this->coeffs[i] = PrimeFieldOperation(coeffs[i], baseFieldType);
     }
-    this->nonResidue = PrimeFieldOperation(nonResidue, baseFieldType);
   }
 
-  // Construct from PrimeFieldOperation coefficients
   ExtensionFieldOperation(const std::array<PrimeFieldOperation, N> &coeffs,
-                          const PrimeFieldOperation &nonResidue,
-                          PrimeFieldType baseFieldType)
-      : coeffs(coeffs), nonResidue(nonResidue), baseFieldType(baseFieldType) {}
+                          ExtensionFieldTypeInterface efType)
+      : coeffs(coeffs), efType(efType) {
+    assert(coeffs.size() == N);
+  }
 
   const std::array<PrimeFieldOperation, N> &getCoeffs() const { return coeffs; }
 
@@ -250,6 +235,14 @@ public:
       result.push_back(static_cast<APInt>(c));
     }
     return result;
+  }
+
+  DenseIntElementsAttr getDenseIntElementsAttr() const {
+    return DenseIntElementsAttr::get(
+        RankedTensorType::get(
+            {N},
+            cast<PrimeFieldType>(efType.getBaseFieldType()).getStorageType()),
+        toAPInts());
   }
 
 private:
@@ -275,14 +268,19 @@ private:
 
   ExtensionFieldOperation
   FromCoeffs(const std::array<PrimeFieldOperation, N> &c) const {
-    return ExtensionFieldOperation(c, nonResidue, baseFieldType);
+    return ExtensionFieldOperation(c, efType);
   }
 
-  PrimeFieldOperation NonResidue() const { return nonResidue; }
+  PrimeFieldOperation NonResidue() const {
+    auto baseFieldType = cast<PrimeFieldType>(efType.getBaseFieldType());
+    return PrimeFieldOperation(cast<IntegerAttr>(efType.getNonResidue()),
+                               baseFieldType);
+  }
 
   // https://github.com/fractalyze/zk_dtypes/blob/8d5f43c/zk_dtypes/include/field/extension_field.h#L500
   zk_dtypes::ExtensionFieldMulAlgorithm GetSquareAlgorithm() const {
     if constexpr (N == 2) {
+      auto baseFieldType = cast<PrimeFieldType>(efType.getBaseFieldType());
       // Heuristic: custom squaring when n² > 2n + C
       unsigned limbNums = (baseFieldType.getStorageBitWidth() + 63) / 64;
       if (limbNums * N >= 2) {
@@ -290,6 +288,7 @@ private:
       }
       return zk_dtypes::ExtensionFieldMulAlgorithm::kKaratsuba;
     } else if constexpr (N == 3) {
+      auto baseFieldType = cast<PrimeFieldType>(efType.getBaseFieldType());
       // Heuristic: custom squaring when n² > 4n
       unsigned limbNums = (baseFieldType.getStorageBitWidth() + 63) / 64;
       if (limbNums * N >= 4) {
@@ -309,14 +308,16 @@ private:
   }
 
   PrimeFieldOperation CreateConstBaseField(int64_t x) const {
+    auto baseFieldType = cast<PrimeFieldType>(efType.getBaseFieldType());
     return PrimeFieldOperation(x, baseFieldType);
   }
 
   // Frobenius coefficients: coeffs[e-1][i-1] = ξ^(i * e * (p - 1) / n)
   std::array<std::array<PrimeFieldOperation, N - 1>, N - 1>
   GetFrobeniusCoeffs() const {
+    auto baseFieldType = cast<PrimeFieldType>(efType.getBaseFieldType());
     APInt p = baseFieldType.getModulus().getValue();
-    APInt nr = static_cast<APInt>(nonResidue);
+    APInt nr = cast<IntegerAttr>(efType.getNonResidue()).getValue();
     PrimeFieldOperation nrOp(nr, baseFieldType);
 
     unsigned extBitWidth = p.getBitWidth() * 2;
@@ -335,8 +336,7 @@ private:
   }
 
   std::array<PrimeFieldOperation, N> coeffs;
-  PrimeFieldOperation nonResidue;
-  PrimeFieldType baseFieldType;
+  ExtensionFieldTypeInterface efType;
 };
 
 } // namespace mlir::zkir::field

@@ -16,10 +16,28 @@ limitations under the License.
 #ifndef ZKIR_DIALECT_FIELD_CONVERSIONS_FIELDTOMODARITH_PRIMEFIELDCODEGEN_H_
 #define ZKIR_DIALECT_FIELD_CONVERSIONS_FIELDTOMODARITH_PRIMEFIELDCODEGEN_H_
 
-#include "mlir/IR/ImplicitLocOpBuilder.h"
 #include "mlir/IR/Value.h"
 
+namespace zk_dtypes {
+
+template <typename>
+class QuadraticExtensionFieldOperation;
+template <typename>
+class CubicExtensionFieldOperation;
+template <typename>
+class QuarticExtensionFieldOperation;
+template <typename>
+class KaratsubaOperation;
+template <typename>
+class ToomCookOperation;
+template <typename>
+class ExtensionFieldOperation;
+
+} // namespace zk_dtypes
+
 namespace mlir::zkir::field {
+
+class FieldCodeGen;
 
 // NOTE(chokobole): This class is not used directly. It is used to generate
 // MLIR operations that implement prime field arithmetic. User should use
@@ -27,8 +45,7 @@ namespace mlir::zkir::field {
 class PrimeFieldCodeGen {
 public:
   PrimeFieldCodeGen() = default;
-  PrimeFieldCodeGen(ImplicitLocOpBuilder *b, Value value)
-      : b(b), value(value) {}
+  explicit PrimeFieldCodeGen(Value value) : value(value) {}
   ~PrimeFieldCodeGen() = default;
 
   operator Value() const { return value; }
@@ -40,12 +57,27 @@ public:
   PrimeFieldCodeGen operator*(const PrimeFieldCodeGen &other) const;
   PrimeFieldCodeGen &operator*=(const PrimeFieldCodeGen &other);
   PrimeFieldCodeGen operator-() const;
+
+private:
+  friend class FieldCodeGen;
+  template <typename>
+  friend class zk_dtypes::QuadraticExtensionFieldOperation;
+  template <typename>
+  friend class zk_dtypes::CubicExtensionFieldOperation;
+  template <typename>
+  friend class zk_dtypes::QuarticExtensionFieldOperation;
+  template <typename>
+  friend class zk_dtypes::KaratsubaOperation;
+  template <typename>
+  friend class zk_dtypes::ToomCookOperation;
+  template <typename>
+  friend class zk_dtypes::ExtensionFieldOperation;
+
   PrimeFieldCodeGen Double() const;
   PrimeFieldCodeGen Square() const;
   PrimeFieldCodeGen Inverse() const;
+  PrimeFieldCodeGen CreateConst(int64_t constant) const;
 
-private:
-  ImplicitLocOpBuilder *b = nullptr; // not owned
   Value value;
 };
 

@@ -22,14 +22,12 @@ limitations under the License.
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/ConversionUtils.h"
 #include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/MSM/Pippengers/Generic.h"
-#include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/PointOperations/Jacobian/Add.h"
-#include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/PointOperations/Jacobian/Double.h"
-#include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/PointOperations/XYZZ/Add.h"
-#include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/PointOperations/XYZZ/Double.h"
-#include "zkir/Dialect/EllipticCurve/IR/EllipticCurveDialect.h"
+#include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/PointOperations/PointCodeGen.h"
 #include "zkir/Dialect/EllipticCurve/IR/EllipticCurveOps.h"
 #include "zkir/Dialect/EllipticCurve/IR/EllipticCurveTypes.h"
+#include "zkir/Dialect/EllipticCurve/IR/PointKindConversion.h"
 #include "zkir/Dialect/Field/IR/FieldOps.h"
 #include "zkir/Dialect/Field/IR/FieldTypes.h"
 
@@ -37,26 +35,6 @@ namespace mlir::zkir::elliptic_curve {
 
 #define GEN_PASS_DEF_ELLIPTICCURVETOFIELD
 #include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/EllipticCurveToField.h.inc"
-
-namespace {
-SmallVector<Type> coordsTypeRange(Type type) {
-  if (auto affineType = dyn_cast<AffineType>(type)) {
-    return SmallVector<Type>(2, affineType.getCurve().getBaseField());
-  } else if (auto jacobianType = dyn_cast<JacobianType>(type)) {
-    return SmallVector<Type>(3, jacobianType.getCurve().getBaseField());
-  } else if (auto xyzzType = dyn_cast<XYZZType>(type)) {
-    return SmallVector<Type>(4, xyzzType.getCurve().getBaseField());
-  } else {
-    llvm_unreachable("Unsupported point-like type for coords type range");
-    return SmallVector<Type>();
-  }
-}
-
-Operation::result_range extractCoords(ImplicitLocOpBuilder &b, Value point) {
-  return b.create<ExtractOp>(coordsTypeRange(point.getType()), point)
-      .getOutput();
-}
-} // namespace
 
 struct ConvertIsZero : public OpConversionPattern<IsZeroOp> {
   explicit ConvertIsZero(MLIRContext *context)
@@ -69,7 +47,7 @@ struct ConvertIsZero : public OpConversionPattern<IsZeroOp> {
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    Operation::result_range coords = extractCoords(b, op.getInput());
+    Operation::result_range coords = toCoords(b, op.getInput());
     Type baseFieldType =
         getCurveFromPointLike(op.getInput().getType()).getBaseField();
     Value zeroBF =
@@ -102,138 +80,13 @@ struct ConvertConvertPointType
   matchAndRewrite(ConvertPointTypeOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    ScopedBuilderContext scopedBuilderContext(&b);
 
-    Operation::result_range coords = extractCoords(b, op.getInput());
     Type inputType = op.getInput().getType();
+    PointCodeGen inputCodeGen(inputType, adaptor.getInput());
     Type outputType = op.getType();
-    Type baseFieldType = getCurveFromPointLike(inputType).getBaseField();
-    Value zeroBF =
-        cast<field::FieldTypeInterface>(baseFieldType).createZeroConstant(b);
-    Value oneBF =
-        cast<field::FieldTypeInterface>(baseFieldType).createOneConstant(b);
-
-    SmallVector<Value> outputCoords;
-
-    auto isZero = b.create<IsZeroOp>(op.getInput());
-    if (isa<AffineType>(inputType)) {
-      auto output = b.create<scf::IfOp>(
-          isZero,
-          /*thenBuilder=*/
-          [&](OpBuilder &builder, Location loc) {
-            if (isa<JacobianType>(outputType)) {
-              // affine to jacobian
-              // (0, 0) -> (1, 1, 0)
-              builder.create<scf::YieldOp>(loc,
-                                           ValueRange{oneBF, oneBF, zeroBF});
-            } else {
-              // affine to xyzz
-              // (0, 0) -> (1, 1, 0, 0)
-              builder.create<scf::YieldOp>(
-                  loc, ValueRange{oneBF, oneBF, zeroBF, zeroBF});
-            }
-          },
-          /*elseBuilder=*/
-          [&](OpBuilder &builder, Location loc) {
-            if (isa<JacobianType>(outputType)) {
-              // affine to jacobian
-              // (x, y) -> (x, y, 1)
-              builder.create<scf::YieldOp>(
-                  loc, ValueRange{/*x=*/coords[0], /*y=*/coords[1], oneBF});
-            } else {
-              // affine to xyzz
-              // (x, y) -> (x, y, 1, 1)
-              builder.create<scf::YieldOp>(
-                  loc,
-                  ValueRange{/*x=*/coords[0], /*y=*/coords[1], oneBF, oneBF});
-            }
-          });
-      outputCoords = output.getResults();
-    } else if (isa<JacobianType>(inputType)) {
-      auto zz = b.create<field::SquareOp>(/*z=*/coords[2]);
-      if (isa<AffineType>(outputType)) {
-        auto output = b.create<scf::IfOp>(
-            isZero,
-            /*thenBuilder=*/
-            [&](OpBuilder &builder, Location loc) {
-              // jacobian to affine
-              // (x, y, 0) -> (0, 0)
-              builder.create<scf::YieldOp>(loc, ValueRange{zeroBF, zeroBF});
-            },
-            /*elseBuilder=*/
-            [&](OpBuilder &builder, Location loc) {
-              // jacobian to affine
-              // (x, y, z) -> (x/z², y/z³)
-              // TODO(ashjeong): use Batch Inverse
-              auto zzInv = b.create<field::InverseOp>(zz);
-              auto zzzzInv = b.create<field::SquareOp>(loc, zzInv);
-              auto zzzInv =
-                  builder.create<field::MulOp>(loc, zzzzInv, /*z=*/coords[2]);
-              auto newX =
-                  builder.create<field::MulOp>(loc, /*x=*/coords[0], zzInv);
-              auto newY =
-                  builder.create<field::MulOp>(loc, /*y=*/coords[1], zzzInv);
-              builder.create<scf::YieldOp>(loc, ValueRange{newX, newY});
-            });
-
-        outputCoords = output.getResults();
-      } else {
-        auto zzz = b.create<field::MulOp>(zz, /*z=*/coords[2]);
-        // jacobian to xyzz
-        // (x, y, z) -> (x, y, z², z³)
-        outputCoords = {/*x=*/coords[0], /*y=*/coords[1], zz, zzz};
-      }
-    } else {
-      if (isa<AffineType>(outputType)) {
-        auto output = b.create<scf::IfOp>(
-            isZero,
-            /*thenBuilder=*/
-            [&](OpBuilder &builder, Location loc) {
-              // xyzz to affine
-              // (x, y, 0, 0) -> (0, 0)
-              builder.create<scf::YieldOp>(loc, ValueRange{zeroBF, zeroBF});
-            },
-            /*elseBuilder=*/
-            [&](OpBuilder &builder, Location loc) {
-              // xyzz to affine
-              // (x, y, z², z³) -> (x/z², y/z³)
-              // TODO(ashjeong): use Batch Inverse
-              auto zzzInv =
-                  builder.create<field::InverseOp>(loc, /*zzz=*/coords[3]);
-              auto zInv =
-                  builder.create<field::MulOp>(loc, zzzInv, /*zz=*/coords[2]);
-              auto zzInv = builder.create<field::SquareOp>(loc, zInv);
-              auto newX =
-                  builder.create<field::MulOp>(loc, /*x=*/coords[0], zzInv);
-              auto newY =
-                  builder.create<field::MulOp>(loc, /*y=*/coords[1], zzzInv);
-              builder.create<scf::YieldOp>(loc, ValueRange{newX, newY});
-            });
-        outputCoords = output.getResults();
-      } else {
-        outputCoords = {/*x=*/coords[0], /*y=*/coords[1]};
-
-        auto output = b.create<scf::IfOp>(
-            isZero,
-            /*thenBuilder=*/
-            [&](OpBuilder &builder, Location loc) {
-              // xyzz to jacobian
-              // (x, y, 0, 0) -> (x, y, 0)
-              builder.create<scf::YieldOp>(loc, ValueRange{zeroBF});
-            },
-            /*elseBuilder=*/
-            [&](OpBuilder &builder, Location loc) {
-              // xyzz to jacobian
-              // (x, y, z², z³) -> (x, y, z)
-              auto zzInv = builder.create<field::InverseOp>(loc, coords[2]);
-              auto z =
-                  builder.create<field::MulOp>(loc, /*zzz=*/coords[3], zzInv);
-              builder.create<scf::YieldOp>(loc, ValueRange{z});
-            });
-        outputCoords.push_back(output.getResult(0));
-      }
-    }
-    auto outputPt = b.create<PointOp>(outputType, outputCoords);
-    rewriter.replaceOp(op, outputPt);
+    PointKind outputKind = getPointKind(outputType);
+    rewriter.replaceOp(op, {inputCodeGen.convert(outputKind)});
     return success();
   }
 };
@@ -250,67 +103,15 @@ struct ConvertAdd : public OpConversionPattern<AddOp> {
   matchAndRewrite(AddOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    ScopedBuilderContext scopedBuilderContext(&b);
 
-    Value p1 = op.getLhs();
-    Value p2 = op.getRhs();
-    Operation::result_range p1Coords = extractCoords(b, op.getLhs());
-    Operation::result_range p2Coords = extractCoords(b, op.getRhs());
-    Type p1Type = p1.getType();
-    Type p2Type = p2.getType();
-    Type outputType = op.getType();
-
-    // check p1 == zero point
-    Value p1IsZero = b.create<IsZeroOp>(p1);
-    auto output = b.create<scf::IfOp>(
-        p1IsZero,
-        /*thenBuilder=*/
-        [&](OpBuilder &builder, Location loc) {
-          ImplicitLocOpBuilder b(loc, builder);
-          Value retP2 = p2;
-          if (isa<AffineType>(p2Type)) {
-            retP2 = b.create<ConvertPointTypeOp>(outputType, p2);
-          }
-
-          b.create<scf::YieldOp>(retP2);
-        },
-        /*elseBuilder=*/
-        [&](OpBuilder &builder, Location loc) {
-          ImplicitLocOpBuilder b(loc, builder);
-
-          // check p2 == zero point
-          Value p2isZero = b.create<IsZeroOp>(p2);
-          auto output = b.create<scf::IfOp>(
-              p2isZero,
-              /*thenBuilder=*/
-              [&](OpBuilder &builder, Location loc) {
-                ImplicitLocOpBuilder b(loc, builder);
-                Value retP1 = p1;
-                if (isa<AffineType>(p1Type)) {
-                  retP1 = b.create<ConvertPointTypeOp>(outputType, p1);
-                }
-
-                b.create<scf::YieldOp>(retP1);
-              },
-              /*elseBuilder=*/
-              [&](OpBuilder &builder, Location loc) {
-                ImplicitLocOpBuilder b(loc, builder);
-                // run default add
-                SmallVector<Value> sum;
-                if (auto xyzzType = dyn_cast<XYZZType>(outputType)) {
-                  sum = xyzzAdd(p1Coords, p2Coords, xyzzType.getCurve(), b);
-                } else if (auto jacobianType =
-                               dyn_cast<JacobianType>(outputType)) {
-                  sum = jacobianAdd(p1Coords, p2Coords, jacobianType.getCurve(),
-                                    b);
-                } else {
-                  llvm_unreachable("Unsupported point types for addition");
-                }
-                Value outputPt = b.create<PointOp>(op.getType(), sum);
-                b.create<scf::YieldOp>(outputPt);
-              });
-          b.create<scf::YieldOp>(output.getResults());
-        });
-    rewriter.replaceOp(op, output.getResults());
+    Type lhsPointType = getElementTypeOrSelf(op->getOperandTypes()[0]);
+    PointCodeGen lhsCodeGen(lhsPointType, adaptor.getLhs());
+    Type rhsPointType = getElementTypeOrSelf(op->getOperandTypes()[1]);
+    PointCodeGen rhsCodeGen(rhsPointType, adaptor.getRhs());
+    Type outputType = getElementTypeOrSelf(op.getType());
+    PointKind outputKind = getPointKind(outputType);
+    rewriter.replaceOp(op, {lhsCodeGen.add(rhsCodeGen, outputKind)});
     return success();
   }
 };
@@ -325,21 +126,13 @@ struct ConvertDouble : public OpConversionPattern<DoubleOp> {
   matchAndRewrite(DoubleOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    ScopedBuilderContext scopedBuilderContext(&b);
 
+    Type inputType = op.getInput().getType();
+    PointCodeGen inputCodeGen(inputType, adaptor.getInput());
     Type outputType = op.getType();
-    Operation::result_range coords = extractCoords(b, op.getInput());
-    SmallVector<Value> doubled;
-
-    if (auto xyzzType = dyn_cast<XYZZType>(outputType)) {
-      doubled = xyzzDouble(coords, xyzzType.getCurve(), b);
-    } else if (auto jacobianType = dyn_cast<JacobianType>(outputType)) {
-      doubled = jacobianDouble(coords, jacobianType.getCurve(), b);
-    } else {
-      llvm_unreachable("Unsupported point type for doubling");
-    }
-
-    auto outputPt = b.create<PointOp>(outputType, doubled);
-    rewriter.replaceOp(op, outputPt);
+    PointKind outputKind = getPointKind(outputType);
+    rewriter.replaceOp(op, {inputCodeGen.dbl(outputKind)});
     return success();
   }
 };
@@ -355,14 +148,13 @@ struct ConvertNegate : public OpConversionPattern<NegateOp> {
                   ConversionPatternRewriter &rewriter) const override {
     ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    Operation::result_range coords = extractCoords(b, op.getInput());
+    Operation::result_range coords = toCoords(b, op.getInput());
 
     auto negatedY = b.create<field::NegateOp>(coords[1]);
     SmallVector<Value> outputCoords(coords);
     outputCoords[1] = negatedY;
 
-    auto outputPt = b.create<PointOp>(op.getType(), outputCoords);
-    rewriter.replaceOp(op, outputPt);
+    rewriter.replaceOp(op, fromCoords(b, op.getType(), outputCoords));
     return success();
   }
 };
@@ -399,8 +191,8 @@ struct ConvertCmp : public OpConversionPattern<CmpOp> {
 
     Value lhs = op.getLhs();
     Value rhs = op.getRhs();
-    Operation::result_range lhsCoords = extractCoords(b, lhs);
-    Operation::result_range rhsCoords = extractCoords(b, rhs);
+    Operation::result_range lhsCoords = toCoords(b, lhs);
+    Operation::result_range rhsCoords = toCoords(b, rhs);
     llvm::SmallVector<Value, 4> cmps;
     for (auto [lhsCoord, rhsCoord] : llvm::zip(lhsCoords, rhsCoords)) {
       cmps.push_back(

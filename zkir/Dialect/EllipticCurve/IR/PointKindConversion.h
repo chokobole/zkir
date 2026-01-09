@@ -1,4 +1,4 @@
-/* Copyright 2025 The ZKIR Authors.
+/* Copyright 2026 The ZKIR Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,21 +13,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef ZKIR_DIALECT_ELLIPTICCURVE_CONVERSIONS_ELLIPTICCURVETOFIELD_POINTOPERATIONS_XYZZ_DOUBLE_H_
-#define ZKIR_DIALECT_ELLIPTICCURVE_CONVERSIONS_ELLIPTICCURVETOFIELD_POINTOPERATIONS_XYZZ_DOUBLE_H_
+#ifndef ZKIR_DIALECT_ELLIPTICCURVE_IR_POINTKINDCONVERSION_H_
+#define ZKIR_DIALECT_ELLIPTICCURVE_IR_POINTKINDCONVERSION_H_
 
-#include "mlir/IR/ImplicitLocOpBuilder.h"
-#include "mlir/IR/Value.h"
-#include "mlir/IR/ValueRange.h"
-#include "mlir/Support/LLVM.h"
-#include "zkir/Dialect/EllipticCurve/IR/EllipticCurveAttributes.h"
+#include "mlir/IR/Types.h"
+#include "zkir/Dialect/EllipticCurve/IR/PointKind.h"
 
 namespace mlir::zkir::elliptic_curve {
 
-SmallVector<Value> xyzzDouble(ValueRange point, ShortWeierstrassAttr curve,
-                              ImplicitLocOpBuilder &b);
+PointKind getPointKind(Type type);
 
 } // namespace mlir::zkir::elliptic_curve
 
 // NOLINTNEXTLINE(whitespace/line_length)
-#endif // ZKIR_DIALECT_ELLIPTICCURVE_CONVERSIONS_ELLIPTICCURVETOFIELD_POINTOPERATIONS_XYZZ_DOUBLE_H_
+#endif // ZKIR_DIALECT_ELLIPTICCURVE_IR_POINTKINDCONVERSION_H_

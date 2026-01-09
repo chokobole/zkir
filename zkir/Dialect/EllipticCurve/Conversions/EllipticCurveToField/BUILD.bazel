@@ -21,19 +21,29 @@ package(
 )
 
 cc_library(
+    name = "ConversionUtils",
+    srcs = ["ConversionUtils.cpp"],
+    hdrs = ["ConversionUtils.h"],
+    deps = [
+        "//zkir/Dialect/EllipticCurve/IR:EllipticCurve",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+cc_library(
     name = "EllipticCurveToField",
     srcs = ["EllipticCurveToField.cpp"],
     hdrs = [
         "EllipticCurveToField.h",
     ],
     deps = [
+        ":ConversionUtils",
         ":pass_inc_gen",
         "//zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/MSM/Pippengers:Generic",
-        "//zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/PointOperations/Jacobian:Add",
-        "//zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/PointOperations/Jacobian:Double",
-        "//zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/PointOperations/XYZZ:Add",
-        "//zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/PointOperations/XYZZ:Double",
+        "//zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/PointOperations:PointCodeGen",
         "//zkir/Dialect/EllipticCurve/IR:EllipticCurve",
+        "//zkir/Dialect/EllipticCurve/IR:PointKindConversion",
         "//zkir/Dialect/Field/IR:Field",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:BufferizationDialect",

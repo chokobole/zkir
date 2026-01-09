@@ -1,4 +1,4 @@
-/* Copyright 2025 The ZKIR Authors.
+/* Copyright 2026 The ZKIR Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,23 +13,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef ZKIR_DIALECT_ELLIPTICCURVE_IR_ELLIPTICCURVEATTRIBUTES_H_
-#define ZKIR_DIALECT_ELLIPTICCURVE_IR_ELLIPTICCURVEATTRIBUTES_H_
+#include "zkir/Dialect/EllipticCurve/IR/PointKindConversion.h"
 
-// IWYU pragma: begin_keep
-// Headers needed for EllipticCurveAttributes.h.inc
-#include "mlir/IR/BuiltinAttributes.h"
-#include "mlir/IR/OpDefinition.h"
-#include "mlir/IR/OpImplementation.h"
-// IWYU pragma: end_keep
-
-#define GET_ATTRDEF_CLASSES
-#include "zkir/Dialect/EllipticCurve/IR/EllipticCurveAttributes.h.inc"
+#include "mlir/IR/TypeUtilities.h"
+#include "zkir/Dialect/EllipticCurve/IR/EllipticCurveTypes.h"
 
 namespace mlir::zkir::elliptic_curve {
 
-ShortWeierstrassAttr getCurveFromPointLike(Type pointLike);
+PointKind getPointKind(Type type) {
+  Type elementType = getElementTypeOrSelf(type);
+  if (isa<AffineType>(elementType)) {
+    return PointKind::kAffine;
+  } else if (isa<JacobianType>(elementType)) {
+    return PointKind::kJacobian;
+  } else if (isa<XYZZType>(elementType)) {
+    return PointKind::kXYZZ;
+  }
+  llvm_unreachable("Unsupported point type");
+}
 
 } // namespace mlir::zkir::elliptic_curve
-
-#endif // ZKIR_DIALECT_ELLIPTICCURVE_IR_ELLIPTICCURVEATTRIBUTES_H_

@@ -380,8 +380,7 @@ class UnaryExtFieldConstantFolder
           ExtensionFieldConstantFolderConfig>::Delegate {
 public:
   explicit UnaryExtFieldConstantFolder(Type type)
-      : extFieldType(cast<ExtensionFieldTypeInterface>(type)),
-        baseFieldType(cast<PrimeFieldType>(extFieldType.getBaseFieldType())) {}
+      : extFieldType(cast<ExtensionFieldTypeInterface>(type)) {}
 
   SmallVector<APInt> getNativeInput(DenseIntElementsAttr attr) const final {
     auto values = attr.getValues<APInt>();
@@ -389,6 +388,8 @@ public:
   }
 
   OpFoldResult getScalarAttr(const SmallVector<APInt> &coeffs) const final {
+    PrimeFieldType baseFieldType =
+        cast<PrimeFieldType>(extFieldType.getBaseFieldType());
     auto tensorType = RankedTensorType::get(
         {static_cast<int64_t>(coeffs.size())}, baseFieldType.getStorageType());
     return DenseIntElementsAttr::get(tensorType, coeffs);
@@ -396,7 +397,6 @@ public:
 
 protected:
   ExtensionFieldTypeInterface extFieldType;
-  PrimeFieldType baseFieldType;
 };
 
 // Negate: -[a₀, a₁, ...] = [-a₀, -a₁, ...]
@@ -407,8 +407,7 @@ public:
 
   std::optional<SmallVector<APInt>>
   operate(const SmallVector<APInt> &coeffs) const final {
-    auto nr = cast<IntegerAttr>(extFieldType.getNonResidue()).getValue();
-    return (-ExtensionFieldOperation<N>(coeffs, nr, baseFieldType)).toAPInts();
+    return (-ExtensionFieldOperation<N>(coeffs, extFieldType)).toAPInts();
   }
 };
 
@@ -420,10 +419,7 @@ public:
 
   std::optional<SmallVector<APInt>>
   operate(const SmallVector<APInt> &coeffs) const final {
-    auto nr = cast<IntegerAttr>(extFieldType.getNonResidue()).getValue();
-    return ExtensionFieldOperation<N>(coeffs, nr, baseFieldType)
-        .Double()
-        .toAPInts();
+    return ExtensionFieldOperation<N>(coeffs, extFieldType).Double().toAPInts();
   }
 };
 
@@ -435,10 +431,7 @@ public:
 
   std::optional<SmallVector<APInt>>
   operate(const SmallVector<APInt> &coeffs) const final {
-    auto nr = cast<IntegerAttr>(extFieldType.getNonResidue()).getValue();
-    return ExtensionFieldOperation<N>(coeffs, nr, baseFieldType)
-        .Square()
-        .toAPInts();
+    return ExtensionFieldOperation<N>(coeffs, extFieldType).Square().toAPInts();
   }
 };
 
@@ -450,8 +443,7 @@ public:
 
   std::optional<SmallVector<APInt>>
   operate(const SmallVector<APInt> &coeffs) const final {
-    auto nr = cast<IntegerAttr>(extFieldType.getNonResidue()).getValue();
-    return ExtensionFieldOperation<N>(coeffs, nr, baseFieldType)
+    return ExtensionFieldOperation<N>(coeffs, extFieldType)
         .Inverse()
         .toAPInts();
   }
@@ -490,9 +482,8 @@ public:
 
   SmallVector<APInt> operate(const SmallVector<APInt> &lhs,
                              const SmallVector<APInt> &rhs) const final {
-    auto nr = cast<IntegerAttr>(extFieldType.getNonResidue()).getValue();
-    return (ExtensionFieldOperation<N>(lhs, nr, baseFieldType) +
-            ExtensionFieldOperation<N>(rhs, nr, baseFieldType))
+    return (ExtensionFieldOperation<N>(lhs, extFieldType) +
+            ExtensionFieldOperation<N>(rhs, extFieldType))
         .toAPInts();
   }
 };
@@ -505,9 +496,8 @@ public:
 
   SmallVector<APInt> operate(const SmallVector<APInt> &lhs,
                              const SmallVector<APInt> &rhs) const final {
-    auto nr = cast<IntegerAttr>(extFieldType.getNonResidue()).getValue();
-    return (ExtensionFieldOperation<N>(lhs, nr, baseFieldType) -
-            ExtensionFieldOperation<N>(rhs, nr, baseFieldType))
+    return (ExtensionFieldOperation<N>(lhs, extFieldType) -
+            ExtensionFieldOperation<N>(rhs, extFieldType))
         .toAPInts();
   }
 };
@@ -520,9 +510,8 @@ public:
 
   SmallVector<APInt> operate(const SmallVector<APInt> &lhs,
                              const SmallVector<APInt> &rhs) const final {
-    auto nr = cast<IntegerAttr>(extFieldType.getNonResidue()).getValue();
-    return (ExtensionFieldOperation<N>(lhs, nr, baseFieldType) *
-            ExtensionFieldOperation<N>(rhs, nr, baseFieldType))
+    return (ExtensionFieldOperation<N>(lhs, extFieldType) *
+            ExtensionFieldOperation<N>(rhs, extFieldType))
         .toAPInts();
   }
 };
