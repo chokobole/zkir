@@ -1,4 +1,4 @@
-/* Copyright 2025 The ZKIR Authors.
+/* Copyright 2025 The PrimeIR Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ template <typename KeyType, typename ValueType>
 void sortPairs(const KeyType *keysIn, KeyType *keysOut, const ValueType *valsIn,
                ValueType *valsOut, int64_t numItems, CUstream inputStream) {
   cudaStream_t stream = reinterpret_cast<cudaStream_t>(inputStream);
-  zkir::utils::CudaAsyncUniquePtr<std::byte> dTempStorage = nullptr;
+  prime_ir::utils::CudaAsyncUniquePtr<std::byte> dTempStorage = nullptr;
   size_t tempStorageBytes = 0;
 
   // First call to DeviceRadixSort::SortPairs determines the required size for
@@ -36,7 +36,7 @@ void sortPairs(const KeyType *keysIn, KeyType *keysOut, const ValueType *valsIn,
       numItems, 0, sizeof(KeyType) * 8, stream));
 
   dTempStorage =
-      zkir::utils::makeCudaAsyncUnique<std::byte>(tempStorageBytes, stream);
+      prime_ir::utils::makeCudaAsyncUnique<std::byte>(tempStorageBytes, stream);
 
   // Second call to DeviceRadixSort::SortPairs performs the actual sorting.
   CHECK_CUDA_ERROR(cub::DeviceRadixSort::SortPairs(
