@@ -1,4 +1,4 @@
-/* Copyright 2025 The ZKIR Authors.
+/* Copyright 2025 The PrimeIR Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ limitations under the License.
 #include "mlir/ExecutionEngine/MemRefUtils.h"
 #include "mlir/Support/LLVM.h"
 
-namespace mlir::zkir::benchmark {
+namespace mlir::prime_ir::benchmark {
 namespace {
 
 using Vector16xI32 = int32_t __attribute__((vector_size(64)));
@@ -62,7 +62,7 @@ BENCHMARK_TEMPLATE(BM_permute_10000_benchmark, /*kIsPacked=*/true)
     ->Name("permute_packed_10000");
 
 } // namespace
-} // namespace mlir::zkir::benchmark
+} // namespace mlir::prime_ir::benchmark
 
 // clang-format off
 // NOLINTBEGIN(whitespace/line_length)

@@ -1,8 +1,8 @@
-# ZKIR Style Guide
+# PrimeIR Style Guide
 
 ## Introduction
 
-This document defines the coding standards for C++ code in ZKIR. The base
+This document defines the coding standards for C++ code in PrimeIR. The base
 guideline is the [LLVM Coding Standard], combined with the
 [Angular Commit Convention], with explicit project-specific modifications. In
 addition to code style, this guide incorporates our rules for commit messages,
@@ -177,7 +177,7 @@ file.
 // IWYU pragma: begin_keep
 // Headers needed for FieldDialect.cpp.inc
 #include "mlir/IR/OperationSupport.h"
-#include "zkir/Dialect/ModArith/IR/ModArithDialect.h"
+#include "prime_ir/Dialect/ModArith/IR/ModArithDialect.h"
 // IWYU pragma: end_keep
 ```
 

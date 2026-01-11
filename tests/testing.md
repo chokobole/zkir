@@ -4,7 +4,7 @@
 
 We use [Lit](https://llvm.org/docs/CommandGuide/lit.html) and
 [FileCheck](https://llvm.org/docs/CommandGuide/FileCheck.html) for testing in
-ZKIR.
+PrimeIR.
 
 Currently, we have 5 files denoting often-used definitions and functions:
 
@@ -36,7 +36,7 @@ Here's a couple use case examples:
 ```mlir
 // RUN: cat %S/../../default_print_utils.mlir %S/../../bn254_field_defs.mlir \
 // RUN:     %S/../../bn254_ec_mont_defs.mlir %S/../../bn254_ec_utils.mlir %s \
-// RUN:   | zkir-opt -elliptic-curve-to-field -field-to-llvm \
+// RUN:   | prime-ir-opt -elliptic-curve-to-field -field-to-llvm \
 // RUN:   | mlir-runner -e main -entry-point-result=void \
 // RUN:      -shared-libs="%mlir_lib_dir/libmlir_runner_utils%shlibext,%S/../../libruntime_functions%shlibext" > %t
 // RUN: FileCheck %s -check-prefix=CHECK_TEST_BUCKET_ACC < %t
@@ -46,7 +46,7 @@ Here's a couple use case examples:
 
 ```mlir
 // RUN: cat %S/../../default_print_utils.mlir %s \
-// RUN:   | zkir-opt -elliptic-curve-to-field -field-to-llvm \
+// RUN:   | prime-ir-opt -elliptic-curve-to-field -field-to-llvm \
 // RUN:   | mlir-runner -e main -entry-point-result=void \
 // RUN:      -shared-libs="%mlir_lib_dir/libmlir_runner_utils%shlibext" > %t
 // RUN: FileCheck %s -check-prefix=CHECK_TEST_BUCKET_ACC < %t
@@ -56,7 +56,7 @@ Here's a couple use case examples:
 
 ```mlir
 // RUN: cat %S/../../bn254_field_defs.mlir %S/../../bn254_ec_defs.mlir %s \
-// RUN:   | zkir-opt -elliptic-curve-to-field \
+// RUN:   | prime-ir-opt -elliptic-curve-to-field \
 // RUN:   | FileCheck %s -enable-var-scope
 ```
 
@@ -64,6 +64,6 @@ Here's a couple use case examples:
 
 ```mlir
 // RUN: cat %S/../../bn254_field_defs.mlir %s \
-// RUN:   | zkir-opt -elliptic-curve-to-field \
+// RUN:   | prime-ir-opt -elliptic-curve-to-field \
 // RUN:   | FileCheck %s < %t
 ```

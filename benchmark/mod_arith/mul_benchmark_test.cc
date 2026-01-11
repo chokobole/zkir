@@ -1,4 +1,4 @@
-/* Copyright 2025 The ZKIR Authors.
+/* Copyright 2025 The PrimeIR Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ limitations under the License.
 
 #define N (1 << 20)
 
-namespace mlir::zkir::benchmark {
+namespace mlir::prime_ir::benchmark {
 namespace {
 
 using F = zk_dtypes::bn254::Fr;
@@ -58,7 +58,7 @@ BENCHMARK_TEMPLATE(BM_mul_benchmark, /*kIsMont=*/true)
     ->Name("mont_mul");
 
 } // namespace
-} // namespace mlir::zkir::benchmark
+} // namespace mlir::prime_ir::benchmark
 
 // clang-format off
 // NOLINTBEGIN(whitespace/line_length)

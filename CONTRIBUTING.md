@@ -8,10 +8,10 @@ refresh the patches we carry in this repository.
 
 1. Run `tools/setup_llvm_clone.sh /absolute/path/to/local/llvm-project` to clone
    the canonical revision (it creates that directory if it does not already
-   exist) and apply the current `zkir` patches automatically. The script accepts
-   an existing clone as well, in which case it just checks out the correct
-   commit, resets/creates a local `zkir` branch, reapplies the patches, and
-   creates one commit per patch for easier editing.
+   exist) and apply the current `prime-ir` patches automatically. The script
+   accepts an existing clone as well, in which case it just checks out the
+   correct commit, resets/creates a local `prime-ir` branch, reapplies the
+   patches, and creates one commit per patch for easier editing.
 
 1. Point Bazel to the local clone while you iterate:
 
@@ -72,7 +72,7 @@ refresh the patches we carry in this repository.
      directory:
 
      ```shell
-     git show HEAD --pretty="" > /path/to/zkir/third_party/llvm-project/<patch_name>.patch
+     git show HEAD --pretty="" > /path/to/prime-ir/third_party/llvm-project/<patch_name>.patch
      ```
 
   1. **Finalize Rebase:** Return to the current `HEAD`:

@@ -83,6 +83,5 @@ private:
 
 } // namespace mlir::prime_ir::field
 
-// clang-format off
-#endif  // PRIME_IR_DIALECT_FIELD_CONVERSIONS_FIELDTOMODARITH_PRIMEFIELDCODEGEN_H_  // NOLINT
-// clang-format on
+// NOLINTNEXTLINE(whitespace/line_length)
+#endif // PRIME_IR_DIALECT_FIELD_CONVERSIONS_FIELDTOMODARITH_PRIMEFIELDCODEGEN_H_

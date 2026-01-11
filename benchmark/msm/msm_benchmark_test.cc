@@ -1,4 +1,4 @@
-/* Copyright 2025 The ZKIR Authors.
+/* Copyright 2025 The PrimeIR Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ limitations under the License.
 
 #define NUM_SCALARMULS (1 << 20)
 
-namespace mlir::zkir::benchmark {
+namespace mlir::prime_ir::benchmark {
 namespace {
 
 using AffinePoint = zk_dtypes::bn254::G1AffinePoint;
@@ -73,7 +73,7 @@ BENCHMARK_TEMPLATE(BM_msm_benchmark, /*kIsParallel=*/true)
     ->Name("msm_parallel");
 
 } // namespace
-} // namespace mlir::zkir::benchmark
+} // namespace mlir::prime_ir::benchmark
 
 // clang-format off
 // NOLINTBEGIN(whitespace/line_length)

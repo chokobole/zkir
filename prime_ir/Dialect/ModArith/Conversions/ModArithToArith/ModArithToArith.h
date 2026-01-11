@@ -35,6 +35,5 @@ namespace mlir::prime_ir::mod_arith {
 
 } // namespace mlir::prime_ir::mod_arith
 
-// clang-format off
-#endif  // PRIME_IR_DIALECT_MODARITH_CONVERSIONS_MODARITHTOARITH_MODARITHTOARITH_H_  // NOLINT
-// clang-format on
+// NOLINTNEXTLINE(whitespace/line_length)
+#endif // PRIME_IR_DIALECT_MODARITH_CONVERSIONS_MODARITHTOARITH_MODARITHTOARITH_H_

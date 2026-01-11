@@ -21,7 +21,7 @@ dest_dir=$1
 repo_root=$(cd -- "$(dirname "$0")/.." && pwd -P)
 
 if [[ ! -f $repo_root/WORKSPACE.bazel ]]; then
-    echo "error: script must be run from within the zkir repository" >&2
+    echo "error: script must be run from within the prime-ir repository" >&2
     exit 1
 fi
 
@@ -41,7 +41,7 @@ fi
     cd "$dest_dir"
     git fetch origin "$llvm_commit"
     # Force checkout to discard any local changes and previously applied patches.
-    git checkout -f "$llvm_commit" -B zkir
+    git checkout -f "$llvm_commit" -B prime-ir
     # Remove any untracked files and directories.
     git clean -fdx
 )
