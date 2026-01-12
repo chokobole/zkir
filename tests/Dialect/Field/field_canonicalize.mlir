@@ -936,6 +936,21 @@ func.func @test_insert_fold() -> vector<2x!PF17> {
   return %result : vector<2x!PF17>
 }
 
+// CHECK-LABEL: @test_insert_strided_slice_fold
+// CHECK-SAME: () -> [[T:.*]] {
+func.func @test_insert_strided_slice_fold() -> vector<4x!PF17> {
+  // CHECK: %[[C:.*]] = field.constant dense<[3, 1, 2, 3]> : [[T]]
+  // CHECK-NOT: vector.insert_strided_slice
+  // CHECK: return %[[C]] : [[T]]
+  %source = field.constant dense<[1, 2]> : vector<2x!PF17>
+  %dest = field.constant dense<3> : vector<4x!PF17>
+  %result = vector.insert_strided_slice %source, %dest
+            {offsets = [1], strides = [1]}
+            : vector<2x!PF17> into vector<4x!PF17>
+  return %result : vector<4x!PF17>
+}
+
+
 // CHECK-LABEL: @test_extract_strided_slice_fold
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @test_extract_strided_slice_fold() -> vector<2x!PF17> {
