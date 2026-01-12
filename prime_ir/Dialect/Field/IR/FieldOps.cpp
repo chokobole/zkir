@@ -407,7 +407,7 @@ public:
 
   std::optional<SmallVector<APInt>>
   operate(const SmallVector<APInt> &coeffs) const final {
-    return (-ExtensionFieldOperation<N>(coeffs, extFieldType)).toAPInts();
+    return -ExtensionFieldOperation<N>(coeffs, extFieldType);
   }
 };
 
@@ -419,7 +419,7 @@ public:
 
   std::optional<SmallVector<APInt>>
   operate(const SmallVector<APInt> &coeffs) const final {
-    return ExtensionFieldOperation<N>(coeffs, extFieldType).Double().toAPInts();
+    return ExtensionFieldOperation<N>(coeffs, extFieldType).Double();
   }
 };
 
@@ -431,7 +431,7 @@ public:
 
   std::optional<SmallVector<APInt>>
   operate(const SmallVector<APInt> &coeffs) const final {
-    return ExtensionFieldOperation<N>(coeffs, extFieldType).Square().toAPInts();
+    return ExtensionFieldOperation<N>(coeffs, extFieldType).Square();
   }
 };
 
@@ -443,9 +443,7 @@ public:
 
   std::optional<SmallVector<APInt>>
   operate(const SmallVector<APInt> &coeffs) const final {
-    return ExtensionFieldOperation<N>(coeffs, extFieldType)
-        .Inverse()
-        .toAPInts();
+    return ExtensionFieldOperation<N>(coeffs, extFieldType).Inverse();
   }
 };
 
@@ -482,9 +480,8 @@ public:
 
   SmallVector<APInt> operate(const SmallVector<APInt> &lhs,
                              const SmallVector<APInt> &rhs) const final {
-    return (ExtensionFieldOperation<N>(lhs, extFieldType) +
-            ExtensionFieldOperation<N>(rhs, extFieldType))
-        .toAPInts();
+    return ExtensionFieldOperation<N>(lhs, extFieldType) +
+           ExtensionFieldOperation<N>(rhs, extFieldType);
   }
 };
 
@@ -496,9 +493,8 @@ public:
 
   SmallVector<APInt> operate(const SmallVector<APInt> &lhs,
                              const SmallVector<APInt> &rhs) const final {
-    return (ExtensionFieldOperation<N>(lhs, extFieldType) -
-            ExtensionFieldOperation<N>(rhs, extFieldType))
-        .toAPInts();
+    return ExtensionFieldOperation<N>(lhs, extFieldType) -
+           ExtensionFieldOperation<N>(rhs, extFieldType);
   }
 };
 
@@ -510,9 +506,8 @@ public:
 
   SmallVector<APInt> operate(const SmallVector<APInt> &lhs,
                              const SmallVector<APInt> &rhs) const final {
-    return (ExtensionFieldOperation<N>(lhs, extFieldType) *
-            ExtensionFieldOperation<N>(rhs, extFieldType))
-        .toAPInts();
+    return ExtensionFieldOperation<N>(lhs, extFieldType) *
+           ExtensionFieldOperation<N>(rhs, extFieldType);
   }
 };
 

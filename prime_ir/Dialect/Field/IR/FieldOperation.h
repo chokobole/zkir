@@ -229,7 +229,7 @@ public:
   const std::array<PrimeFieldOperation, N> &getCoeffs() const { return coeffs; }
 
   // Convert coefficients to APInts (convenient for constant folding one-liners)
-  SmallVector<APInt> toAPInts() const {
+  operator SmallVector<APInt>() const {
     SmallVector<APInt> result;
     for (const auto &c : coeffs) {
       result.push_back(static_cast<APInt>(c));
@@ -242,7 +242,7 @@ public:
         RankedTensorType::get(
             {N},
             cast<PrimeFieldType>(efType.getBaseFieldType()).getStorageType()),
-        toAPInts());
+        static_cast<SmallVector<APInt>>(*this));
   }
 
 private:
