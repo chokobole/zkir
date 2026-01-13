@@ -162,6 +162,7 @@ cc_library(
     name = "ZkDtypes",
     hdrs = ["ZkDtypes.h"],
     deps = [
+        "@llvm-project//mlir:IR",
         "@zk_dtypes//zk_dtypes:big_int",
     ],
 )
