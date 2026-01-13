@@ -275,17 +275,36 @@ LogicalResult ExtToCoeffsOp::verify() {
 
 LogicalResult ExtFromCoeffsOp::verify() {
   Type outputType = getType();
-  if (auto extField = dyn_cast<ExtensionFieldTypeInterface>(outputType)) {
-    unsigned expected = extField.getDegreeOverBase();
-    if (getInput().size() == expected) {
-      return success();
-    }
+  auto efType = dyn_cast<ExtensionFieldTypeInterface>(outputType);
+  if (!efType) {
+    return emitOpError() << "output type must be an extension field; got "
+                         << outputType;
+  }
+
+  unsigned expected = efType.getDegreeOverBase();
+  if (getInput().size() != expected) {
     return emitOpError() << "expected " << expected
                          << " input types for extension field output, but got "
                          << getInput().size();
   }
-  return emitOpError() << "output type must be an extension field; got "
-                       << outputType;
+
+  // Validate PrimeFieldType coefficients match base field
+  Type baseFieldType = efType.getBaseFieldType();
+  auto pfType = dyn_cast<PrimeFieldType>(baseFieldType);
+  if (!pfType) {
+    // TODO(junbeomlee): Add coefficient type validation for tower extensions
+    return success();
+  }
+
+  for (auto [idx, coeff] : llvm::enumerate(getInput())) {
+    auto coeffPfType = dyn_cast<PrimeFieldType>(coeff.getType());
+    if (coeffPfType && coeffPfType != pfType) {
+      return emitOpError() << "coefficient " << idx << " has type "
+                           << coeff.getType() << ", expected " << pfType;
+    }
+  }
+
+  return success();
 }
 
 //===----------------------------------------------------------------------===//
@@ -608,74 +627,6 @@ OpFoldResult SubOp::fold(FoldAdaptor adaptor) {
 
 OpFoldResult MulOp::fold(FoldAdaptor adaptor) {
   return foldExtFieldBinary<ExtFieldMulConstantFolder>(getType(), adaptor);
-}
-
-//===----------------------------------------------------------------------===//
-// CreateOp
-//===----------------------------------------------------------------------===//
-
-ParseResult CreateOp::parse(OpAsmParser &parser, OperationState &result) {
-  SmallVector<OpAsmParser::UnresolvedOperand> operands;
-  if (parser.parseLSquare())
-    return failure();
-
-  if (parser.parseOptionalRSquare()) {
-    do {
-      OpAsmParser::UnresolvedOperand operand;
-      if (parser.parseOperand(operand))
-        return failure();
-      operands.push_back(operand);
-    } while (succeeded(parser.parseOptionalComma()));
-
-    if (parser.parseRSquare())
-      return failure();
-  }
-
-  Type resultType;
-  if (parser.parseColonType(resultType))
-    return failure();
-
-  auto efType = dyn_cast<ExtensionFieldType>(resultType);
-  if (!efType) {
-    return parser.emitError(parser.getCurrentLocation(),
-                            "expected extension field type");
-  }
-
-  Type coeffType = efType.getBaseField();
-  if (parser.resolveOperands(operands, coeffType, result.operands))
-    return failure();
-
-  result.addTypes(resultType);
-  return success();
-}
-
-void CreateOp::print(OpAsmPrinter &printer) {
-  printer << " [";
-  llvm::interleaveComma(getCoefficients(), printer,
-                        [&](Value v) { printer << v; });
-  printer << "] : " << getType();
-}
-
-LogicalResult CreateOp::verify() {
-  auto efType = cast<ExtensionFieldType>(getType());
-  unsigned degree = efType.getDegree();
-
-  if (getCoefficients().size() != degree) {
-    return emitOpError() << "expected " << degree
-                         << " coefficients for extension field of degree "
-                         << degree << ", but got " << getCoefficients().size();
-  }
-
-  PrimeFieldType baseField = efType.getBaseField();
-  for (auto [idx, coeff] : llvm::enumerate(getCoefficients())) {
-    auto coeffType = dyn_cast<PrimeFieldType>(coeff.getType());
-    if (!coeffType || coeffType != baseField) {
-      return emitOpError() << "coefficient " << idx << " has type "
-                           << coeff.getType() << ", expected " << baseField;
-    }
-  }
-
-  return success();
 }
 
 namespace {
