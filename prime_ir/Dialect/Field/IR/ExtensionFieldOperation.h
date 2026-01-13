@@ -194,14 +194,22 @@ private:
       }
       return zk_dtypes::ExtensionFieldMulAlgorithm::kKaratsuba;
     } else {
-      return zk_dtypes::ExtensionFieldMulAlgorithm::kToomCook;
+      // NOTE(chokobole): Avoid Toom-Cook algorithm due to caching conflicts.
+      // `zk_dtypes::VandermondeMatrix` caches interpolation coefficients.
+      // However, field types in `zk_dtypes` are distinct based on their
+      // Montgomery property, while `ExtensionFieldOperation` are shared
+      // across different domains.
+      //
+      // If a standard-domain extension field attempts to use a Vandermonde
+      // matrix already cached in the Montgomery domain, the arithmetic will be
+      // incorrect.
+      return zk_dtypes::ExtensionFieldMulAlgorithm::kKaratsuba;
     }
   }
 
   zk_dtypes::ExtensionFieldMulAlgorithm GetMulAlgorithm() const {
-    if constexpr (N == 4) {
-      return zk_dtypes::ExtensionFieldMulAlgorithm::kToomCook;
-    }
+    // NOTE(chokobole): See the comment above why we should not use Toom-Cook
+    // algorithm.
     return zk_dtypes::ExtensionFieldMulAlgorithm::kKaratsuba;
   }
 
