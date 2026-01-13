@@ -85,6 +85,7 @@ public:
   FieldOperation operator-() const;
   FieldOperation dbl() const;
   FieldOperation square() const;
+  FieldOperation power(const APInt &exponent) const;
   FieldOperation inverse() const;
 
   bool operator==(const FieldOperation &other) const;

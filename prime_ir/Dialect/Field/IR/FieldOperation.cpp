@@ -86,15 +86,20 @@ FieldOperation FieldOperation::operator-() const {
 }
 
 FieldOperation FieldOperation::dbl() const {
-  return applyUnaryOp(operation, [](const auto &v) { return v.Double(); });
+  return applyUnaryOp(operation, [](const auto &v) { return v.dbl(); });
 }
 
 FieldOperation FieldOperation::square() const {
-  return applyUnaryOp(operation, [](const auto &v) { return v.Square(); });
+  return applyUnaryOp(operation, [](const auto &v) { return v.square(); });
+}
+
+FieldOperation FieldOperation::power(const APInt &exponent) const {
+  return applyUnaryOp(operation,
+                      [&](const auto &v) { return v.power(exponent); });
 }
 
 FieldOperation FieldOperation::inverse() const {
-  return applyUnaryOp(operation, [](const auto &v) { return v.Inverse(); });
+  return applyUnaryOp(operation, [](const auto &v) { return v.inverse(); });
 }
 
 bool FieldOperation::operator==(const FieldOperation &other) const {
