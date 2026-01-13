@@ -182,6 +182,9 @@ private:
   template <typename>
   friend class zk_dtypes::ExtensionFieldOperation;
 
+  friend raw_ostream &operator<<(raw_ostream &os,
+                                 const PrimeFieldOperation &op);
+
   PrimeFieldOperation Double() const { return dbl(); }
   PrimeFieldOperation Square() const { return square(); }
   // Returns Zero() if not invertible.
@@ -191,9 +194,6 @@ private:
   }
   // Prime field has extension degree 1 (used by Frobenius)
   static constexpr size_t ExtensionDegree() { return 1; }
-
-  friend raw_ostream &operator<<(raw_ostream &os,
-                                 const PrimeFieldOperation &op);
 
   mod_arith::ModArithOperation op;
   PrimeFieldType type;
@@ -317,6 +317,10 @@ private:
   template <typename, size_t>
   friend class zk_dtypes::VandermondeMatrix;
 
+  template <size_t N2>
+  friend raw_ostream &operator<<(raw_ostream &os,
+                                 const ExtensionFieldOperation<N2> &op);
+
   const std::array<PrimeFieldOperation, N> &ToCoeffs() const { return coeffs; }
 
   ExtensionFieldOperation
@@ -392,6 +396,13 @@ private:
   ExtensionFieldTypeInterface efType;
 };
 
+template <size_t N>
+raw_ostream &operator<<(raw_ostream &os, const ExtensionFieldOperation<N> &op) {
+  llvm::interleaveComma(op.coeffs, os,
+                        [&](const PrimeFieldOperation &c) { os << c; });
+  return os;
+}
+
 } // namespace mlir::prime_ir::field
 
 namespace zk_dtypes {
@@ -410,6 +421,13 @@ namespace mlir::prime_ir::field {
 extern template class ExtensionFieldOperation<2>;
 extern template class ExtensionFieldOperation<3>;
 extern template class ExtensionFieldOperation<4>;
+
+extern template raw_ostream &operator<<(raw_ostream &os,
+                                        const ExtensionFieldOperation<2> &op);
+extern template raw_ostream &operator<<(raw_ostream &os,
+                                        const ExtensionFieldOperation<3> &op);
+extern template raw_ostream &operator<<(raw_ostream &os,
+                                        const ExtensionFieldOperation<4> &op);
 
 using QuadraticExtensionFieldOperation = ExtensionFieldOperation<2>;
 using CubicExtensionFieldOperation = ExtensionFieldOperation<3>;
@@ -481,6 +499,8 @@ public:
   bool operator!=(const FieldOperation &other) const;
 
 private:
+  friend raw_ostream &operator<<(raw_ostream &os, const FieldOperation &op);
+
   template <typename T>
   void createExtFieldOp(T &&value, ExtensionFieldTypeInterface efType) {
     TypeSwitch<Type>(efType)
@@ -521,6 +541,8 @@ private:
 
   OperationType operation;
 };
+
+raw_ostream &operator<<(raw_ostream &os, const FieldOperation &op);
 
 } // namespace mlir::prime_ir::field
 
