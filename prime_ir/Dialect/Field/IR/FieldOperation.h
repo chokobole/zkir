@@ -288,6 +288,15 @@ public:
         static_cast<SmallVector<APInt>>(*this));
   }
 
+  bool operator==(const ExtensionFieldOperation &other) const {
+    assert(efType == other.efType);
+    return coeffs == other.coeffs;
+  }
+  bool operator!=(const ExtensionFieldOperation &other) const {
+    assert(efType == other.efType);
+    return coeffs != other.coeffs;
+  }
+
 private:
   friend class FieldOperation;
   // PascalCase methods (zk_dtypes compatible)
@@ -467,6 +476,9 @@ public:
   FieldOperation dbl() const;
   FieldOperation square() const;
   FieldOperation inverse() const;
+
+  bool operator==(const FieldOperation &other) const;
+  bool operator!=(const FieldOperation &other) const;
 
 private:
   template <typename T>

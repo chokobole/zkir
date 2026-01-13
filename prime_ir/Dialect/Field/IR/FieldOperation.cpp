@@ -51,11 +51,11 @@ FieldOperation applyUnaryOp(const FieldOperation::OperationType &operation,
                     operation);
 }
 
-template <typename F>
-FieldOperation applyBinaryOp(const FieldOperation::OperationType &a,
-                             const FieldOperation::OperationType &b, F op) {
+template <typename R, typename F>
+R applyBinaryOp(const FieldOperation::OperationType &a,
+                const FieldOperation::OperationType &b, F op) {
   return std::visit(
-      [&](const auto &lhs, const auto &rhs) -> FieldOperation {
+      [&](const auto &lhs, const auto &rhs) -> R {
         if constexpr (std::is_same_v<std::decay_t<decltype(lhs)>,
                                      std::decay_t<decltype(rhs)>>) {
           return op(lhs, rhs);
@@ -68,18 +68,21 @@ FieldOperation applyBinaryOp(const FieldOperation::OperationType &a,
 } // namespace
 
 FieldOperation FieldOperation::operator+(const FieldOperation &other) const {
-  return applyBinaryOp(operation, other.operation,
-                       [](const auto &a, const auto &b) { return a + b; });
+  return applyBinaryOp<FieldOperation>(
+      operation, other.operation,
+      [](const auto &a, const auto &b) { return a + b; });
 }
 
 FieldOperation FieldOperation::operator-(const FieldOperation &other) const {
-  return applyBinaryOp(operation, other.operation,
-                       [](const auto &a, const auto &b) { return a - b; });
+  return applyBinaryOp<FieldOperation>(
+      operation, other.operation,
+      [](const auto &a, const auto &b) { return a - b; });
 }
 
 FieldOperation FieldOperation::operator*(const FieldOperation &other) const {
-  return applyBinaryOp(operation, other.operation,
-                       [](const auto &a, const auto &b) { return a * b; });
+  return applyBinaryOp<FieldOperation>(
+      operation, other.operation,
+      [](const auto &a, const auto &b) { return a * b; });
 }
 
 FieldOperation FieldOperation::operator-() const {
@@ -96,6 +99,18 @@ FieldOperation FieldOperation::square() const {
 
 FieldOperation FieldOperation::inverse() const {
   return applyUnaryOp(operation, [](const auto &v) { return v.Inverse(); });
+}
+
+bool FieldOperation::operator==(const FieldOperation &other) const {
+  return applyBinaryOp<bool>(
+      operation, other.operation,
+      [](const auto &a, const auto &b) { return a == b; });
+}
+
+bool FieldOperation::operator!=(const FieldOperation &other) const {
+  return applyBinaryOp<bool>(
+      operation, other.operation,
+      [](const auto &a, const auto &b) { return a != b; });
 }
 
 } // namespace mlir::prime_ir::field
