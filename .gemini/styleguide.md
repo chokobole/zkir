@@ -44,14 +44,6 @@ The following are project-specific deviations and clarifications from the
   for a union, or an indicator of a subclass. When an enum is used for something
   like this, it should have a Kind suffix (e.g. `ValueKind`).
 
-### MLIR Type Variable Naming
-
-| Type                          | Variable Name   |
-| ----------------------------- | --------------- |
-| `ExtensionFieldTypeInterface` | `efType`        |
-| `PrimeFieldType`              | `pfType`        |
-| Base field type (`Type`)      | `baseFieldType` |
-
 ### Static Methods
 
 - For **static methods** implemented in `.cpp` files, explicitly annotate with
@@ -80,34 +72,6 @@ The following are project-specific deviations and clarifications from the
 
   }  // namespace
   ```
-
-### Field/ModArith Type Accessors
-
-When working with `ModArithType` or `PrimeFieldType`:
-
-| Purpose              | Method                                  |
-| -------------------- | --------------------------------------- |
-| Storage type         | `getStorageType()`                      |
-| Storage bit width    | `getStorageBitWidth()`                  |
-| Arithmetic bit width | `getModulus().getValue().getBitWidth()` |
-
-**Do NOT use `getModulus().getType()`** for storage type. For binary fields
-GF(2ⁿ), the modulus 2ⁿ requires n+1 bits but storage only needs n bits.
-`getStorageType()` handles this automatically.
-
-```c++
-// ✅ Storage: use getStorageType() / getStorageBitWidth()
-unsigned bitWidth = fieldType.getStorageBitWidth();
-APInt nVal(bitWidth, n);
-IntegerAttr::get(fieldType.getStorageType(), nVal);
-
-// ✅ Arithmetic: use getModulus().getValue().getBitWidth()
-APInt modulus = fieldType.getModulus().getValue();
-APInt result = n.urem(modulus);
-
-// ❌ Bad: using getModulus().getType() for storage
-IntegerAttr::get(fieldType.getModulus().getType(), value);  // Wrong!
-```
 
 ### Header Inclusion
 
@@ -322,6 +286,42 @@ operation should exist in others using the same naming convention and logic.
 
 Functionality and reliability must be proven across all domains. Use a similar
 testing structure for other dialects to ensure comprehensive coverage.
+
+### Field/ModArith Type Accessors
+
+When working with `ModArithType` or `PrimeFieldType`:
+
+| Purpose              | Method                                  |
+| -------------------- | --------------------------------------- |
+| Storage type         | `getStorageType()`                      |
+| Storage bit width    | `getStorageBitWidth()`                  |
+| Arithmetic bit width | `getModulus().getValue().getBitWidth()` |
+
+**Do NOT use `getModulus().getType()`** for storage type. For binary fields
+GF(2ⁿ), the modulus 2ⁿ requires n+1 bits but storage only needs n bits.
+`getStorageType()` handles this automatically.
+
+```c++
+// ✅ Storage: use getStorageType() / getStorageBitWidth()
+unsigned bitWidth = fieldType.getStorageBitWidth();
+APInt nVal(bitWidth, n);
+IntegerAttr::get(fieldType.getStorageType(), nVal);
+
+// ✅ Arithmetic: use getModulus().getValue().getBitWidth()
+APInt modulus = fieldType.getModulus().getValue();
+APInt result = n.urem(modulus);
+
+// ❌ Bad: using getModulus().getType() for storage
+IntegerAttr::get(fieldType.getModulus().getType(), value);  // Wrong!
+```
+
+### MLIR Type Variable Naming
+
+| Type                          | Variable Name   |
+| ----------------------------- | --------------- |
+| `ExtensionFieldTypeInterface` | `efType`        |
+| `PrimeFieldType`              | `pfType`        |
+| Base field type (`Type`)      | `baseFieldType` |
 
 ## License
 
