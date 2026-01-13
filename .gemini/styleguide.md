@@ -197,7 +197,7 @@ etc.) during its execution.
   created or explicitly used to construct a transformation** by the Pass.
 - **Avoid:** Do not include Dialects that are merely consumed, transformed, or
   required for general Pass setup.
-  - *Example:* If a Pass transforms `tensor` ops into `memref` ops, and does not
+  - _Example:_ If a Pass transforms `tensor` ops into `memref` ops, and does not
     create new `tensor` ops, `tensor::TensorDialect` should not be listed as a
     dependent dialect.
 
@@ -293,6 +293,35 @@ ______________________________________________________________________
 - **CI:** All PRs must pass lint, format, and tests before merge.
 
 ______________________________________________________________________
+
+## PrimeIR Specific
+
+To prevent technical debt and ensure a seamless developer experience, all
+dialects must adhere to the following principles of consistency and
+completeness.
+
+### Implementation Parity
+
+When a new feature, optimization, or simplification is introduced in one
+dialect, it must be evaluated for all other applicable dialects.
+
+- **Canonicalization & Constant Folding**: If an algebraic simplification (e.g.,
+  ) or a constant folding rule is added to one dialect, it **should be
+  implemented simultaneously** in all other dialects where that logic is
+  mathematically valid.
+- **Symmetry of Support**: If `ModArith` supports a specific operation or data
+  type (e.g., vector constant folding), the `Field` dialect should aim for
+  equivalent support to avoid "gaps" in the IR’s capabilities.
+
+#### Unified Developer Experience (DX)
+
+If an operation is there for a certain purpose in one dialect, a corresponding
+operation should exist in others using the same naming convention and logic.
+
+#### Test-Driven Completeness
+
+Functionality and reliability must be proven across all domains. Use a similar
+testing structure for other dialects to ensure comprehensive coverage.
 
 ## License
 
