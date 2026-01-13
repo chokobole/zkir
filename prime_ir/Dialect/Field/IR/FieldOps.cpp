@@ -275,17 +275,36 @@ LogicalResult ExtToCoeffsOp::verify() {
 
 LogicalResult ExtFromCoeffsOp::verify() {
   Type outputType = getType();
-  if (auto extField = dyn_cast<ExtensionFieldTypeInterface>(outputType)) {
-    unsigned expected = extField.getDegreeOverBase();
-    if (getInput().size() == expected) {
-      return success();
-    }
+  auto efType = dyn_cast<ExtensionFieldTypeInterface>(outputType);
+  if (!efType) {
+    return emitOpError() << "output type must be an extension field; got "
+                         << outputType;
+  }
+
+  unsigned expected = efType.getDegreeOverBase();
+  if (getInput().size() != expected) {
     return emitOpError() << "expected " << expected
                          << " input types for extension field output, but got "
                          << getInput().size();
   }
-  return emitOpError() << "output type must be an extension field; got "
-                       << outputType;
+
+  // Validate PrimeFieldType coefficients match base field
+  Type baseFieldType = efType.getBaseFieldType();
+  auto pfType = dyn_cast<PrimeFieldType>(baseFieldType);
+  if (!pfType) {
+    // TODO(junbeomlee): Add coefficient type validation for tower extensions
+    return success();
+  }
+
+  for (auto [idx, coeff] : llvm::enumerate(getInput())) {
+    auto coeffPfType = dyn_cast<PrimeFieldType>(coeff.getType());
+    if (coeffPfType && coeffPfType != pfType) {
+      return emitOpError() << "coefficient " << idx << " has type "
+                           << coeff.getType() << ", expected " << pfType;
+    }
+  }
+
+  return success();
 }
 
 //===----------------------------------------------------------------------===//
