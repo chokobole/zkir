@@ -81,10 +81,6 @@ The following are project-specific deviations and clarifications from the
   }  // namespace
   ```
 
-### Abseil
-
-- Prefer **`std::string_view`** instead of `absl::string_view`.
-
 ### Field/ModArith Type Accessors
 
 When working with `ModArithType` or `PrimeFieldType`:
