@@ -47,7 +47,7 @@ public:
       bool bMustBeNonZero = false) {
     auto a = F::Random();
     auto b = F::Random();
-    if (!bMustBeNonZero) {
+    if (bMustBeNonZero) {
       while (b.IsZero()) {
         b = F::Random();
       }
@@ -74,7 +74,7 @@ public:
       std::function<ModArithOperation(const ModArithOperation &)> m_operation,
       bool aMustBeNonZero = false) {
     auto a = F::Random();
-    if (!aMustBeNonZero) {
+    if (aMustBeNonZero) {
       while (a.IsZero()) {
         a = F::Random();
       }
