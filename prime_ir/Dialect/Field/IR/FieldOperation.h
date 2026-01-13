@@ -66,6 +66,17 @@ public:
                             cast<ExtensionFieldTypeInterface>(type));
     return ret;
   }
+  static FieldOperation fromUnchecked(TypedAttr attr, Type type) {
+    FieldOperation ret;
+    if (auto pfType = dyn_cast<PrimeFieldType>(type)) {
+      ret.operation =
+          PrimeFieldOperation::fromUnchecked(cast<IntegerAttr>(attr), pfType);
+      return ret;
+    }
+    ret.createRawExtFieldOp(cast<DenseIntElementsAttr>(attr),
+                            cast<ExtensionFieldTypeInterface>(type));
+    return ret;
+  }
 
   static FieldOperation fromUnchecked(const SmallVector<APInt> &coeffs,
                                       Type type) {

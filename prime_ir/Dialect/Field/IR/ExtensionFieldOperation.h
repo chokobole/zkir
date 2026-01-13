@@ -89,6 +89,13 @@ public:
   }
 
   static ExtensionFieldOperation
+  fromUnchecked(DenseIntElementsAttr attr, ExtensionFieldTypeInterface efType) {
+    SmallVector<APInt> coeffs{attr.getValues<APInt>().begin(),
+                              attr.getValues<APInt>().end()};
+    return fromUnchecked(coeffs, efType);
+  }
+
+  static ExtensionFieldOperation
   fromUnchecked(const APInt &coeff, ExtensionFieldTypeInterface efType) {
     SmallVector<APInt> coeffs(
         N, APInt(cast<PrimeFieldType>(efType.getBaseFieldType())
