@@ -139,6 +139,17 @@ cc_library(
 )
 
 cc_library(
+    name = "Power",
+    hdrs = ["Power.h"],
+    deps = [
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:Support",
+        "@zk_dtypes//zk_dtypes:bit_iterator",
+        "@zk_dtypes//zk_dtypes:bit_traits_forward",
+    ],
+)
+
+cc_library(
     name = "ShapedTypeConverter",
     srcs = ["ShapedTypeConverter.cpp"],
     hdrs = ["ShapedTypeConverter.h"],

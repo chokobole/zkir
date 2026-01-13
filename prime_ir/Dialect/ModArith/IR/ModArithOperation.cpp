@@ -17,30 +17,10 @@ limitations under the License.
 
 #include "prime_ir/Dialect/ModArith/IR/ModArithTypes.h"
 #include "prime_ir/Utils/APIntUtils.h"
-#include "zk_dtypes/include/bit_iterator.h"
+#include "prime_ir/Utils/Power.h"
 #include "zk_dtypes/include/byinverter.h"
 #include "zk_dtypes/include/field/modular_operations.h"
 #include "zk_dtypes/include/field/mont_multiplication.h"
-
-namespace zk_dtypes {
-
-template <>
-class BitTraits<mlir::APInt> {
-public:
-  static size_t GetNumBits(const mlir::APInt &value) {
-    return value.getBitWidth();
-  }
-
-  static bool TestBit(const mlir::APInt &value, size_t index) {
-    return value[index];
-  }
-
-  static void SetBit(mlir::APInt &value, size_t index, bool bitValue) {
-    value.setBitVal(index, bitValue);
-  }
-};
-
-} // namespace zk_dtypes
 
 namespace mlir::prime_ir::mod_arith {
 namespace {
@@ -366,26 +346,8 @@ ModArithOperation ModArithOperation::square() const {
   return ModArithOperation::fromUnchecked(mulMod(value, value, modulus), type);
 }
 
-namespace {
-
-ModArithOperation power(const ModArithOperation &value, const APInt &exponent) {
-  auto ret = value.getOne();
-  auto it = zk_dtypes::BitIteratorBE<APInt>::begin(&exponent, true);
-  auto end = zk_dtypes::BitIteratorBE<APInt>::end(&exponent);
-  while (it != end) {
-    ret = ret.square();
-    if (*it) {
-      ret *= value;
-    }
-    ++it;
-  }
-  return ret;
-}
-
-} // namespace
-
 ModArithOperation ModArithOperation::power(const APInt &exponent) const {
-  return mod_arith::power(*this, exponent);
+  return prime_ir::power(*this, exponent);
 }
 
 namespace {

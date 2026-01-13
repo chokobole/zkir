@@ -79,6 +79,7 @@ cc_library(
         "//prime_ir/Utils:ConstantFolder",
         "//prime_ir/Utils:KnownModulus",
         "//prime_ir/Utils:OpUtils",
+        "//prime_ir/Utils:Power",
         "//prime_ir/Utils:SimpleStructBuilder",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",

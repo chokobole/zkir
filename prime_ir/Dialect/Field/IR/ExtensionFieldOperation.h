@@ -22,6 +22,7 @@
 #include "prime_ir/Dialect/Field/IR/ExtensionFieldOperationSelector.h"
 #include "prime_ir/Dialect/Field/IR/FieldTypes.h"
 #include "prime_ir/Dialect/Field/IR/PrimeFieldOperation.h"
+#include "prime_ir/Utils/Power.h"
 
 namespace mlir::prime_ir::field {
 
@@ -100,14 +101,26 @@ public:
   static ExtensionFieldOperation
   fromUnchecked(const SmallVector<APInt> &coeffs,
                 ExtensionFieldTypeInterface efType) {
-    ExtensionFieldOperation ret;
+    std::array<PrimeFieldOperation, N> newCoeffs;
     auto baseFieldType = cast<PrimeFieldType>(efType.getBaseFieldType());
     for (size_t i = 0; i < N; ++i) {
-      ret.coeffs[i] =
+      newCoeffs[i] =
           PrimeFieldOperation::fromUnchecked(coeffs[i], baseFieldType);
     }
+    return ExtensionFieldOperation::fromUnchecked(newCoeffs, efType);
+  }
+
+  static ExtensionFieldOperation
+  fromUnchecked(const std::array<PrimeFieldOperation, N> &coeffs,
+                ExtensionFieldTypeInterface efType) {
+    ExtensionFieldOperation ret;
+    ret.coeffs = coeffs;
     ret.efType = efType;
     return ret;
+  }
+
+  ExtensionFieldOperation getOne() const {
+    return ExtensionFieldOperation::fromUnchecked(coeffs[0].getOne(), efType);
   }
 
   const std::array<PrimeFieldOperation, N> &getCoeffs() const { return coeffs; }
@@ -128,6 +141,29 @@ public:
             cast<PrimeFieldType>(efType.getBaseFieldType()).getStorageType()),
         static_cast<SmallVector<APInt>>(*this));
   }
+
+  ExtensionFieldOperation &operator+=(const ExtensionFieldOperation &other) {
+    return *this = *this + other;
+  }
+  ExtensionFieldOperation &operator-=(const ExtensionFieldOperation &other) {
+    return *this = *this - other;
+  }
+  ExtensionFieldOperation &operator*=(const ExtensionFieldOperation &other) {
+    return *this = *this * other;
+  }
+  ExtensionFieldOperation &operator/=(const ExtensionFieldOperation &other) {
+    return *this = *this / other;
+  }
+
+  ExtensionFieldOperation dbl() const { return this->Double(); }
+
+  ExtensionFieldOperation square() const { return this->Square(); }
+
+  ExtensionFieldOperation power(const APInt &exponent) const {
+    return prime_ir::power(*this, exponent);
+  }
+
+  ExtensionFieldOperation inverse() const { return this->Inverse(); }
 
   bool operator==(const ExtensionFieldOperation &other) const {
     assert(efType == other.efType);
