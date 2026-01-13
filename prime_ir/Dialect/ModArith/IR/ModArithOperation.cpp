@@ -384,7 +384,7 @@ ModArithOperation power(const ModArithOperation &value, const APInt &exponent) {
 
 } // namespace
 
-ModArithOperation ModArithOperation::power(APInt exponent) const {
+ModArithOperation ModArithOperation::power(const APInt &exponent) const {
   return mod_arith::power(*this, exponent);
 }
 

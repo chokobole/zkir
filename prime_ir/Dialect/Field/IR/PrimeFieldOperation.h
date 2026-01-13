@@ -46,7 +46,7 @@ class FieldOperation;
 class PrimeFieldOperation {
 public:
   PrimeFieldOperation() = default;
-  PrimeFieldOperation(APInt value, PrimeFieldType type)
+  PrimeFieldOperation(const APInt &value, PrimeFieldType type)
       : op(value, convertPrimeFieldType(type)), type(type) {}
   PrimeFieldOperation(IntegerAttr attr, PrimeFieldType type)
       : op(attr, convertPrimeFieldType(type)), type(type) {}
@@ -58,7 +58,8 @@ public:
   static PrimeFieldOperation fromUnchecked(int64_t value, PrimeFieldType type) {
     return fromUnchecked(APInt(type.getStorageBitWidth(), value), type);
   }
-  static PrimeFieldOperation fromUnchecked(APInt value, PrimeFieldType type) {
+  static PrimeFieldOperation fromUnchecked(const APInt &value,
+                                           PrimeFieldType type) {
     return fromUnchecked(mod_arith::ModArithOperation::fromUnchecked(
                              value, convertPrimeFieldType(type)),
                          type);
@@ -130,7 +131,7 @@ public:
   PrimeFieldOperation square() const {
     return PrimeFieldOperation::fromUnchecked(op.square(), type);
   }
-  PrimeFieldOperation power(APInt exponent) const {
+  PrimeFieldOperation power(const APInt &exponent) const {
     return PrimeFieldOperation::fromUnchecked(op.power(exponent), type);
   }
   PrimeFieldOperation inverse() const {
