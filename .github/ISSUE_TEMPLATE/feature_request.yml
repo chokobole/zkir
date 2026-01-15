@@ -1,0 +1,58 @@
+name: "Feature Request"
+description: "Propose a new idea or improvement"
+title: "[FEAT] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### Welcome!
+        Thank you for helping us improve. Please describe your proposal below.
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: "Goal"
+      description: "What is the primary objective of this request?"
+      placeholder: "Describe what you want to achieve (e.g., support for a new feature, optimization, or tool)."
+    validations:
+      required: true
+
+  - type: textarea
+    id: background
+    attributes:
+      label: "Context & Rationale"
+      description: "Why is this needed? Explain the current limitations or technical background."
+      placeholder: "Explain the 'Why'. Provide any context that helps us understand the importance of this request."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed_tasks
+    attributes:
+      label: "Proposed Implementation / Tasks"
+      description: "How should this be implemented? List any specific tasks if known."
+      placeholder: |
+        You can use markdown checkboxes here:
+        - [ ] Task 1
+        - [ ] Task 2
+    validations:
+      required: false
+
+  - type: textarea
+    id: success_criteria
+    attributes:
+      label: "Success Criteria"
+      description: "How will we know this feature is successfully implemented?"
+      placeholder: "List specific outcomes, test cases, or performance goals."
+    validations:
+      required: true
+
+  - type: textarea
+    id: references
+    attributes:
+      label: "References"
+      description: "Link to any relevant research, existing issues, or documentation."
+      placeholder: "Links to papers, PRs, or other related materials."
+    validations:
+      required: false
