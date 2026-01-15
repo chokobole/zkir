@@ -30,7 +30,8 @@ namespace mlir::prime_ir::mod_arith {
 class ModArithOperation {
 public:
   ModArithOperation() = default;
-  ModArithOperation(APInt value, ModArithType type) : value(value), type(type) {
+  ModArithOperation(const APInt &value, ModArithType type)
+      : value(value), type(type) {
     assert(value.ult(type.getModulus().getValue()) && "value must less than P");
     if (type.isMontgomery()) {
       MontgomeryAttr montAttr = type.getMontgomeryAttr();
@@ -50,7 +51,8 @@ public:
   ModArithOperation(uint64_t value, ModArithType type)
       : ModArithOperation(APInt(type.getStorageBitWidth(), value), type) {}
 
-  static ModArithOperation fromUnchecked(APInt value, ModArithType type) {
+  static ModArithOperation fromUnchecked(const APInt &value,
+                                         ModArithType type) {
     ModArithOperation ret;
     ret.value = value;
     ret.type = type;
@@ -84,7 +86,7 @@ public:
   ModArithOperation operator-() const;
   ModArithOperation dbl() const;
   ModArithOperation square() const;
-  ModArithOperation power(APInt exponent) const;
+  ModArithOperation power(const APInt &exponent) const;
   ModArithOperation inverse() const;
 
   ModArithOperation fromMont() const;

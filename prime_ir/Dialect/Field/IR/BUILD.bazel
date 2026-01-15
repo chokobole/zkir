@@ -50,6 +50,7 @@ cc_library(
 cc_library(
     name = "Field",
     srcs = [
+        "ExtensionFieldOperation.cpp",
         "FieldAttributes.cpp",
         "FieldDialect.cpp",
         "FieldOperation.cpp",
@@ -57,11 +58,13 @@ cc_library(
         "FieldTypes.cpp",
     ],
     hdrs = [
+        "ExtensionFieldOperation.h",
         "FieldAttributes.h",
         "FieldDialect.h",
         "FieldOperation.h",
         "FieldOps.h",
         "FieldTypes.h",
+        "PrimeFieldOperation.h",
     ],
     deps = [
         ":ExtensionFieldOperationSelector",
@@ -76,6 +79,7 @@ cc_library(
         "//prime_ir/Utils:ConstantFolder",
         "//prime_ir/Utils:KnownModulus",
         "//prime_ir/Utils:OpUtils",
+        "//prime_ir/Utils:Power",
         "//prime_ir/Utils:SimpleStructBuilder",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",

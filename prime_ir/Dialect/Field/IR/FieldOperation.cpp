@@ -17,10 +17,6 @@
 
 namespace mlir::prime_ir::field {
 
-template class ExtensionFieldOperation<2>;
-template class ExtensionFieldOperation<3>;
-template class ExtensionFieldOperation<4>;
-
 FieldOperation::operator APInt() const {
   if (auto pfOperation = std::get_if<PrimeFieldOperation>(&operation)) {
     return static_cast<APInt>(*pfOperation);
@@ -51,11 +47,11 @@ FieldOperation applyUnaryOp(const FieldOperation::OperationType &operation,
                     operation);
 }
 
-template <typename F>
-FieldOperation applyBinaryOp(const FieldOperation::OperationType &a,
-                             const FieldOperation::OperationType &b, F op) {
+template <typename R, typename F>
+R applyBinaryOp(const FieldOperation::OperationType &a,
+                const FieldOperation::OperationType &b, F op) {
   return std::visit(
-      [&](const auto &lhs, const auto &rhs) -> FieldOperation {
+      [&](const auto &lhs, const auto &rhs) -> R {
         if constexpr (std::is_same_v<std::decay_t<decltype(lhs)>,
                                      std::decay_t<decltype(rhs)>>) {
           return op(lhs, rhs);
@@ -68,18 +64,21 @@ FieldOperation applyBinaryOp(const FieldOperation::OperationType &a,
 } // namespace
 
 FieldOperation FieldOperation::operator+(const FieldOperation &other) const {
-  return applyBinaryOp(operation, other.operation,
-                       [](const auto &a, const auto &b) { return a + b; });
+  return applyBinaryOp<FieldOperation>(
+      operation, other.operation,
+      [](const auto &a, const auto &b) { return a + b; });
 }
 
 FieldOperation FieldOperation::operator-(const FieldOperation &other) const {
-  return applyBinaryOp(operation, other.operation,
-                       [](const auto &a, const auto &b) { return a - b; });
+  return applyBinaryOp<FieldOperation>(
+      operation, other.operation,
+      [](const auto &a, const auto &b) { return a - b; });
 }
 
 FieldOperation FieldOperation::operator*(const FieldOperation &other) const {
-  return applyBinaryOp(operation, other.operation,
-                       [](const auto &a, const auto &b) { return a * b; });
+  return applyBinaryOp<FieldOperation>(
+      operation, other.operation,
+      [](const auto &a, const auto &b) { return a * b; });
 }
 
 FieldOperation FieldOperation::operator-() const {
@@ -87,15 +86,37 @@ FieldOperation FieldOperation::operator-() const {
 }
 
 FieldOperation FieldOperation::dbl() const {
-  return applyUnaryOp(operation, [](const auto &v) { return v.Double(); });
+  return applyUnaryOp(operation, [](const auto &v) { return v.dbl(); });
 }
 
 FieldOperation FieldOperation::square() const {
-  return applyUnaryOp(operation, [](const auto &v) { return v.Square(); });
+  return applyUnaryOp(operation, [](const auto &v) { return v.square(); });
+}
+
+FieldOperation FieldOperation::power(const APInt &exponent) const {
+  return applyUnaryOp(operation,
+                      [&](const auto &v) { return v.power(exponent); });
 }
 
 FieldOperation FieldOperation::inverse() const {
-  return applyUnaryOp(operation, [](const auto &v) { return v.Inverse(); });
+  return applyUnaryOp(operation, [](const auto &v) { return v.inverse(); });
+}
+
+bool FieldOperation::operator==(const FieldOperation &other) const {
+  return applyBinaryOp<bool>(
+      operation, other.operation,
+      [](const auto &a, const auto &b) { return a == b; });
+}
+
+bool FieldOperation::operator!=(const FieldOperation &other) const {
+  return applyBinaryOp<bool>(
+      operation, other.operation,
+      [](const auto &a, const auto &b) { return a != b; });
+}
+
+raw_ostream &operator<<(raw_ostream &os, const FieldOperation &op) {
+  return std::visit([&](const auto &v) -> raw_ostream & { return os << v; },
+                    op.operation);
 }
 
 } // namespace mlir::prime_ir::field

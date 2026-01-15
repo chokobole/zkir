@@ -66,41 +66,15 @@ LogicalResult
 ShortWeierstrassAttr::verify(llvm::function_ref<InFlightDiagnostic()> emitError,
                              Type baseField, TypedAttr a, TypedAttr b,
                              TypedAttr gX, TypedAttr gY) {
-  if (auto pfType = dyn_cast<field::PrimeFieldType>(baseField)) {
-    if (!isa<IntegerAttr>(a) || !isa<IntegerAttr>(b) || !isa<IntegerAttr>(gX) ||
-        !isa<IntegerAttr>(gY)) {
-      emitError() << "a, b, gX, and gY must be integer attributes";
-      return failure();
-    }
-
-    auto aOp =
-        field::PrimeFieldOperation::fromUnchecked(cast<IntegerAttr>(a), pfType);
-    auto bOp =
-        field::PrimeFieldOperation::fromUnchecked(cast<IntegerAttr>(b), pfType);
-    auto gXOp = field::PrimeFieldOperation::fromUnchecked(cast<IntegerAttr>(gX),
-                                                          pfType);
-    auto gYOp = field::PrimeFieldOperation::fromUnchecked(cast<IntegerAttr>(gY),
-                                                          pfType);
-
-    if (gYOp.square() != gXOp.square() * gXOp + aOp * gXOp + bOp) {
-      emitError()
-          << "a, b, gX, and gY must satisfy the equation y² = x³ + ax + b";
-      return failure();
-    }
-  } else if (auto efType =
-                 dyn_cast<field::ExtensionFieldTypeInterface>(baseField)) {
-    if (!isa<DenseIntElementsAttr>(a) || !isa<DenseIntElementsAttr>(b) ||
-        !isa<DenseIntElementsAttr>(gX) || !isa<DenseIntElementsAttr>(gY)) {
-      emitError()
-          << "a, b, gX, and gY must be dense integer elements attributes";
-      return failure();
-    }
-    // TODO(chokobole): Implement this...
-  } else {
-    emitError() << "base field must be a prime field or an extension field";
+  auto aOp = field::FieldOperation::fromUnchecked(a, baseField);
+  auto bOp = field::FieldOperation::fromUnchecked(b, baseField);
+  auto gXOp = field::FieldOperation::fromUnchecked(gX, baseField);
+  auto gYOp = field::FieldOperation::fromUnchecked(gY, baseField);
+  if (gYOp.square() != gXOp.square() * gXOp + aOp * gXOp + bOp) {
+    emitError()
+        << "a, b, gX, and gY must satisfy the equation y² = x³ + ax + b";
     return failure();
   }
-
   return success();
 }
 

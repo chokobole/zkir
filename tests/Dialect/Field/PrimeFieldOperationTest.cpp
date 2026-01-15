@@ -1,4 +1,4 @@
-/* Copyright 2025 The PrimeIR Authors.
+/* Copyright 2026 The PrimeIR Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,37 +13,37 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include "prime_ir/Dialect/ModArith/IR/ModArithOperation.h"
+#include "prime_ir/Dialect/Field/IR/PrimeFieldOperation.h"
 
 #include "gtest/gtest.h"
 #include "llvm/ADT/bit.h"
 #include "mlir/IR/BuiltinAttributes.h"
-#include "prime_ir/Dialect/ModArith/IR/ModArithDialect.h"
-#include "prime_ir/Dialect/ModArith/IR/ModArithTypes.h"
+#include "prime_ir/Dialect/Field/IR/FieldDialect.h"
+#include "prime_ir/Dialect/Field/IR/FieldTypes.h"
 #include "prime_ir/Utils/ZkDtypes.h"
 #include "zk_dtypes/include/elliptic_curve/bn/bn254/fr.h"
 #include "zk_dtypes/include/field/babybear/babybear.h"
 #include "zk_dtypes/include/field/goldilocks/goldilocks.h"
 
-namespace mlir::prime_ir::mod_arith {
+namespace mlir::prime_ir::field {
 
 template <typename F>
-class ModArithOperationTest : public testing::Test {
+class PrimeFieldOperationTest : public testing::Test {
 public:
   static void SetUpTestSuite() {
-    context.loadDialect<ModArithDialect>();
+    context.loadDialect<FieldDialect>();
     auto modulusBits = llvm::bit_ceil(F::Config::kModulusBits);
     IntegerAttr modulus =
         IntegerAttr::get(IntegerType::get(&context, modulusBits),
                          convertToAPInt(F::Config::kModulus, modulusBits));
-    modArithType = ModArithType::get(&context, modulus, F::kUseMontgomery);
+    pfType = PrimeFieldType::get(&context, modulus, F::kUseMontgomery);
   }
 
   void runBinaryOperationTest(
       std::function<F(const F &, const F &)> f_operation,
-      std::function<ModArithOperation(const ModArithOperation &,
-                                      const ModArithOperation &)>
-          m_operation,
+      std::function<PrimeFieldOperation(const PrimeFieldOperation &,
+                                        const PrimeFieldOperation &)>
+          p_operation,
       bool bMustBeNonZero = false) {
     auto a = F::Random();
     auto b = F::Random();
@@ -52,26 +52,28 @@ public:
         b = F::Random();
       }
     }
-    runBinaryOperationTest(f_operation, m_operation, a, b);
+    runBinaryOperationTest(f_operation, p_operation, a, b);
   }
 
   void runBinaryOperationTest(
       std::function<F(const F &, const F &)> f_operation,
-      std::function<ModArithOperation(const ModArithOperation &,
-                                      const ModArithOperation &)>
-          m_operation,
+      std::function<PrimeFieldOperation(const PrimeFieldOperation &,
+                                        const PrimeFieldOperation &)>
+          p_operation,
       const F &a, const F &b) {
-    auto modA = ModArithOperation::fromUnchecked(convertToAPInt(a.value()),
-                                                 modArithType);
-    auto modB = ModArithOperation::fromUnchecked(convertToAPInt(b.value()),
-                                                 modArithType);
+    auto pfA =
+        PrimeFieldOperation::fromUnchecked(convertToAPInt(a.value()), pfType);
+    auto pfB =
+        PrimeFieldOperation::fromUnchecked(convertToAPInt(b.value()), pfType);
     auto c = f_operation(a, b);
-    EXPECT_EQ(convertToAPInt(c.value()), m_operation(modA, modB));
+    EXPECT_EQ(convertToAPInt(c.value()),
+              static_cast<APInt>(p_operation(pfA, pfB)));
   }
 
   void runUnaryOperationTest(
       std::function<F(const F &)> f_operation,
-      std::function<ModArithOperation(const ModArithOperation &)> m_operation,
+      std::function<PrimeFieldOperation(const PrimeFieldOperation &)>
+          p_operation,
       bool aMustBeNonZero = false) {
     auto a = F::Random();
     if (aMustBeNonZero) {
@@ -79,28 +81,29 @@ public:
         a = F::Random();
       }
     }
-    runUnaryOperationTest(f_operation, m_operation, a);
+    runUnaryOperationTest(f_operation, p_operation, a);
   }
 
   void runUnaryOperationTest(
       std::function<F(const F &)> f_operation,
-      std::function<ModArithOperation(const ModArithOperation &)> m_operation,
+      std::function<PrimeFieldOperation(const PrimeFieldOperation &)>
+          p_operation,
       const F &a) {
-    auto modA = ModArithOperation::fromUnchecked(convertToAPInt(a.value()),
-                                                 modArithType);
+    auto pfA =
+        PrimeFieldOperation::fromUnchecked(convertToAPInt(a.value()), pfType);
     auto c = f_operation(a);
-    EXPECT_EQ(convertToAPInt(c.value()), m_operation(modA));
+    EXPECT_EQ(convertToAPInt(c.value()), static_cast<APInt>(p_operation(pfA)));
   }
 
   static MLIRContext context;
-  static ModArithType modArithType;
+  static PrimeFieldType pfType;
 };
 
 template <typename F>
-MLIRContext ModArithOperationTest<F>::context;
+MLIRContext PrimeFieldOperationTest<F>::context;
 
 template <typename F>
-ModArithType ModArithOperationTest<F>::modArithType;
+PrimeFieldType PrimeFieldOperationTest<F>::pfType;
 
 using PrimeFieldTypes = testing::Types<
     // modulus bits = 2³¹
@@ -115,129 +118,129 @@ using PrimeFieldTypes = testing::Types<
     // modulus.getBitWidth() == 254
     // modulus.getActiveBits() == 254
     zk_dtypes::bn254::Fr, zk_dtypes::bn254::FrStd>;
-TYPED_TEST_SUITE(ModArithOperationTest, PrimeFieldTypes);
+TYPED_TEST_SUITE(PrimeFieldOperationTest, PrimeFieldTypes);
 
 //===----------------------------------------------------------------------===//
 // Binary Operations
 //===----------------------------------------------------------------------===//
 
-TYPED_TEST(ModArithOperationTest, Add) {
+TYPED_TEST(PrimeFieldOperationTest, Add) {
   using PrimeFieldType = TypeParam;
 
   this->runBinaryOperationTest(
       [](const PrimeFieldType &a, const PrimeFieldType &b) { return a + b; },
-      [](const ModArithOperation &a, const ModArithOperation &b) {
+      [](const PrimeFieldOperation &a, const PrimeFieldOperation &b) {
         return a + b;
       });
 }
 
-TYPED_TEST(ModArithOperationTest, AddOverflow) {
+TYPED_TEST(PrimeFieldOperationTest, AddOverflow) {
   using PrimeFieldType = TypeParam;
 
   this->runBinaryOperationTest(
       [](const PrimeFieldType &a, const PrimeFieldType &b) { return a + b; },
-      [](const ModArithOperation &a, const ModArithOperation &b) {
+      [](const PrimeFieldOperation &a, const PrimeFieldOperation &b) {
         return a + b;
       },
       PrimeFieldType::Max(), PrimeFieldType::Random());
 }
 
-TYPED_TEST(ModArithOperationTest, Sub) {
+TYPED_TEST(PrimeFieldOperationTest, Sub) {
   using PrimeFieldType = TypeParam;
 
   this->runBinaryOperationTest(
       [](const PrimeFieldType &a, const PrimeFieldType &b) { return a - b; },
-      [](const ModArithOperation &a, const ModArithOperation &b) {
+      [](const PrimeFieldOperation &a, const PrimeFieldOperation &b) {
         return a - b;
       });
 }
 
-TYPED_TEST(ModArithOperationTest, SubOverflow) {
+TYPED_TEST(PrimeFieldOperationTest, SubOverflow) {
   using PrimeFieldType = TypeParam;
 
   this->runBinaryOperationTest(
       [](const PrimeFieldType &a, const PrimeFieldType &b) { return a - b; },
-      [](const ModArithOperation &a, const ModArithOperation &b) {
+      [](const PrimeFieldOperation &a, const PrimeFieldOperation &b) {
         return a - b;
       },
       PrimeFieldType::Zero(), PrimeFieldType::Random());
 }
 
-TYPED_TEST(ModArithOperationTest, Mul) {
+TYPED_TEST(PrimeFieldOperationTest, Mul) {
   using PrimeFieldType = TypeParam;
 
   this->runBinaryOperationTest(
       [](const PrimeFieldType &a, const PrimeFieldType &b) { return a * b; },
-      [](const ModArithOperation &a, const ModArithOperation &b) {
+      [](const PrimeFieldOperation &a, const PrimeFieldOperation &b) {
         return a * b;
       });
 }
 
-TYPED_TEST(ModArithOperationTest, Div) {
+TYPED_TEST(PrimeFieldOperationTest, Div) {
   using PrimeFieldType = TypeParam;
 
   this->runBinaryOperationTest(
       [](const PrimeFieldType &a, const PrimeFieldType &b) { return a / b; },
-      [](const ModArithOperation &a, const ModArithOperation &b) {
+      [](const PrimeFieldOperation &a, const PrimeFieldOperation &b) {
         return a / b;
       },
       /*bMustBeNonZero=*/true);
 }
 
-TYPED_TEST(ModArithOperationTest, Cmp) {
+TYPED_TEST(PrimeFieldOperationTest, Cmp) {
   using PrimeFieldType = TypeParam;
 
   auto a = PrimeFieldType::Random();
   auto b = PrimeFieldType::Random();
-  auto modA = ModArithOperation::fromUnchecked(convertToAPInt(a.value()),
-                                               this->modArithType);
-  auto modB = ModArithOperation::fromUnchecked(convertToAPInt(b.value()),
-                                               this->modArithType);
+  auto pfA = PrimeFieldOperation::fromUnchecked(convertToAPInt(a.value()),
+                                                this->pfType);
+  auto pfB = PrimeFieldOperation::fromUnchecked(convertToAPInt(b.value()),
+                                                this->pfType);
 
-  EXPECT_EQ(a < b, modA < modB);
-  EXPECT_EQ(a <= b, modA <= modB);
-  EXPECT_EQ(a > b, modA > modB);
-  EXPECT_EQ(a >= b, modA >= modB);
-  EXPECT_EQ(a == b, modA == modB);
-  EXPECT_EQ(a != b, modA != modB);
+  EXPECT_EQ(a < b, pfA < pfB);
+  EXPECT_EQ(a <= b, pfA <= pfB);
+  EXPECT_EQ(a > b, pfA > pfB);
+  EXPECT_EQ(a >= b, pfA >= pfB);
+  EXPECT_EQ(a == b, pfA == pfB);
+  EXPECT_EQ(a != b, pfA != pfB);
 }
 
 //===----------------------------------------------------------------------===//
 // Unary Operations
 //===----------------------------------------------------------------------===//
 
-TYPED_TEST(ModArithOperationTest, Negate) {
+TYPED_TEST(PrimeFieldOperationTest, Negate) {
   using PrimeFieldType = TypeParam;
 
   this->runUnaryOperationTest([](const PrimeFieldType &a) { return -a; },
-                              [](const ModArithOperation &a) { return -a; });
+                              [](const PrimeFieldOperation &a) { return -a; });
 }
 
-TYPED_TEST(ModArithOperationTest, NegateZero) {
+TYPED_TEST(PrimeFieldOperationTest, NegateZero) {
   using PrimeFieldType = TypeParam;
 
   this->runUnaryOperationTest([](const PrimeFieldType &a) { return -a; },
-                              [](const ModArithOperation &a) { return -a; },
+                              [](const PrimeFieldOperation &a) { return -a; },
                               PrimeFieldType::Zero());
 }
 
-TYPED_TEST(ModArithOperationTest, Double) {
+TYPED_TEST(PrimeFieldOperationTest, Double) {
   using PrimeFieldType = TypeParam;
 
   this->runUnaryOperationTest(
       [](const PrimeFieldType &a) { return a.Double(); },
-      [](const ModArithOperation &a) { return a.dbl(); });
+      [](const PrimeFieldOperation &a) { return a.dbl(); });
 }
 
-TYPED_TEST(ModArithOperationTest, Square) {
+TYPED_TEST(PrimeFieldOperationTest, Square) {
   using PrimeFieldType = TypeParam;
 
   this->runUnaryOperationTest(
       [](const PrimeFieldType &a) { return a.Square(); },
-      [](const ModArithOperation &a) { return a.square(); });
+      [](const PrimeFieldOperation &a) { return a.square(); });
 }
 
-TYPED_TEST(ModArithOperationTest, Power) {
+TYPED_TEST(PrimeFieldOperationTest, Power) {
   using PrimeFieldType = TypeParam;
 
   uint32_t exponents[] = {
@@ -252,7 +255,7 @@ TYPED_TEST(ModArithOperationTest, Power) {
     // can still test the power operations using runUnaryOperationTest.
     this->runUnaryOperationTest(
         [exponent](const PrimeFieldType &a) { return a.Pow(exponent); },
-        [exponent](const ModArithOperation &a) {
+        [exponent](const PrimeFieldOperation &a) {
           auto modulusBits =
               llvm::bit_ceil(PrimeFieldType::Config::kModulusBits);
           return a.power(convertToAPInt(exponent, modulusBits));
@@ -260,16 +263,16 @@ TYPED_TEST(ModArithOperationTest, Power) {
   }
 }
 
-TYPED_TEST(ModArithOperationTest, Inverse) {
+TYPED_TEST(PrimeFieldOperationTest, Inverse) {
   using PrimeFieldType = TypeParam;
 
   this->runUnaryOperationTest(
       [](const PrimeFieldType &a) { return a.Inverse(); },
-      [](const ModArithOperation &a) { return a.inverse(); },
+      [](const PrimeFieldOperation &a) { return a.inverse(); },
       /*aMustBeNonZero=*/true);
 }
 
-TYPED_TEST(ModArithOperationTest, FromMont) {
+TYPED_TEST(PrimeFieldOperationTest, FromMont) {
   using PrimeFieldType = TypeParam;
 
   if constexpr (!PrimeFieldType::kUseMontgomery) {
@@ -279,7 +282,7 @@ TYPED_TEST(ModArithOperationTest, FromMont) {
         [](const PrimeFieldType &a) {
           return PrimeFieldType::FromUnchecked(a.MontReduce().value());
         },
-        [](const ModArithOperation &a) { return a.fromMont(); });
+        [](const PrimeFieldOperation &a) { return a.fromMont(); });
   }
 }
 
@@ -289,7 +292,7 @@ TYPED_TEST(ModArithOperationTest, FromMont) {
 // Note: This conversion is primarily intended for testing internal
 // representation consistency and is not required for production workflows.
 // Disabling this test for now as it lacks the necessary type-mapping helpers.
-TYPED_TEST(ModArithOperationTest, DISABLED_ToMont) {
+TYPED_TEST(PrimeFieldOperationTest, DISABLED_ToMont) {
   using PrimeFieldType = TypeParam;
 
   if constexpr (PrimeFieldType::kUseMontgomery) {
@@ -297,33 +300,33 @@ TYPED_TEST(ModArithOperationTest, DISABLED_ToMont) {
   } else {
     this->runUnaryOperationTest(
         [](const PrimeFieldType &a) { return PrimeFieldType(a.value()); },
-        [](const ModArithOperation &a) { return a.toMont(); });
+        [](const PrimeFieldOperation &a) { return a.toMont(); });
   }
 }
 
-TYPED_TEST(ModArithOperationTest, IsZero) {
+TYPED_TEST(PrimeFieldOperationTest, IsZero) {
   using PrimeFieldType = TypeParam;
 
   auto zero = PrimeFieldType::Zero();
-  auto modZero = ModArithOperation::fromUnchecked(convertToAPInt(zero.value()),
-                                                  this->modArithType);
-  EXPECT_TRUE(modZero.isZero());
-  EXPECT_FALSE(modZero.isOne());
+  auto pfZero = PrimeFieldOperation::fromUnchecked(convertToAPInt(zero.value()),
+                                                   this->pfType);
+  EXPECT_TRUE(pfZero.isZero());
+  EXPECT_FALSE(pfZero.isOne());
 
   auto one = PrimeFieldType::One();
-  auto modOne = ModArithOperation::fromUnchecked(convertToAPInt(one.value()),
-                                                 this->modArithType);
-  EXPECT_FALSE(modOne.isZero());
-  EXPECT_TRUE(modOne.isOne());
+  auto pfOne = PrimeFieldOperation::fromUnchecked(convertToAPInt(one.value()),
+                                                  this->pfType);
+  EXPECT_FALSE(pfOne.isZero());
+  EXPECT_TRUE(pfOne.isOne());
 
   auto rnd = PrimeFieldType::Random();
   while (rnd.IsZero() || rnd.IsOne()) {
     rnd = PrimeFieldType::Random();
   }
-  auto modRnd = ModArithOperation::fromUnchecked(convertToAPInt(rnd.value()),
-                                                 this->modArithType);
-  EXPECT_FALSE(modRnd.isZero());
-  EXPECT_FALSE(modRnd.isOne());
+  auto pfRnd = PrimeFieldOperation::fromUnchecked(convertToAPInt(rnd.value()),
+                                                  this->pfType);
+  EXPECT_FALSE(pfRnd.isZero());
+  EXPECT_FALSE(pfRnd.isOne());
 }
 
-} // namespace mlir::prime_ir::mod_arith
+} // namespace mlir::prime_ir::field

@@ -19,6 +19,8 @@ limitations under the License.
 #include <cstddef>
 #include <type_traits>
 
+#include "mlir/IR/BuiltinAttributes.h"
+#include "mlir/IR/BuiltinTypes.h"
 #include "zk_dtypes/include/big_int.h"
 
 namespace mlir::prime_ir {
@@ -36,6 +38,26 @@ APInt convertToAPInt(const zk_dtypes::BigInt<N> &value,
 template <typename T, std::enable_if_t<std::is_integral_v<T>> * = nullptr>
 APInt convertToAPInt(T value, unsigned bits = sizeof(T) * 8) {
   return APInt(bits, value);
+}
+
+template <typename F, size_t N>
+SmallVector<APInt> convertToAPInts(const std::array<F, N> &coeffs) {
+  SmallVector<APInt> result;
+  for (const auto &coeff : coeffs) {
+    result.push_back(convertToAPInt(coeff.value()));
+  }
+  return result;
+}
+
+template <typename T>
+IntegerAttr convertToIntegerAttr(MLIRContext *context, const T &value) {
+  if constexpr (std::is_integral_v<T>) {
+    return IntegerAttr::get(IntegerType::get(context, sizeof(T) * 8),
+                            convertToAPInt(value));
+  } else {
+    auto type = IntegerType::get(context, T::kBitWidth);
+    return IntegerAttr::get(type, convertToAPInt(value));
+  }
 }
 
 } // namespace mlir::prime_ir
